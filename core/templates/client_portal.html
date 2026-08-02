@@ -1,0 +1,257 @@
+{% load static core_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>Client Portal — Tawazon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: #f1f5f9; color: #0f172a; overflow-x: hidden; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: linear-gradient(120deg, #0f4a29, #1a6b3c 65%, #0d3d22);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    }
+    .topbar .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-logo {
+      background: white;
+      border-radius: 9px;
+      padding: 6px 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-logo img { height: 24px; width: auto; display: block; }
+    .brand .sub  { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+    .logout {
+      color: white; text-decoration: none;
+      font-size: 12.5px; font-weight: 700;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.22);
+      padding: 8px 14px; border-radius: 9px;
+      display: inline-flex; align-items: center; gap: 7px;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    .logout:hover { background: rgba(255,255,255,0.24); }
+    .logout span { display: inline; }
+
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 20px 40px; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px; padding: 24px 26px;
+      background: linear-gradient(125deg, #14532d, #1a6b3c 55%, #0f4a29);
+      color: white; box-shadow: 0 14px 34px rgba(15,74,41,0.28);
+    }
+    .hero::before, .hero::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,0.07); }
+    .hero::before { width: 260px; height: 260px; right: -80px; top: -130px; }
+    .hero::after  { width: 160px; height: 160px; right: 140px; bottom: -100px; background: rgba(255,255,255,0.05); }
+    .hero-inner { position: relative; z-index: 1; }
+    .hero h1 { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 5px; line-height: 1.25; word-break: break-word; }
+    .hero p  { font-size: 12.5px; color: rgba(255,255,255,0.82); font-weight: 500; }
+    .hero p .dot { opacity: 0.6; margin: 0 6px; }
+
+    /* ── KPI cards ── */
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .card {
+      position: relative; overflow: hidden;
+      background: white; border-radius: 15px; padding: 16px 16px 14px;
+      border: 2px solid #cbd5e1;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.05), 0 6px 16px rgba(15,23,42,0.04);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(15,23,42,0.10); }
+    .card::after {
+      content: ''; position: absolute; width: 100px; height: 100px; border-radius: 50%; right: -34px; top: -34px;
+      background: radial-gradient(circle, color-mix(in srgb, var(--acc) 14%, transparent), transparent 70%);
+    }
+    .card .ico {
+      position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; z-index: 1;
+      background: linear-gradient(135deg, var(--acc), var(--acc2));
+      box-shadow: 0 5px 12px color-mix(in srgb, var(--acc) 38%, transparent);
+    }
+    .card .label { font-size: 10.5px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-right: 42px; }
+    .card .value { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; word-break: break-word; }
+    .card .value small { font-size: 11px; color: #94a3b8; font-weight: 700; }
+    .c-blue   { --acc: #3b82f6; --acc2: #1d4ed8; }
+    .c-green  { --acc: #10b981; --acc2: #047857; }
+    .c-purple { --acc: #8b5cf6; --acc2: #6d28d9; }
+    .c-amber  { --acc: #f59e0b; --acc2: #d97706; }
+
+    /* ── Panel ── */
+    .panel { background: white; border-radius: 16px; overflow: hidden;
+             border: 2px solid #cbd5e1;
+             box-shadow: 0 1px 3px rgba(15,23,42,0.05), 0 6px 16px rgba(15,23,42,0.04); }
+    .panel-head { padding: 16px 20px; border-bottom: 2px solid #cbd5e1; background: #f8fafc; display: flex; align-items: center; gap: 10px; }
+    .panel-head .ico-badge {
+      width: 30px; height: 30px; border-radius: 9px; background: #ecfdf5; color: #059669;
+      display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+    }
+    .panel-head .title { font-weight: 800; font-size: 14.5px; color: #0f172a; }
+    .panel-head .count { margin-left: auto; font-size: 12px; color: #94a3b8; font-weight: 600; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 13px 20px; font-size: 13.5px; }
+    th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    tbody tr { border-top: 1px solid #f1f5f9; }
+    tbody tr:hover { background: #f8fafc; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.case-id { font-weight: 700; color: #0f172a; }
+    td.debtor { color: #334155; }
+
+    .badge {
+      display: inline-block; padding: 4px 11px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; text-transform: capitalize;
+      background: #f1f5f9; color: #475569;
+    }
+    .badge.active        { background: #dcfce7; color: #15803d; }
+    .badge.closed,
+    .badge.closed_by_client { background: #f1f5f9; color: #64748b; }
+    .badge.broken_promise { background: #fef3c7; color: #b45309; }
+    .badge.contactable    { background: #dbeafe; color: #1d4ed8; }
+    .badge.promise_to_pay { background: #ccfbf1; color: #0d9488; }
+    .badge.under_tracing  { background: #f3e8ff; color: #6b21a8; }
+    .badge.refuse_to_pay  { background: #fee2e2; color: #991b1b; }
+    .badge.legal_action_approved { background: #fef3c7; color: #92400e; }
+
+    .empty { padding: 46px 20px; text-align: center; color: #94a3b8; font-size: 13.5px; font-weight: 600; }
+    .empty i { display: block; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: linear-gradient(135deg,#f1f5f9,#f8fafc);
+      display: flex; align-items: center; justify-content: center; font-size: 24px; color: #cbd5e1; box-shadow: inset 0 0 0 1px #e8ecf3; }
+    .view-link { color: #1a6b3c; font-weight: 700; text-decoration: none; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .view-link:hover { text-decoration: underline; }
+    .view-link i { font-size: 10px; }
+
+    /* ── Mobile: table becomes a stacked card list ── */
+    @media (max-width: 720px) {
+      .cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .wrap { padding: 14px 12px 32px; }
+      .hero { padding: 20px 18px; border-radius: 15px; }
+      .hero h1 { font-size: 18px; }
+      .logout span { display: none; }
+      .logout { padding: 9px 11px; }
+
+      table, thead, tbody, th, tr, td { display: block; }
+      thead { display: none; }
+      tbody tr {
+        border: none; border-bottom: 1px solid #f1f5f9;
+        padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 4px 10px; position: relative;
+      }
+      tbody tr:last-child { border-bottom: none; }
+      td { padding: 0; font-size: 13px; border: none; }
+      td.serial { display: none; }
+      td.case-id { width: 100%; font-size: 14px; }
+      td.ref { width: 100%; color: #94a3b8; font-size: 11.5px; font-weight: 600; margin-bottom: 2px; }
+      td.ref::before { content: 'Ref: '; }
+      td.debtor { width: 100%; color: #64748b; font-size: 12.5px; margin-bottom: 4px; }
+      td.num, td.status-cell { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; }
+      td.num::before { content: attr(data-label) ': '; font-weight: 700; color: #94a3b8; }
+      td.num { flex: 1 1 auto; }
+      td.action-cell { position: absolute; top: 14px; right: 16px; }
+    }
+    @media (max-width: 420px) {
+      .cards { grid-template-columns: 1fr 1fr; }
+      .card .value { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo">
+        <img src="{% static 'logo.png' %}" alt="Tawazon">
+      </div>
+      <div class="sub">Client Portal</div>
+    </div>
+    <a class="logout" href="{% url 'client_portal_logout' %}"><i class="fas fa-right-from-bracket"></i> <span>Sign out</span></a>
+  </div>
+
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-inner">
+        <h1>Welcome, {{ client.name }}</h1>
+        <p>Signed in as {{ access.email }}{% if client.client_id %}<span class="dot">•</span>{{ client.client_id }}{% endif %}</p>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card c-blue">
+        <div class="ico"><i class="fas fa-folder-open"></i></div>
+        <div class="label">Total Cases</div>
+        <div class="value">{{ total_cases }}</div>
+      </div>
+      <div class="card c-green">
+        <div class="ico"><i class="fas fa-file-invoice-dollar"></i></div>
+        <div class="label">Approved</div>
+        <div class="value">{{ total_approved|omr }}</div>
+      </div>
+      <div class="card c-purple">
+        <div class="ico"><i class="fas fa-coins"></i></div>
+        <div class="label">Received</div>
+        <div class="value">{{ total_received|omr }}</div>
+      </div>
+      <div class="card c-amber">
+        <div class="ico"><i class="fas fa-hourglass-half"></i></div>
+        <div class="label">Remaining</div>
+        <div class="value">{{ total_remaining|omr }}</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <span class="ico-badge"><i class="fas fa-briefcase"></i></span>
+        <span class="title">Your Cases</span>
+        {% if rows %}<span class="count">{{ rows|length }} case{{ rows|length|pluralize }}</span>{% endif %}
+      </div>
+      {% if rows %}
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Case ID</th>
+            <th>Client Ref (Account No)</th>
+            <th>Debtor</th>
+            <th class="num">Approved</th>
+            <th class="num">Total Paid</th>
+            <th class="num">Remaining</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="serial">{{ forloop.counter }}</td>
+            <td class="case-id">{{ row.case.case_id }}</td>
+            <td class="ref">{{ row.case.account_no|default:"—" }}</td>
+            <td class="debtor">{{ row.case.debtor.name }}</td>
+            <td class="num" data-label="Approved">{% if row.perm.can_financial %}{{ row.case.approved_amount|omr }}{% else %}—{% endif %}</td>
+            <td class="num" data-label="Total Paid">{% if row.perm.can_financial %}{{ row.case.received_amount|omr }}{% else %}—{% endif %}</td>
+            <td class="num" data-label="Remaining">{% if row.perm.can_financial %}{{ row.case.remaining_amount|omr }}{% else %}—{% endif %}</td>
+            <td class="status-cell">{% if row.perm.can_status %}<span class="badge {{ row.case.status }}">{{ row.case.get_status_display }}</span>{% else %}—{% endif %}</td>
+            <td class="action-cell"><a class="view-link" href="{% url 'client_portal_case' row.case.pk %}">View <i class="fas fa-arrow-right"></i></a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><i class="fas fa-folder-open"></i>No cases have been shared with your account yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% include '_chat_client.html' %}
+</body>
+</html>

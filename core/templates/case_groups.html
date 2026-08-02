@@ -1,0 +1,848 @@
+{% extends "base.html" %}
+
+{% block title %}Case Groups{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; }
+  .filter-input:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  .panel-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .panel-title-bar h3 { font-size: 17px; font-weight: 700; }
+
+  .group-name-cell { font-weight: 700; color: var(--text-dark); font-size: 13px; background: #f8fafc; }
+  .data-table tbody tr:nth-child(even) { background: white; }
+  .data-table tbody tr:hover { background: #eaf7ef !important; }
+  .case-id-link { color: var(--primary); font-weight: 600; font-size: 12px; font-family: monospace; text-decoration: none; }
+  .case-id-link:hover { text-decoration: underline; }
+  .amt-cell { font-variant-numeric: tabular-nums; font-weight: 600; color: #15803d; }
+
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.active { background: #dcfce7; color: #166534; }
+  .badge.closed { background: #fee2e2; color: #991b1b; }
+  .badge.closed_by_client { background: #fef3c7; color: #92400e; }
+  .badge.contactable { background: #eff6ff; color: #1d4ed8; }
+  .badge.broken_promise { background: #fce7f3; color: #9d174d; }
+  .badge.promise_to_pay { background: #ccfbf1; color: #0d9488; }
+  .badge.under_tracing { background: #f3e8ff; color: #6b21a8; }
+  .badge.refuse_to_pay { background: #fee2e2; color: #991b1b; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 540px; width: 92%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  @keyframes modalIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-header h3 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; }
+  .modal-close:hover { background: #f1f5f9; }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
+  .modal-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; font-family: inherit; box-sizing: border-box; }
+  .modal-input:focus { border-color: var(--primary); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  .row-action-btn { background: white; border: 1.5px solid var(--border); padding: 6px 10px; border-radius: 7px; cursor: pointer; font-size: 12px; color: var(--text-muted); display: inline-flex; align-items: center; gap: 5px; }
+  .row-action-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .cg-ctx-menu { display: none; position: fixed; background: white; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.14); z-index: 3000; min-width: 200px; padding: 5px 0; }
+  .cg-ctx-menu.open { display: block; }
+  .cg-ctx-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 16px; background: none; border: none; font-size: 13px; color: var(--text-dark); cursor: pointer; text-align: left; font-family: inherit; }
+  .cg-ctx-item:hover { background: #f1f5f9; }
+  .cg-ctx-item i { width: 14px; text-align: center; color: var(--text-muted); font-size: 12px; }
+  .cg-ctx-item.danger { color: #dc2626; }
+  .cg-ctx-item.danger i { color: #dc2626; }
+  .cg-ctx-divider { height: 1px; background: var(--border); margin: 4px 0; }
+  .cg-case-list { max-height: 200px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 4px; }
+  .cg-case-list label { display: flex; align-items: center; gap: 9px; padding: 7px 10px; font-size: 13px; color: var(--text-dark); cursor: pointer; border-radius: 6px; font-weight: 500; }
+  .cg-case-list label:hover { background: #f1f5f9; }
+  .cg-case-list input[type="checkbox"] { accent-color: var(--primary); width: 15px; height: 15px; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Cases <span>— Case Groups</span></div>
+      <div class="breadcrumb-sub">{{ rows|length }} case(s) across groups</div>
+    </div>
+    <div>
+      <button class="btn-primary" onclick="document.getElementById('addGroupModal').classList.add('show')">
+        <i class="fas fa-plus"></i> Add Group
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-panel-title"><i class="fas fa-filter"></i> Filter Case Groups</div>
+    <form method="get">
+      <div class="filter-grid">
+{% if request.user.is_superuser %}
+        <div class="filter-group">
+          <label>Collector</label>
+          <select name="collector" class="filter-input">
+            <option value="">All Collectors</option>
+            {% for u in all_users %}
+            <option value="{{ u.id }}" {% if filter_collector == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+{% endif %}
+        <div class="filter-group">
+          <label>Debtor</label>
+          <select name="debtor" class="filter-input">
+            <option value="">All Debtors</option>
+            {% for d in all_debtors %}
+            <option value="{{ d.id }}" {% if filter_debtor == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Client</label>
+          <select name="client" class="filter-input">
+            <option value="">All Clients</option>
+            {% for c in all_clients %}
+            <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Agency</label>
+          <select name="agency" class="filter-input">
+            <option value="">All Agencies</option>
+            {% for a in all_agencies %}
+            <option value="{{ a.id }}" {% if filter_agency == a.id|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Case Received Date</label>
+          <input type="date" name="received_date" class="filter-input" value="{{ filter_received_date }}">
+        </div>
+        <div class="filter-group">
+          <label>Search By Account No</label>
+          <input type="text" name="account_no" class="filter-input" placeholder="Account No / Case ID..." value="{{ filter_account_no }}">
+        </div>
+        <div class="filter-group">
+          <label>Case Status</label>
+          <select name="status" class="filter-input">
+            <option value="">All Statuses</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if filter_status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> Submit</button>
+        <a href="{% url 'case_groups' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="data-card">
+    <div class="panel-title-bar">
+      <h3>Cases Groups</h3>
+    </div>
+
+    {% if rows %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Group Name</th>
+          <th>Client Name</th>
+          <th>Debtor Name</th>
+          <th>Case</th>
+          <th>Case Type</th>
+          <th>Total Outstanding</th>
+          <th>Collector</th>
+          <th>Case Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr {% if row.is_last %}style="border-bottom:2px solid #cbd5e1;"{% endif %}>
+          {% if row.is_first %}
+          <td rowspan="{{ row.rowspan }}" class="group-name-cell" style="vertical-align:middle;border-right:2px solid var(--border);">
+            <i class="fas fa-layer-group" style="color:var(--primary);margin-right:6px;font-size:11px;"></i>{{ row.group.name }}
+          </td>
+          {% endif %}
+          <td>{{ row.case.client.name }}</td>
+          <td>{{ row.case.debtor.name }}</td>
+          <td>
+            <a href="{% url 'case_detail' row.case.pk %}" class="case-id-link">{{ row.case.case_id }}</a>
+          </td>
+          <td>{{ row.case.case_type.name|default:"—" }}</td>
+          {% if row.is_first %}
+          <td rowspan="{{ row.rowspan }}" class="amt-cell" style="vertical-align:middle;border-right:2px solid var(--border);">
+            {{ row.group_total|floatformat:3 }} OMR
+          </td>
+          {% endif %}
+          <td>
+            {% if row.case.collector %}{{ row.case.collector.get_full_name|default:row.case.collector.username }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge {{ row.case.status }}">{{ row.case.get_status_display }}</span>
+          </td>
+          {% if row.is_first %}
+          <td rowspan="{{ row.rowspan }}" class="actions" style="position:relative;vertical-align:middle;border-left:2px solid var(--border);">
+            <button class="row-action-btn" onclick="openCtxMenu(event, {{ row.group.pk }})">
+              <i class="fas fa-bars"></i> <i class="fas fa-caret-down" style="font-size:10px;"></i>
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-layer-group"></i>
+        <p>No case groups yet. Select cases and use "Group Case" to create one.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Group context dropdown -->
+  <div class="cg-ctx-menu" id="cgCtxMenu">
+    <button class="cg-ctx-item" onclick="ctxDetails()"><i class="fas fa-eye"></i> Details</button>
+    <div class="cg-ctx-divider"></div>
+    <button class="cg-ctx-item" onclick="openGroupFuModal()"><i class="fas fa-phone-alt"></i> Add Follow Up</button>
+    <button class="cg-ctx-item" onclick="openGroupPayModal()"><i class="fas fa-money-bill-wave"></i> Add Payment</button>
+    <button class="cg-ctx-item" onclick="openGroupRemModal()"><i class="fas fa-bell"></i> Add Reminder</button>
+    <div class="cg-ctx-divider"></div>
+    <button class="cg-ctx-item" onclick="ctxChangeStatus()"><i class="fas fa-exchange-alt"></i> Change Status</button>
+    <button class="cg-ctx-item" onclick="ctxChangeCollector()"><i class="fas fa-user-tie"></i> Change Collector</button>
+    <button class="cg-ctx-item" onclick="ctxAddCase()"><i class="fas fa-folder-plus"></i> Add Case to Group</button>
+  </div>
+
+  <!-- Group Add Payment modal: one payment allocated across the group's cases -->
+  <div class="modal-overlay" id="gpModal">
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-money-bill-wave" style="color:var(--primary);"></i> Add Payment</h3>
+        <button class="modal-close" onclick="closeModal('gpModal')">&times;</button>
+      </div>
+
+      <div class="modal-field">
+        <label>Payment Mode</label>
+        <select id="gp-mode" class="modal-input">
+          <option value="">— Select Mode —</option>
+          {% for m in payment_modes %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="modal-field">
+          <label>Collection Date <span style="color:#dc2626;">*</span></label>
+          <input type="date" id="gp-date" class="modal-input" onchange="gpSyncDateMins(true)">
+        </div>
+        <div class="modal-field">
+          <label>Collection Currency</label>
+          <select id="gp-col-currency" class="modal-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Collection Amt <span style="color:#dc2626;">*</span></label>
+          <input type="number" id="gp-amount" class="modal-input" placeholder="0.000" step="0.001" min="0" oninput="gpTotalChanged()">
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label>Transfer Date</label>
+        <input type="date" id="gp-transfer-date" class="modal-input" onchange="gpSyncDateMins(true)">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="modal-field">
+          <label>Received Date</label>
+          <input type="date" id="gp-received-date" class="modal-input" onchange="gpSyncDateMins(true)">
+        </div>
+        <div class="modal-field">
+          <label>Received Currency</label>
+          <select id="gp-recv-currency" class="modal-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Received Amt</label>
+          <input type="number" id="gp-received-amount" class="modal-input" placeholder="0.000" step="0.001" min="0">
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label>Confirmation Date</label>
+        <input type="date" id="gp-confirm-date" class="modal-input" onchange="gpSyncDateMins(true)">
+      </div>
+
+      <div class="modal-field">
+        <label>Notes</label>
+        <input type="text" id="gp-notes" class="modal-input" placeholder="Optional notes...">
+      </div>
+
+      <div class="modal-field">
+        <label>Select Case IDs <span style="color:#dc2626;">*</span></label>
+        <div id="gp-case-list" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;"></div>
+      </div>
+
+      <div id="gp-tracker" style="display:flex;gap:18px;font-size:12.5px;font-weight:600;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;">
+        <span>Total: <span id="gp-tr-total">0.000</span></span>
+        <span>Allocated: <span id="gp-tr-alloc">0.000</span></span>
+        <span>Left: <span id="gp-tr-left" style="color:#059669;">0.000</span></span>
+      </div>
+      <div id="gp-error" style="display:none;color:#dc2626;font-size:12.5px;font-weight:600;margin-bottom:6px;"></div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('gpModal')">Close</button>
+        <button class="btn-primary" id="gp-save-btn" onclick="submitGroupPayment()"><i class="fas fa-check"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Reminder modal (reminder recorded for each selected case) -->
+  <div class="modal-overlay" id="cgRemModal">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-bell" style="color:var(--primary);"></i> Add Reminder</h3>
+        <button class="modal-close" onclick="closeModal('cgRemModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>Select Case IDs <span style="color:#dc2626;">*</span></label>
+        <div id="cgRemCaseList" class="cg-case-list"></div>
+      </div>
+      <div class="modal-field">
+        <label>Title <span style="color:#dc2626;">*</span></label>
+        <input type="text" id="rem-title" class="modal-input" placeholder="Reminder title...">
+      </div>
+      <div class="modal-field">
+        <label>Reminder Date <span style="color:#dc2626;">*</span></label>
+        <input type="date" id="rem-date" class="modal-input">
+      </div>
+      <div class="modal-field">
+        <label>Description</label>
+        <textarea id="rem-desc" class="modal-input" rows="3" placeholder="Description" style="resize:vertical;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('cgRemModal')">Close</button>
+        <button class="btn-primary" id="rem-save-btn" onclick="submitGroupReminder()"><i class="fas fa-check"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Follow Up modal (opens after picking a case of the group) -->
+  <div class="modal-overlay" id="cgFuModal">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-phone-alt" style="color:var(--primary);"></i> Add Follow Up</h3>
+        <button class="modal-close" onclick="closeModal('cgFuModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>Select Case IDs <span style="color:#dc2626;">*</span></label>
+        <div id="cgFuCaseList" class="cg-case-list"></div>
+      </div>
+      <div class="modal-field">
+        <label>Follow Up Type</label>
+        <select id="fu-type" class="modal-input">
+          <option value="">— Select Type —</option>
+          {% for val, label in followup_type_options %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Follow Up Date <span style="color:#dc2626;">*</span></label>
+        <input type="date" id="fu-date" class="modal-input">
+      </div>
+      <div class="modal-field">
+        <label>Notes</label>
+        <textarea id="fu-notes" class="modal-input" rows="3" placeholder="Notes" style="resize:vertical;"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('cgFuModal')">Close</button>
+        <button class="btn-primary" id="fu-save-btn" onclick="submitGroupFollowUp()"><i class="fas fa-check"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Group Modal -->
+  <div class="modal-overlay" id="addGroupModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="fas fa-layer-group" style="color:var(--primary);"></i> New Case Group</h3>
+        <button class="modal-close" onclick="closeModal('addGroupModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>Group Name *</label>
+        <input type="text" id="ag-name" class="modal-input" placeholder="Enter group name...">
+      </div>
+      <div class="modal-field">
+        <label>Collector</label>
+        <select id="ag-collector" class="modal-input">
+          <option value="">— None —</option>
+          {% for u in all_users %}
+          <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('addGroupModal')">Cancel</button>
+        <button class="btn-primary" id="ag-submit-btn" onclick="submitAddGroup()">
+          <i class="fas fa-paper-plane"></i> Create Group
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Status Modal -->
+  <div class="modal-overlay" id="cgStatusModal">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-exchange-alt" style="color:#7c3aed;"></i> Change Status</h3>
+        <button class="modal-close" onclick="closeModal('cgStatusModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>New Status</label>
+        <select id="cgStatusSelect" class="modal-input">
+          {% for val, label in status_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Select Case IDs</label>
+        <div id="cgStatusCaseList" class="cg-case-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('cgStatusModal')">Cancel</button>
+        <button class="btn-primary" onclick="submitChangeStatus()"><i class="fas fa-check"></i> Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Collector Modal -->
+  <div class="modal-overlay" id="cgCollectorModal">
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-user-tie" style="color:#0ea5e9;"></i> Change Collector</h3>
+        <button class="modal-close" onclick="closeModal('cgCollectorModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>Collector</label>
+        <select id="cgCollectorSelect" class="modal-input">
+          <option value="">— No Collector —</option>
+          {% for u in all_users %}
+          <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Select Case IDs</label>
+        <div id="cgCollectorCaseList" class="cg-case-list"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('cgCollectorModal')">Cancel</button>
+        <button class="btn-primary" onclick="submitChangeCollector()"><i class="fas fa-check"></i> Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Case to Group Modal -->
+  <div class="modal-overlay" id="cgAddCaseModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h3><i class="fas fa-folder-plus" style="color:var(--primary);"></i> Add Case to Group</h3>
+        <button class="modal-close" onclick="closeModal('cgAddCaseModal')">&times;</button>
+      </div>
+      <div class="modal-field">
+        <label>Select Case</label>
+        <select id="cgAddCaseSelect" class="modal-input">
+          <option value="">— Select Case —</option>
+          {% for c in all_cases %}
+          <option value="{{ c.pk }}">{{ c.case_id }} — {{ c.debtor.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('cgAddCaseModal')">Cancel</button>
+        <button class="btn-primary" onclick="submitAddCase()"><i class="fas fa-plus"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const csrfToken = '{{ csrf_token }}';
+  const REMOVE_URL    = '{% url "case_group_remove_case" %}';
+  const ADD_CASE_URL  = '{% url "case_group_add_case" %}';
+  const STATUS_URL    = '{% url "case_bulk_change_status" %}';
+  const COLLECTOR_URL = '{% url "case_bulk_change_collector" %}';
+
+  // Cases of each group, for the "Select Case IDs" checkbox lists.
+  const GROUP_CASES = {
+    {% for row in rows %}{% if row.is_first %}
+    {{ row.group.pk }}: [
+      {% for c in row.group_cases %}
+      { id: {{ c.pk }}, label: "{{ c.case_id|escapejs }}{% if c.case_type %} ({{ c.case_type.name|escapejs }}){% endif %}", remaining: {{ c.remaining_amount|stringformat:'.3f' }}, ccy: "{{ c.currency.code|default:'OMR' }}" },
+      {% endfor %}
+    ],
+    {% endif %}{% endfor %}
+  };
+  const GROUP_DETAIL_URL = '{% url "case_group_detail" 0 %}';
+
+  let _ctxGroupId = null;
+  const _menu = document.getElementById('cgCtxMenu');
+
+  function openCtxMenu(e, groupId) {
+    e.preventDefault(); e.stopPropagation();
+    _ctxGroupId = groupId;
+    const rect = e.currentTarget.getBoundingClientRect();
+    _menu.style.top  = (rect.bottom + 4) + 'px';
+    _menu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+    _menu.classList.add('open');
+  }
+
+  document.addEventListener('click', () => _menu.classList.remove('open'));
+
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  function openModal(id)  { _menu.classList.remove('open'); document.getElementById(id).classList.add('show'); }
+
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+  });
+
+  function fillCaseList(containerId) {
+    const cases = GROUP_CASES[_ctxGroupId] || [];
+    document.getElementById(containerId).innerHTML = cases.map(c =>
+      `<label><input type="checkbox" value="${c.id}"> ${c.label}</label>`
+    ).join('');
+  }
+
+  function checkedIds(containerId) {
+    return Array.from(document.querySelectorAll(`#${containerId} input:checked`)).map(i => i.value);
+  }
+
+  function ctxDetails() {
+    _menu.classList.remove('open');
+    window.location.href = GROUP_DETAIL_URL.replace('/0/', '/' + _ctxGroupId + '/');
+  }
+  function ctxChangeStatus()    { fillCaseList('cgStatusCaseList');    openModal('cgStatusModal'); }
+  function ctxChangeCollector() { fillCaseList('cgCollectorCaseList'); openModal('cgCollectorModal'); }
+  function ctxAddCase()         { openModal('cgAddCaseModal'); }
+
+  // ── Group Add Payment: one payment allocated across the group's cases ──
+  function openGroupPayModal() {
+    const cases = GROUP_CASES[_ctxGroupId] || [];
+    if (!cases.length) return;
+    ['gp-mode','gp-date','gp-amount','gp-transfer-date','gp-received-date',
+     'gp-received-amount','gp-confirm-date','gp-notes','gp-col-currency','gp-recv-currency']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('gp-error').style.display = 'none';
+    document.getElementById('gp-case-list').innerHTML = cases.map(c => `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;flex-direction:column;gap:1px;flex:1;font-size:13px;cursor:pointer;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" class="gp-case-cb" value="${c.id}" onchange="gpCaseToggled(this)"> ${c.label}
+          </span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:22px;">Outstanding: ${c.remaining.toFixed(3)} ${c.ccy}</span>
+        </label>
+        <input type="number" class="gp-case-amt" data-case="${c.id}" placeholder="0.000" step="0.001" min="0"
+          disabled oninput="gpRecalc()"
+          style="width:130px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;">
+      </div>`).join('');
+    gpSyncDateMins(false);
+    gpRecalc();
+    openModal('gpModal');
+  }
+
+  // Checking a case auto-fills its amount with whatever is left to allocate
+  function gpCaseToggled(cb) {
+    const amt = document.querySelector(`.gp-case-amt[data-case="${cb.value}"]`);
+    amt.disabled = !cb.checked;
+    if (!cb.checked) { amt.value = ''; }
+    else {
+      const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+      let alloc = 0;
+      document.querySelectorAll('.gp-case-amt').forEach(i => { if (i !== amt) alloc += parseFloat(i.value) || 0; });
+      const left = total - alloc;
+      if (left > 0) amt.value = left.toFixed(3);
+    }
+    gpRecalc();
+  }
+
+  function gpRecalc() {
+    const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+    let alloc = 0;
+    document.querySelectorAll('.gp-case-amt').forEach(i => { alloc += parseFloat(i.value) || 0; });
+    const left = total - alloc;
+    document.getElementById('gp-tr-total').textContent = total.toFixed(3);
+    document.getElementById('gp-tr-alloc').textContent = alloc.toFixed(3);
+    const leftEl = document.getElementById('gp-tr-left');
+    leftEl.textContent = left.toFixed(3);
+    leftEl.style.color = Math.abs(left) < 0.0005 ? '#059669' : (left < 0 ? '#dc2626' : '#d97706');
+  }
+
+  // With a single case ticked, its allocation just follows the total.
+  function gpTotalChanged() {
+    const checked = document.querySelectorAll('.gp-case-cb:checked');
+    if (checked.length === 1) {
+      const amt = document.querySelector(`.gp-case-amt[data-case="${checked[0].value}"]`);
+      const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+      amt.value = total > 0 ? total.toFixed(3) : '';
+    }
+    gpRecalc();
+  }
+
+  // Keep dates in order: Collection ≤ Transfer ≤ Received ≤ Confirmation
+  function gpSyncDateMins(clearInvalid) {
+    let floor = document.getElementById('gp-date').value || '';
+    ['gp-transfer-date','gp-received-date','gp-confirm-date'].forEach(id => {
+      const el = document.getElementById(id);
+      if (floor) el.setAttribute('min', floor); else el.removeAttribute('min');
+      if (clearInvalid && el.value && floor && el.value < floor) el.value = '';
+      if (el.value) floor = el.value;
+    });
+  }
+
+  async function submitGroupPayment() {
+    const errEl = document.getElementById('gp-error');
+    const show = m => { errEl.textContent = m; errEl.style.display = 'block'; };
+    errEl.style.display = 'none';
+    const date  = document.getElementById('gp-date').value;
+    const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+    if (!date)      return show('Collection date is required.');
+    if (total <= 0) return show('Collection amount is required.');
+    const allocs = [];
+    document.querySelectorAll('.gp-case-cb:checked').forEach(cb => {
+      const a = parseFloat(document.querySelector(`.gp-case-amt[data-case="${cb.value}"]`).value) || 0;
+      if (a > 0) allocs.push([cb.value, a]);
+    });
+    if (!allocs.length) return show('Select at least one case and enter its amount.');
+    const alloc = allocs.reduce((s, x) => s + x[1], 0);
+    if (Math.abs(alloc - total) > 0.0005) return show('Allocated amounts must equal the collection amount (' + (total - alloc).toFixed(3) + ' left).');
+    const seq = [['Collection Date', date],
+                 ['Transfer Date', document.getElementById('gp-transfer-date').value],
+                 ['Received Date', document.getElementById('gp-received-date').value],
+                 ['Confirmation Date', document.getElementById('gp-confirm-date').value]];
+    let prev = null;
+    for (const [label, v] of seq) {
+      if (!v) continue;
+      if (prev && v < prev.v) return show(`${label} cannot be before ${prev.label}.`);
+      prev = { label, v };
+    }
+    const fd = new FormData();
+    fd.append('payment_date', date);
+    fd.append('payment_mode_id',        document.getElementById('gp-mode').value);
+    fd.append('collection_currency_id', document.getElementById('gp-col-currency').value);
+    fd.append('transfer_date',          document.getElementById('gp-transfer-date').value);
+    fd.append('received_date',          document.getElementById('gp-received-date').value);
+    fd.append('received_currency_id',   document.getElementById('gp-recv-currency').value);
+    fd.append('received_amount',        document.getElementById('gp-received-amount').value);
+    fd.append('confirmation_date',      document.getElementById('gp-confirm-date').value);
+    fd.append('notes',                  document.getElementById('gp-notes').value.trim());
+    allocs.forEach(([cid, a]) => { fd.append('case_ids[]', cid); fd.append('case_amounts[]', a); });
+    const btn = document.getElementById('gp-save-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('{% url "group_payment_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      if (!res.ok) return show('Server error (' + res.status + '). Refresh the page and try again.');
+      const data = await res.json();
+      if (data.success) {
+        closeModal('gpModal');
+        showToast(data.message);
+        setTimeout(() => location.reload(), 900);
+      } else show(data.message || 'Something went wrong.');
+    } catch { show('Network error.'); }
+    finally { btn.disabled = false; }
+  }
+
+  // ── Group Add Follow Up: pick the case(s), one follow-up recorded per
+  // selected case; they show up on the Follow Ups page ──
+  function openGroupFuModal() {
+    const cases = GROUP_CASES[_ctxGroupId] || [];
+    if (!cases.length) return;
+    fillCaseList('cgFuCaseList');
+    // a single-case group needs no choice — pre-check it
+    if (cases.length === 1) document.querySelector('#cgFuCaseList input').checked = true;
+    document.getElementById('fu-type').value = '';
+    const d = new Date();
+    document.getElementById('fu-date').value =
+      d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.getElementById('fu-notes').value = '';
+    openModal('cgFuModal');
+  }
+
+  async function submitGroupFollowUp() {
+    const ids = checkedIds('cgFuCaseList');
+    if (!ids.length) { showToast('Please select at least one case.', 'error'); return; }
+    const date = document.getElementById('fu-date').value;
+    if (!date) { showToast('Follow up date is required.', 'error'); return; }
+    const type  = document.getElementById('fu-type').value;
+    const notes = document.getElementById('fu-notes').value.trim();
+    const btn = document.getElementById('fu-save-btn');
+    btn.disabled = true;
+    let ok = 0, failMsg = '';
+    try {
+      for (const id of ids) {
+        const fd = new FormData();
+        fd.append('case_id',        id);
+        fd.append('follow_up_type', type);
+        fd.append('follow_up_date', date);
+        fd.append('followed_by_id', '{{ request.user.pk }}');
+        fd.append('notes',          notes);
+        const res = await fetch('{% url "follow_up_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+        if (!res.ok) { failMsg = 'Server error (' + res.status + '). Refresh the page and try again.'; continue; }
+        const data = await res.json();
+        if (data.success) ok++; else failMsg = data.message || 'Something went wrong.';
+      }
+    } catch { failMsg = 'Network error.'; }
+    finally { btn.disabled = false; }
+    if (ok && !failMsg) {
+      closeModal('cgFuModal');
+      showToast(ok + ' follow up(s) added successfully.');
+    } else showToast(failMsg + (ok ? ' (' + ok + ' added)' : ''), 'error');
+  }
+
+  // ── Group Add Reminder: pick the case(s), one reminder recorded per
+  // selected case; they show up on the Reminders page ──
+  function openGroupRemModal() {
+    const cases = GROUP_CASES[_ctxGroupId] || [];
+    if (!cases.length) return;
+    fillCaseList('cgRemCaseList');
+    // a single-case group needs no choice — pre-check it
+    if (cases.length === 1) document.querySelector('#cgRemCaseList input').checked = true;
+    document.getElementById('rem-title').value = '';
+    const d = new Date();
+    document.getElementById('rem-date').value =
+      d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    document.getElementById('rem-desc').value = '';
+    openModal('cgRemModal');
+  }
+
+  async function submitGroupReminder() {
+    const ids = checkedIds('cgRemCaseList');
+    if (!ids.length) { showToast('Please select at least one case.', 'error'); return; }
+    const title = document.getElementById('rem-title').value.trim();
+    const date  = document.getElementById('rem-date').value;
+    if (!title) { showToast('Reminder title is required.', 'error'); return; }
+    if (!date)  { showToast('Reminder date is required.', 'error'); return; }
+    const desc = document.getElementById('rem-desc').value.trim();
+    const btn = document.getElementById('rem-save-btn');
+    btn.disabled = true;
+    let ok = 0, failMsg = '';
+    try {
+      for (const id of ids) {
+        const fd = new FormData();
+        fd.append('case_id',       id);
+        fd.append('title',         title);
+        fd.append('reminder_date', date);
+        fd.append('description',   desc);
+        const res = await fetch('{% url "reminder_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+        if (!res.ok) { failMsg = 'Server error (' + res.status + '). Refresh the page and try again.'; continue; }
+        const data = await res.json();
+        if (data.success) ok++; else failMsg = data.message || 'Something went wrong.';
+      }
+    } catch { failMsg = 'Network error.'; }
+    finally { btn.disabled = false; }
+    if (ok && !failMsg) {
+      closeModal('cgRemModal');
+      showToast(ok + ' reminder(s) added successfully.');
+    } else showToast(failMsg + (ok ? ' (' + ok + ' added)' : ''), 'error');
+  }
+
+  async function post(url, data) {
+    const fd = new FormData();
+    Object.entries(data).forEach(([k, v]) => fd.append(k, v));
+    const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+    const json = await res.json();
+    showToast(json.message, json.success ? 'success' : 'error');
+    if (json.success) setTimeout(() => location.reload(), 800);
+  }
+
+  async function bulkPost(url, ids, extra) {
+    const fd = new FormData();
+    ids.forEach(id => fd.append('ids[]', id));
+    Object.entries(extra).forEach(([k, v]) => fd.append(k, v));
+    const res  = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+    const json = await res.json();
+    showToast(json.message, json.success ? 'success' : 'error');
+    if (json.success) setTimeout(() => location.reload(), 800);
+  }
+
+  async function submitChangeStatus() {
+    const status = document.getElementById('cgStatusSelect').value;
+    const ids = checkedIds('cgStatusCaseList');
+    if (!status) return;
+    if (!ids.length) { showToast('Please select at least one case.', 'error'); return; }
+    closeModal('cgStatusModal');
+    bulkPost(STATUS_URL, ids, { status });
+  }
+
+  async function submitChangeCollector() {
+    const collector_id = document.getElementById('cgCollectorSelect').value;
+    const ids = checkedIds('cgCollectorCaseList');
+    if (!ids.length) { showToast('Please select at least one case.', 'error'); return; }
+    closeModal('cgCollectorModal');
+    bulkPost(COLLECTOR_URL, ids, { collector_id });
+  }
+
+  async function submitAddCase() {
+    const case_id = document.getElementById('cgAddCaseSelect').value;
+    if (!case_id) { showToast('Please select a case.', 'error'); return; }
+    closeModal('cgAddCaseModal');
+    post(ADD_CASE_URL, { group_id: _ctxGroupId, case_id });
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  async function submitAddGroup() {
+    const nameEl = document.getElementById('ag-name');
+    const name = nameEl.value.trim();
+    if (!name) { nameEl.style.borderColor = '#dc2626'; nameEl.focus(); return; }
+    nameEl.style.borderColor = '';
+    const btn = document.getElementById('ag-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('collector_id', document.getElementById('ag-collector').value);
+    try {
+      const res = await fetch('{% url "case_group_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      if (data.success) {
+        closeModal('addGroupModal');
+        showToast(data.message);
+        setTimeout(() => location.reload(), 900);
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch { showToast('Network error. Please try again.', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Create Group'; }
+  }
+</script>
+{% endblock %}

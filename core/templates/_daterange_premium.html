@@ -1,0 +1,172 @@
+{% comment %}
+Premium date-range picker, shared by every page with the trio
+#date_from / #date_to (hidden ISO fields) + #date_range_disp (visible input;
+#date_range_input also accepted). Two-month flatpickr calendar with a
+quick-range sidebar, themed to the app. Include inside extra_scripts;
+auto-initialises. The instance is exposed as window._premiumFP for pages
+that need extra wiring.
+{% endcomment %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<style>
+  /* ── Shell: sidebar (quick ranges) + calendar grid ── */
+  .flatpickr-calendar.fp-premium {
+    display: grid !important;
+    grid-template-columns: 150px auto;
+    grid-template-rows: auto 1fr;
+    width: auto !important;
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 20px rgba(15,23,42,0.08), 0 20px 60px rgba(15,23,42,0.18);
+    padding: 0;
+  }
+  .flatpickr-calendar.fp-premium::before, .flatpickr-calendar.fp-premium::after { display: none; }
+
+  /* ── Quick-range sidebar ── */
+  .fp-presets { grid-column: 1; grid-row: 1 / 3; background: #f8fafc; border-right: 1px solid #eef2f7; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .fp-presets-title { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.7px; padding: 2px 12px 8px; }
+  .fp-presets button { text-align: left; border: none; background: transparent; padding: 8px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; font-family: inherit; transition: all .12s; }
+  .fp-presets button:hover { background: white; color: var(--primary, #4f46e5); box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+  .fp-presets button.active { background: color-mix(in srgb, var(--primary, #4f46e5) 11%, white); color: var(--primary, #4f46e5); }
+  .fp-presets button.fp-clear { margin-top: auto; color: #94a3b8; font-weight: 600; }
+  .fp-presets button.fp-clear:hover { color: #dc2626; background: #fef2f2; box-shadow: none; }
+
+  /* ── Month header row ── */
+  .flatpickr-calendar.fp-premium .flatpickr-months { grid-column: 2; grid-row: 1; position: relative; padding: 14px 10px 6px; }
+  .flatpickr-calendar.fp-premium .flatpickr-months .flatpickr-month { height: 32px; }
+  .flatpickr-calendar.fp-premium .flatpickr-current-month { font-size: 14.5px; font-weight: 800; color: #0f172a; padding-top: 3px; }
+  .flatpickr-calendar.fp-premium .flatpickr-current-month .cur-month { font-weight: 800; }
+  .flatpickr-calendar.fp-premium .flatpickr-current-month .numInputWrapper,
+  .flatpickr-calendar.fp-premium .flatpickr-current-month .cur-year { font-weight: 600; color: #64748b; }
+  .flatpickr-calendar.fp-premium .flatpickr-prev-month,
+  .flatpickr-calendar.fp-premium .flatpickr-next-month {
+    top: 12px; width: 30px; height: 30px; border-radius: 999px; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #f1f5f9; color: #475569; transition: all .12s;
+  }
+  .flatpickr-calendar.fp-premium .flatpickr-prev-month { left: 12px; }
+  .flatpickr-calendar.fp-premium .flatpickr-next-month { right: 12px; }
+  .flatpickr-calendar.fp-premium .flatpickr-prev-month:hover,
+  .flatpickr-calendar.fp-premium .flatpickr-next-month:hover { background: var(--primary, #4f46e5); }
+  .flatpickr-calendar.fp-premium .flatpickr-prev-month:hover svg,
+  .flatpickr-calendar.fp-premium .flatpickr-next-month:hover svg { fill: #fff; }
+  .flatpickr-calendar.fp-premium .flatpickr-prev-month svg,
+  .flatpickr-calendar.fp-premium .flatpickr-next-month svg { width: 11px; height: 11px; }
+
+  /* ── Day grids: two roomy months with a divider ── */
+  .flatpickr-calendar.fp-premium .flatpickr-innerContainer { grid-column: 2; grid-row: 2; padding: 0 10px 14px; }
+  .flatpickr-calendar.fp-premium .flatpickr-days { width: auto !important; }
+  .flatpickr-calendar.fp-premium .dayContainer { width: 288px; min-width: 288px; max-width: 288px; padding: 0 5px; }
+  .flatpickr-calendar.fp-premium .dayContainer + .dayContainer { box-shadow: none; border-left: 1px solid #f1f5f9; margin-left: 4px; padding-left: 9px; }
+  .flatpickr-calendar.fp-premium .flatpickr-weekdays { height: 30px; }
+  .flatpickr-calendar.fp-premium .flatpickr-weekday { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #b0b9c6 !important; }
+  .flatpickr-calendar.fp-premium .flatpickr-day {
+    max-width: 38px; height: 36px; line-height: 36px; margin: 1px 0;
+    border-radius: 10px; font-size: 13px; font-weight: 500; color: #334155; border: none;
+  }
+  .flatpickr-calendar.fp-premium .flatpickr-day.prevMonthDay,
+  .flatpickr-calendar.fp-premium .flatpickr-day.nextMonthDay { color: #cbd5e1; }
+  .flatpickr-calendar.fp-premium .flatpickr-day:hover { background: #f1f5f9; }
+  .flatpickr-calendar.fp-premium .flatpickr-day.today { box-shadow: inset 0 0 0 1.5px var(--primary, #4f46e5); color: var(--primary, #4f46e5); font-weight: 700; }
+  .flatpickr-calendar.fp-premium .flatpickr-day.today:hover { background: #f1f5f9; }
+
+  /* Continuous soft band across the range, solid rounded endpoints */
+  .flatpickr-calendar.fp-premium .flatpickr-day.inRange {
+    background: color-mix(in srgb, var(--primary, #4f46e5) 9%, white);
+    border-radius: 0; box-shadow: -2px 0 0 color-mix(in srgb, var(--primary, #4f46e5) 9%, white), 2px 0 0 color-mix(in srgb, var(--primary, #4f46e5) 9%, white);
+  }
+  .flatpickr-calendar.fp-premium .flatpickr-day.selected,
+  .flatpickr-calendar.fp-premium .flatpickr-day.startRange,
+  .flatpickr-calendar.fp-premium .flatpickr-day.endRange,
+  .flatpickr-calendar.fp-premium .flatpickr-day.selected:hover,
+  .flatpickr-calendar.fp-premium .flatpickr-day.startRange:hover,
+  .flatpickr-calendar.fp-premium .flatpickr-day.endRange:hover {
+    background: var(--primary, #4f46e5); color: #fff; font-weight: 700; border: none;
+  }
+  .flatpickr-calendar.fp-premium .flatpickr-day.startRange { border-radius: 10px 0 0 10px; }
+  .flatpickr-calendar.fp-premium .flatpickr-day.endRange { border-radius: 0 10px 10px 0; }
+  .flatpickr-calendar.fp-premium .flatpickr-day.startRange.endRange { border-radius: 10px; }
+  .flatpickr-calendar.fp-premium .flatpickr-day.startRange + .endRange:not(:nth-child(7n+1)) { box-shadow: none; }
+
+  @media (max-width: 860px) {
+    .flatpickr-calendar.fp-premium { grid-template-columns: 1fr; }
+    .fp-presets { grid-column: 1; grid-row: 3; flex-direction: row; flex-wrap: wrap; border-right: none; border-top: 1px solid #eef2f7; }
+    .fp-presets-title { display: none; }
+    .flatpickr-calendar.fp-premium .flatpickr-months, .flatpickr-calendar.fp-premium .flatpickr-innerContainer { grid-column: 1; }
+  }
+</style>
+<script>
+(function () {
+  var fromH = document.getElementById('date_from');
+  var toH   = document.getElementById('date_to');
+  var disp  = document.getElementById('date_range_disp') || document.getElementById('date_range_input');
+  if (!fromH || !toH || !disp) return;
+
+  function iso(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  var PRESETS = [
+    { label: 'Today',        range: function (t) { return [t, t]; } },
+    { label: 'Yesterday',    range: function (t) { var s = new Date(t); s.setDate(s.getDate() - 1); return [s, new Date(s)]; } },
+    { label: 'Last 7 Days',  range: function (t) { var s = new Date(t); s.setDate(s.getDate() - 6);  return [s, t]; } },
+    { label: 'Last 30 Days', range: function (t) { var s = new Date(t); s.setDate(s.getDate() - 29); return [s, t]; } },
+    { label: 'This Month',   range: function (t) { return [new Date(t.getFullYear(), t.getMonth(), 1), t]; } },
+    { label: 'Last Month',   range: function (t) { return [new Date(t.getFullYear(), t.getMonth() - 1, 1), new Date(t.getFullYear(), t.getMonth(), 0)]; } },
+    { label: 'This Year',    range: function (t) { return [new Date(t.getFullYear(), 0, 1), t]; } },
+  ];
+
+  function markActivePreset(inst) {
+    var sel = inst.selectedDates;
+    var t = new Date();
+    inst.calendarContainer.querySelectorAll('.fp-presets button[data-preset]').forEach(function (b, i) {
+      var r = PRESETS[i].range(t);
+      b.classList.toggle('active',
+        sel.length === 2 && iso(sel[0]) === iso(r[0]) && iso(sel[1]) === iso(r[1]));
+    });
+  }
+
+  var defs = (fromH.value && toH.value) ? [fromH.value, toH.value] : [];
+  var fp = flatpickr(disp, {
+    mode: 'range',
+    dateFormat: 'Y-m-d',
+    showMonths: 2,
+    monthSelectorType: 'static',
+    defaultDate: defs,
+    onChange: function (dates, _str, inst) {
+      if (dates.length === 2) { fromH.value = iso(dates[0]); toH.value = iso(dates[1]); }
+      else if (!dates.length) { fromH.value = ''; toH.value = ''; }
+      markActivePreset(inst);
+    },
+    onOpen: function (_d, _s, inst) { markActivePreset(inst); },
+    onReady: function (_d, _s, inst) {
+      inst.calendarContainer.classList.add('fp-premium');
+      var bar = document.createElement('div');
+      bar.className = 'fp-presets';
+      var title = document.createElement('div');
+      title.className = 'fp-presets-title';
+      title.textContent = 'Quick ranges';
+      bar.appendChild(title);
+      PRESETS.forEach(function (p, i) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.preset = i;
+        b.textContent = p.label;
+        b.addEventListener('click', function () {
+          fp.setDate(p.range(new Date()), true);
+          fp.close();
+        });
+        bar.appendChild(b);
+      });
+      var clear = document.createElement('button');
+      clear.type = 'button';
+      clear.className = 'fp-clear';
+      clear.innerHTML = '&times; Clear';
+      clear.addEventListener('click', function () { fp.clear(); fp.close(); });
+      bar.appendChild(clear);
+      inst.calendarContainer.appendChild(bar);
+    },
+  });
+  if (defs.length === 2) disp.value = defs[0] + ' to ' + defs[1];
+  window._premiumFP = fp;
+})();
+</script>

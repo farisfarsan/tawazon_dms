@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}User Groups{% endblock %}
+
+{% block extra_styles %}
+  .page-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .toolbar-right { display: flex; gap: 10px; }
+  .btn-add-group { background: var(--primary); color: white; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+  .btn-add-group:hover { background: var(--primary-dark); }
+  .btn-delete-sel { background: #dc2626; color: white; border: none; padding: 9px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+  .btn-delete-sel:hover { background: #b91c1c; }
+
+  .section-title { font-size: 16px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; }
+
+  .data-card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table thead th { background: #f8fafc; padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #f8fafc; }
+  .data-table input[type=checkbox] { cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary); }
+
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .status-badge.enabled  { background: #dbeafe; color: var(--primary); }
+  .status-badge.disabled { background: #f1f5f9; color: #64748b; }
+
+  .action-menu { position: relative; display: inline-block; }
+  .action-btn-menu { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+  .action-btn-menu:hover { background: #f8fafc; color: var(--primary); border-color: var(--primary); }
+  .dropdown-menu { display: none; position: absolute; right: 0; top: 110%; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); z-index: 100; min-width: 150px; overflow: hidden; }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; color: var(--text-dark); cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+  .dropdown-item:hover { background: #f8fafc; color: var(--primary); }
+  .dropdown-item.danger:hover { background: #fef2f2; color: #dc2626; }
+
+  /* Modal */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 400; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 400px; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .modal.modal-wide { max-width: 680px; max-height: 88vh; overflow-y: auto; }
+
+  /* ── Permission matrix ── */
+  .perm-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 8px; display: flex; align-items: center; justify-content: space-between; }
+  .perm-all { font-size: 12px; font-weight: 600; color: var(--primary); cursor: pointer; text-transform: none; letter-spacing: 0; }
+  .perm-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .perm-table th { background: #f8fafc; padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border); text-align: center; }
+  .perm-table th:first-child { text-align: left; padding-left: 12px; }
+  .perm-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+  .perm-table tr:last-child td { border-bottom: none; }
+  .perm-table tr:hover td { background: #fafbfd; }
+  .perm-module { text-align: left !important; font-weight: 600; color: var(--text-dark); padding-left: 12px !important; white-space: nowrap; }
+  .perm-module label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .perm-table input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--text-dark); }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .form-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-control { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .form-control:focus { border-color: var(--primary); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save   { background: var(--primary); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save:hover   { background: var(--primary-dark); }
+  .btn-cancel:hover { border-color: #94a3b8; color: var(--text-dark); }
+  .error-msg { color: #dc2626; font-size: 12px; margin-top: 4px; display: none; }
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div>
+    <div class="breadcrumb">Home <span>· User Group</span></div>
+  </div>
+  <div class="toolbar-right">
+    <button class="btn-add-group" onclick="openAddModal()"><i class="fas fa-plus"></i> ADD USER GROUP</button>
+    <button class="btn-delete-sel" onclick="deleteSelected()"><i class="fas fa-trash"></i> DELETE</button>
+  </div>
+</div>
+
+<div class="data-card">
+  <div class="section-title">User Group</div>
+
+  <table class="data-table" id="groupTable">
+    <thead>
+      <tr>
+        <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in groups %}
+      <tr data-gid="{{ group.pk }}">
+        <td><input type="checkbox" class="row-check"></td>
+        <td>{{ group.name }}</td>
+        <td>
+          {% if group.is_enabled %}
+            <span class="status-badge enabled">Enabled</span>
+          {% else %}
+            <span class="status-badge disabled">Disabled</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="action-menu">
+            <button class="action-btn-menu" onclick="toggleMenu(this)">
+              <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
+            </button>
+            <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="openEditModal({{ group.pk }}, '{{ group.name|escapejs }}')">
+                <i class="fas fa-user-shield"></i> Edit &amp; Permissions
+              </button>
+              <button class="dropdown-item" onclick="toggleGroup({{ group.pk }}, this)">
+                <i class="fas fa-{% if group.is_enabled %}ban{% else %}check{% endif %}"></i>
+                {% if group.is_enabled %}Disable{% else %}Enable{% endif %}
+              </button>
+              <button class="dropdown-item danger" onclick="deleteGroup({{ group.pk }}, '{{ group.name }}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr id="emptyRow"><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted);">No user groups found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add / Edit Group Modal (with permission matrix) -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <span class="modal-title" id="groupModalTitle">Add User Group</span>
+      <button class="modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <input type="hidden" id="g_id">
+    <div class="form-group">
+      <label>Group Name *</label>
+      <input class="form-control" id="g_name" placeholder="e.g. Manager">
+      <span class="error-msg" id="addError"></span>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:9px;margin:14px 2px 0;font-size:13px;font-weight:600;color:var(--text-dark);cursor:pointer;">
+      <input type="checkbox" id="g_is_admin" style="width:15px;height:15px;accent-color:var(--primary);cursor:pointer;" onchange="adminNoteSync()">
+      Administrator group
+    </label>
+    <div id="g_admin_note" style="display:none;font-size:11.5px;color:#b45309;margin:5px 2px 0;">
+      <i class="fas fa-info-circle"></i> Members of this group get full administrator access to everything — the matrix below is ignored for them.
+    </div>
+
+    <div class="perm-title">
+      Permissions
+      <span class="perm-all" id="permAllToggle" onclick="permToggleAll()">Select all</span>
+    </div>
+    <table class="perm-table" id="permTable">
+      <thead>
+        <tr>
+          <th>Module</th>
+          {% for action in permission_actions %}
+          <th><label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;justify-content:center;"><input type="checkbox" onchange="permToggleCol('{{ action }}', this.checked)"> {{ action|title }}</label></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for mkey, mlabel in permission_modules %}
+        <tr data-module="{{ mkey }}">
+          <td class="perm-module">
+            <label><input type="checkbox" class="perm-row-toggle" onchange="permToggleRow('{{ mkey }}', this.checked)"> {{ mlabel }}</label>
+          </td>
+          {% for action in permission_actions %}
+          <td><input type="checkbox" class="perm-cb" data-module="{{ mkey }}" data-action="{{ action }}" onchange="permSyncRow('{{ mkey }}')"></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save" id="groupModalSave" onclick="submitGroup()">Add Group</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+document.getElementById('selectAll').addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+});
+
+function toggleMenu(btn) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => {
+    if (m !== btn.nextElementSibling) m.classList.remove('open');
+  });
+  btn.nextElementSibling.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.action-menu'))
+    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+});
+
+function toggleGroup(gid, btn) {
+  fetch('{% url "user_group_toggle" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'id=' + gid
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+  });
+}
+
+function deleteGroup(gid, name) {
+  if (!confirm('Delete group "' + name + '"?')) return;
+  fetch('{% url "user_group_delete" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'id=' + gid
+  }).then(r => r.json()).then(d => {
+    if (d.ok) document.querySelector('tr[data-gid="' + gid + '"]').remove();
+  });
+}
+
+function deleteSelected() {
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { alert('Select at least one group.'); return; }
+  if (!confirm('Delete ' + checked.length + ' selected group(s)?')) return;
+  const ids = checked.map(c => c.closest('tr').dataset.gid);
+  const body = ids.map(id => 'ids[]=' + id).join('&');
+  fetch('{% url "user_group_delete" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body
+  }).then(r => r.json()).then(d => {
+    if (d.ok) ids.forEach(id => document.querySelector('tr[data-gid="' + id + '"]').remove());
+  });
+}
+
+// ── Permission matrix helpers ──
+const GROUP_PERMS = {{ group_perms_json|safe }};   // {groupId: {module: [actions]}}
+const GROUP_ADMIN = {{ group_admin_json|safe }};   // {groupId: bool}
+
+function adminNoteSync() {
+  document.getElementById('g_admin_note').style.display =
+    document.getElementById('g_is_admin').checked ? '' : 'none';
+}
+
+function permCollect() {
+  const map = {};
+  document.querySelectorAll('#permTable .perm-cb:checked').forEach(cb => {
+    (map[cb.dataset.module] = map[cb.dataset.module] || []).push(cb.dataset.action);
+  });
+  return map;
+}
+function permLoad(map) {
+  document.querySelectorAll('#permTable .perm-cb').forEach(cb => {
+    cb.checked = !!(map && map[cb.dataset.module] && map[cb.dataset.module].includes(cb.dataset.action));
+  });
+  document.querySelectorAll('#permTable tr[data-module]').forEach(tr => permSyncRow(tr.dataset.module));
+}
+function permSetAll(on) {
+  document.querySelectorAll('#permTable .perm-cb, #permTable .perm-row-toggle').forEach(cb => cb.checked = on);
+  document.querySelectorAll('#permTable thead input[type=checkbox]').forEach(cb => cb.checked = on);
+  permUpdateAllLabel();
+}
+function permToggleAll() {
+  const cbs = [...document.querySelectorAll('#permTable .perm-cb')];
+  permSetAll(!cbs.every(cb => cb.checked));
+}
+function permUpdateAllLabel() {
+  const cbs = [...document.querySelectorAll('#permTable .perm-cb')];
+  document.getElementById('permAllToggle').textContent =
+    cbs.every(cb => cb.checked) ? 'Unselect all' : 'Select all';
+}
+function permToggleRow(module, on) {
+  document.querySelectorAll(`#permTable .perm-cb[data-module="${module}"]`).forEach(cb => cb.checked = on);
+}
+function permToggleCol(action, on) {
+  document.querySelectorAll(`#permTable .perm-cb[data-action="${action}"]`).forEach(cb => cb.checked = on);
+  document.querySelectorAll('#permTable tr[data-module]').forEach(tr => permSyncRow(tr.dataset.module));
+}
+function permSyncRow(module) {
+  const cbs = [...document.querySelectorAll(`#permTable .perm-cb[data-module="${module}"]`)];
+  const rowToggle = document.querySelector(`#permTable tr[data-module="${module}"] .perm-row-toggle`);
+  if (rowToggle) rowToggle.checked = cbs.every(cb => cb.checked);
+  permUpdateAllLabel();
+}
+
+// ── Add / Edit modal ──
+function openAddModal() {
+  document.getElementById('g_id').value = '';
+  document.getElementById('g_name').value = '';
+  document.getElementById('groupModalTitle').textContent = 'Add User Group';
+  document.getElementById('groupModalSave').textContent = 'Add Group';
+  document.getElementById('g_is_admin').checked = false;
+  adminNoteSync();
+  permLoad({});
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('g_name').focus();
+}
+function openEditModal(gid, name) {
+  document.getElementById('g_id').value = gid;
+  document.getElementById('g_name').value = name;
+  document.getElementById('groupModalTitle').textContent = 'Edit User Group — ' + name;
+  document.getElementById('groupModalSave').textContent = 'Save Changes';
+  document.getElementById('g_is_admin').checked = !!GROUP_ADMIN[gid];
+  adminNoteSync();
+  permLoad(GROUP_PERMS[gid] || {});
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal() {
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('addError').style.display = 'none';
+}
+
+function submitGroup() {
+  const gid  = document.getElementById('g_id').value;
+  const name = document.getElementById('g_name').value.trim();
+  if (!name) { showErr('Name is required.'); return; }
+  const body = new URLSearchParams();
+  if (gid) body.append('id', gid);
+  body.append('name', name);
+  body.append('is_admin', document.getElementById('g_is_admin').checked ? '1' : '0');
+  body.append('permissions', JSON.stringify(permCollect()));
+  const url = gid ? '{% url "user_group_update" %}' : '{% url "user_group_create" %}';
+  fetch(url, {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+    else showErr(d.error);
+  });
+}
+
+function showErr(msg) {
+  const e = document.getElementById('addError');
+  e.textContent = msg;
+  e.style.display = 'block';
+}
+
+// The modal closes only via the × icon or Cancel — clicking the dark
+// backdrop no longer dismisses it (protects half-filled matrices).
+
+document.getElementById('g_name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitGroup();
+});
+</script>
+{% endblock %}

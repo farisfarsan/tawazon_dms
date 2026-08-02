@@ -1,0 +1,319 @@
+{% load static core_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+  <title>{{ case.case_id }} — Tawazon Client Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: #f1f5f9; color: #0f172a; overflow-x: hidden; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: linear-gradient(120deg, #0f4a29, #1a6b3c 65%, #0d3d22);
+      color: white; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    }
+    .topbar .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-logo {
+      background: white; border-radius: 9px; padding: 6px 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .brand-logo img { height: 24px; width: auto; display: block; }
+    .brand .sub { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.85); letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+    .logout {
+      color: white; text-decoration: none; font-size: 12.5px; font-weight: 700;
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22);
+      padding: 8px 14px; border-radius: 9px;
+      display: inline-flex; align-items: center; gap: 7px;
+      transition: background .15s; flex-shrink: 0;
+    }
+    .logout:hover { background: rgba(255,255,255,0.24); }
+
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 20px 20px 44px; }
+
+    .back { color: #1a6b3c; font-weight: 700; font-size: 12.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; margin-bottom: 14px; }
+    .back:hover { text-decoration: underline; }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative; overflow: hidden; border-radius: 18px; margin-bottom: 18px; padding: 24px 26px;
+      background: linear-gradient(125deg, #14532d, #1a6b3c 55%, #0f4a29);
+      color: white; box-shadow: 0 14px 34px rgba(15,74,41,0.28);
+    }
+    .hero::before, .hero::after { content: ''; position: absolute; border-radius: 50%; background: rgba(255,255,255,0.07); }
+    .hero::before { width: 260px; height: 260px; right: -80px; top: -130px; }
+    .hero::after  { width: 160px; height: 160px; right: 140px; bottom: -100px; background: rgba(255,255,255,0.05); }
+    .hero-inner { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .hero h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 6px; line-height: 1.25; word-break: break-word; }
+    .hero .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px 10px; font-size: 12.5px; color: rgba(255,255,255,0.85); font-weight: 500; }
+    .hero .meta .dot { opacity: 0.5; }
+    .hero .chip {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+      background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.2); font-weight: 700; font-size: 12px;
+    }
+
+    .badge {
+      display: inline-block; padding: 5px 12px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; text-transform: capitalize;
+      background: #f1f5f9; color: #475569;
+    }
+    .badge.active           { background: #dcfce7; color: #15803d; }
+    .badge.closed, .badge.closed_by_client { background: #f1f5f9; color: #64748b; }
+    .badge.broken_promise   { background: #fef3c7; color: #b45309; }
+    .badge.contactable      { background: #dbeafe; color: #1d4ed8; }
+    .badge.promise_to_pay   { background: #ccfbf1; color: #0d9488; }
+    .badge.under_tracing    { background: #f3e8ff; color: #6b21a8; }
+    .badge.refuse_to_pay    { background: #fee2e2; color: #991b1b; }
+    .badge.legal_action_approved { background: #fef3c7; color: #92400e; }
+    .hero .chip.badge { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+
+    /* ── Panels ── */
+    .panel { background: white; border-radius: 16px; overflow: hidden; margin-bottom: 20px;
+             border: 2px solid #cbd5e1;
+             box-shadow: 0 1px 3px rgba(15,23,42,0.05), 0 6px 16px rgba(15,23,42,0.04); }
+    .panel-head { padding: 16px 20px; border-bottom: 2px solid #cbd5e1; background: #f8fafc; display: flex; align-items: center; gap: 10px; }
+    .panel-head .ico-badge {
+      width: 30px; height: 30px; border-radius: 9px; background: #ecfdf5; color: #059669;
+      display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0;
+    }
+    .panel-head .title { font-weight: 800; font-size: 14.5px; color: #0f172a; }
+    .panel-body { padding: 20px; }
+
+    .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px 22px; }
+    .kv .k { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+    .kv .v { font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; }
+    .kv .v.accent-blue   { color: #1d4ed8; }
+    .kv .v.accent-green  { color: #059669; }
+    .kv .v.accent-amber  { color: #b45309; }
+    .kv .v.accent-red    { color: #dc2626; }
+
+    table { width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; }
+    th, td { text-align: left; padding: 12px 18px; font-size: 13.5px; border: 1px solid #e2e8f0; }
+    th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    tbody tr:hover { background: #f8fafc; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    td.serial { color: #94a3b8; font-weight: 600; }
+
+    tfoot .total-row td { border-top: 2px solid #cbd5e1; background: #f8fafc; font-weight: 800; color: #0f172a; padding-top: 12px; padding-bottom: 12px; }
+
+    .status-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: #f1f5f9; color: #475569; }
+    .status-pill.approved, .status-pill.cleared { background: #dcfce7; color: #15803d; }
+    .status-pill.pending  { background: #fef3c7; color: #b45309; }
+    .status-pill.bounced, .status-pill.rejected { background: #fee2e2; color: #b91c1c; }
+
+    .empty { padding: 46px 20px; text-align: center; color: #94a3b8; font-size: 13.5px; font-weight: 600; }
+    .empty i.ico-circle { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%;
+      background: linear-gradient(135deg,#f1f5f9,#f8fafc); font-size: 24px; color: #cbd5e1; box-shadow: inset 0 0 0 1px #e8ecf3; }
+
+    .dl-btn { display: inline-flex; align-items: center; gap: 6px; background: #1a6b3c; color: white; text-decoration: none;
+              font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 8px; transition: background .15s; }
+    .dl-btn:hover { background: #0f4a29; }
+    .dl-btn i { font-size: 11px; }
+
+    .file-cell i { color: #1a6b3c; margin-right: 8px; }
+
+    /* ── Mobile: table becomes a stacked card list ── */
+    @media (max-width: 720px) {
+      .wrap { padding: 14px 12px 32px; }
+      .hero { padding: 20px 18px; border-radius: 15px; }
+      .hero h1 { font-size: 19px; }
+      .panel-body { padding: 16px; }
+      .kv { grid-template-columns: 1fr 1fr; gap: 16px; }
+
+      table, thead, tbody, tfoot, th, tr, td { display: block; }
+      thead { display: none; }
+      tbody tr { border: none; border-bottom: 1px solid #f1f5f9; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+      tbody tr:last-child { border-bottom: none; }
+      td { padding: 0; font-size: 13px; border: none; }
+      td[data-label]::before { content: attr(data-label) ': '; font-weight: 700; color: #94a3b8; }
+      td.num { text-align: left; }
+      td.serial { display: none; }
+      tfoot .total-row { display: flex; align-items: center; gap: 8px; padding: 14px 16px; }
+      tfoot .total-row td { border: none !important; padding: 0 !important; background: transparent !important; }
+    }
+    @media (max-width: 420px) {
+      .kv { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-logo"><img src="{% static 'logo.png' %}" alt="Tawazon"></div>
+      <div class="sub">Client Portal</div>
+    </div>
+    <a class="logout" href="{% url 'client_portal_logout' %}"><i class="fas fa-right-from-bracket"></i> <span>Sign out</span></a>
+  </div>
+
+  <div class="wrap">
+    <a class="back" href="{% url 'client_portal' %}"><i class="fas fa-arrow-left"></i> Back to all cases</a>
+
+    <div class="hero">
+      <div class="hero-inner">
+        <div>
+          <h1>{{ case.case_id }}</h1>
+          <div class="meta">
+            <span>Debtor: {{ case.debtor.name }}</span>
+            {% if case.received_date %}<span class="dot">•</span><span>Received {{ case.received_date }}</span>{% endif %}
+            <span class="dot">•</span><span>{{ case.age_of_case }} old</span>
+          </div>
+        </div>
+        {% if perm.can_status %}<span class="chip badge {{ case.status }}">{{ case.get_status_display }}</span>{% endif %}
+      </div>
+    </div>
+
+    {% if perm.can_status %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-circle-info"></i></span><span class="title">Case Status</span></div>
+      <div class="panel-body">
+        <div class="kv">
+          <div><div class="k">Status</div><div class="v"><span class="badge {{ case.status }}">{{ case.get_status_display }}</span></div></div>
+          <div><div class="k">Debtor</div><div class="v">{{ case.debtor.name }}</div></div>
+          <div><div class="k">Received Date</div><div class="v">{{ case.received_date|default:"—" }}</div></div>
+          <div><div class="k">Age of Case</div><div class="v">{{ case.age_of_case }}</div></div>
+          {% if case.creditor_name %}<div><div class="k">Creditor</div><div class="v">{{ case.creditor_name }}</div></div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perm.can_financial %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-coins"></i></span><span class="title">Financials</span></div>
+      <div class="panel-body">
+        <div class="kv">
+          <div><div class="k">Principal Outstanding</div><div class="v">{{ case.principal_amount|omr }}</div></div>
+          <div><div class="k">Discount Amount</div><div class="v">{{ case.discount_amount|omr }}</div></div>
+          <div><div class="k">Approved Outstanding</div><div class="v accent-blue">{{ case.approved_amount|omr }}</div></div>
+          <div><div class="k">Received Amount</div><div class="v accent-green">{{ case.received_amount|omr }}</div></div>
+          <div><div class="k">Remaining Amount</div><div class="v {% if case.remaining_amount > 0 %}accent-red{% else %}accent-green{% endif %}">{{ case.remaining_amount|omr }}</div></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perm.can_collector %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-user-tie"></i></span><span class="title">Collector</span></div>
+      <div class="panel-body">
+        {% if case.collector %}
+        <div class="kv">
+          <div><div class="k">Assigned Collector</div><div class="v">{{ case.collector.get_full_name|default:case.collector.username }}</div></div>
+          {% if case.collector.email %}<div><div class="k">Email</div><div class="v">{{ case.collector.email }}</div></div>{% endif %}
+          {% if case.collector.profile.phone %}<div><div class="k">Phone</div><div class="v">{{ case.collector.profile.phone }}</div></div>{% endif %}
+          {% if case.collector.profile.personal_phone %}<div><div class="k">Alternate Phone</div><div class="v">{{ case.collector.profile.personal_phone }}</div></div>{% endif %}
+        </div>
+        {% else %}
+        <div class="empty"><i class="fas fa-user-slash ico-circle"></i>No collector assigned.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perm.can_followup %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-headset"></i></span><span class="title">Follow Ups</span>{% if followups %}<span style="margin-left:auto;font-size:12px;color:#94a3b8;font-weight:600;">{{ followups|length }} entr{{ followups|length|pluralize:"y,ies" }}</span>{% endif %}</div>
+      {% if followups %}
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for f in followups %}
+          <tr>
+            <td data-label="Date">{{ f.follow_up_date }}</td>
+            <td data-label="Type">{{ f.get_follow_up_type_display }}</td>
+            <td data-label="Status">{{ f.get_case_status_display }}</td>
+            <td data-label="Notes">{{ f.notes|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty"><i class="fas fa-headset ico-circle"></i>No follow-ups recorded.</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if perm.can_payment_history %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-receipt"></i></span><span class="title">Payment History</span>{% if payments %}<span style="margin-left:auto;font-size:12px;color:#94a3b8;font-weight:600;">{{ payments|length }} payment{{ payments|length|pluralize }}</span>{% endif %}</div>
+      {% if payments %}
+      <table>
+        <thead><tr><th>#</th><th>Payment ID</th><th>Date</th><th class="num">Amount</th><th>Method</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td class="serial">{{ forloop.counter }}</td>
+            <td data-label="Payment ID">{{ p.payment_id }}</td>
+            <td data-label="Date">{{ p.payment_date }}</td>
+            <td class="num" data-label="Amount">{{ p.amount|omr }}</td>
+            <td data-label="Method">{{ p.get_payment_method_display }}</td>
+            <td data-label="Status"><span class="status-pill {{ p.status }}">{{ p.get_status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td class="serial"></td>
+            <td colspan="2">Total</td>
+            <td class="num">{{ payments_total|omr }}</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}<div class="empty"><i class="fas fa-receipt ico-circle"></i>No payments recorded.</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if perm.can_attachments %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-paperclip"></i></span><span class="title">Documents &amp; Attachments</span></div>
+      {% if attachments %}
+      <table>
+        <thead><tr><th>File</th><th>Type</th><th>Description</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          {% for att in attachments %}
+          <tr>
+            <td class="file-cell" data-label="File"><i class="fas fa-file-alt"></i>{{ att.filename|default:"Document" }}</td>
+            <td data-label="Type">{% if att.attachment_type %}{{ att.attachment_type.name }}{% else %}—{% endif %}</td>
+            <td data-label="Description">{{ att.description|default:"—" }}</td>
+            <td data-label="Date">{{ att.uploaded_at|date:"d M Y" }}</td>
+            <td><a class="dl-btn" href="{{ att.file.url }}" target="_blank" rel="noopener"><i class="fas fa-download"></i> Download</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty"><i class="fas fa-paperclip ico-circle"></i>No documents available for this case.</div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if perm.can_history %}
+    <div class="panel">
+      <div class="panel-head"><span class="ico-badge"><i class="fas fa-clock-rotate-left"></i></span><span class="title">Case History</span></div>
+      {% if history %}
+      <table>
+        <thead><tr><th>Date</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for h in history %}
+          <tr>
+            <td data-label="Date">{{ h.created_at|date:"Y-m-d H:i" }}</td>
+            <td data-label="Action">{{ h.action }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<div class="empty"><i class="fas fa-clock-rotate-left ico-circle"></i>No history available.</div>{% endif %}
+    </div>
+    {% endif %}
+
+  </div>
+  {% include '_chat_client.html' %}
+</body>
+</html>

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Contact Types{% endblock %}
+{% block extra_styles %}
+  .page-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  .filter-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+  .filter-label{font-size:13px;color:var(--text-muted);font-weight:500;}
+  .filter-search{display:flex;align-items:center;gap:8px;border:1.5px solid var(--primary);border-radius:8px;padding:7px 12px;background:white;min-width:240px;}
+  .filter-search input{border:none;outline:none;font-size:13px;flex:1;color:var(--text-dark);font-family:inherit;}
+  .filter-search i{color:var(--primary);font-size:13px;cursor:pointer;}
+  .show-select{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);}
+  .show-select select{border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;outline:none;font-family:inherit;cursor:pointer;}
+  .data-card{background:white;border-radius:12px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+  .section-title{font-size:16px;font-weight:700;color:var(--text-dark);margin-bottom:16px;}
+  .data-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .data-table thead th{background:#f8fafc;padding:11px 14px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);}
+  .data-table td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--text-dark);vertical-align:middle;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:#f8fafc;}
+  .data-table input[type=checkbox]{cursor:pointer;width:15px;height:15px;accent-color:var(--primary);}
+  .type-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .type-client{background:#dbeafe;color:var(--primary);}
+  .type-debtor{background:#fef3c7;color:#b45309;}
+  .type-admin{background:#f3e8ff;color:#7c3aed;}
+  .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+  .status-badge.enabled{background:#dbeafe;color:var(--primary);}
+  .status-badge.disabled{background:#f1f5f9;color:#64748b;}
+  .action-menu{position:relative;display:inline-block;}
+  .action-btn-menu{background:none;border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px;color:var(--text-muted);display:flex;align-items:center;gap:5px;}
+  .action-btn-menu:hover{background:#f8fafc;color:var(--primary);border-color:var(--primary);}
+  .dropdown-menu{display:none;position:absolute;right:0;top:110%;background:white;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:100;min-width:150px;overflow:hidden;}
+  .dropdown-menu.open{display:block;}
+  .dropdown-item{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;color:var(--text-dark);cursor:pointer;border:none;background:none;width:100%;text-align:left;}
+  .dropdown-item:hover{background:#f8fafc;color:var(--primary);}
+  .dropdown-item.danger:hover{background:#fef2f2;color:#dc2626;}
+  .table-footer{font-size:12px;color:var(--text-muted);margin-top:12px;}
+  .pagination{display:flex;align-items:center;gap:6px;font-size:13px;}
+  .page-btn{padding:5px 10px;border-radius:5px;border:1px solid var(--border);background:white;cursor:pointer;color:var(--text-dark);text-decoration:none;font-size:13px;min-width:30px;text-align:center;}
+  .page-btn:hover{background:var(--primary-light);border-color:var(--primary);color:var(--primary);}
+  .page-btn.active{background:var(--primary);color:white;border-color:var(--primary);}
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;}
+  .modal-backdrop.open{display:flex;}
+  .modal{background:white;border-radius:14px;padding:28px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .modal-title{font-size:16px;font-weight:700;color:var(--text-dark);}
+  .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);}
+  .form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .form-group label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;}
+  .form-control{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;color:var(--text-dark);background:white;width:100%;box-sizing:border-box;}
+  .form-control:focus{border-color:var(--primary);}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+  .btn-cancel{background:white;color:var(--text-muted);border:1.5px solid var(--border);padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn-save{background:var(--primary);color:white;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn-save:hover{background:var(--primary-dark);}
+  .error-msg{color:#dc2626;font-size:12px;margin-top:4px;display:none;}
+{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+  <div><div class="breadcrumb">Home <span>· Contact Types</span></div></div>
+  <button class="btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> ADD CONTACT TYPE</button>
+</div>
+<div class="data-card">
+  <div class="section-title">Contact Types</div>
+  <form method="get" id="filterForm">
+    <div class="filter-row">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="filter-label">Filter:</span>
+        <div class="filter-search">
+          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter...">
+          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()"></i>
+        </div>
+      </div>
+      <div class="show-select">Show: <select name="show" onchange="document.getElementById('filterForm').submit()">{% for opt in page_size_options %}<option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+    </div>
+  </form>
+  <table class="data-table" id="contactTable">
+    <thead><tr>
+      <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
+      <th>Name</th>
+      <th>Type</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr></thead>
+    <tbody>
+      {% for ct in page_obj %}
+      <tr data-id="{{ ct.pk }}">
+        <td><input type="checkbox" class="row-check"></td>
+        <td>{{ ct.name }}</td>
+        <td><span class="type-badge type-{{ ct.type }}">{{ ct.get_type_display }}</span></td>
+        <td>{% if ct.is_enabled %}<span class="status-badge enabled">Enabled</span>{% else %}<span class="status-badge disabled">Disabled</span>{% endif %}</td>
+        <td>
+          <div class="action-menu">
+            <button class="action-btn-menu" onclick="toggleMenu(this)"><i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i></button>
+            <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="toggleItem({{ ct.pk }})"><i class="fas fa-{% if ct.is_enabled %}ban{% else %}check{% endif %}"></i> {% if ct.is_enabled %}Disable{% else %}Enable{% endif %}</button>
+              <button class="dropdown-item danger" onclick="deleteItem({{ ct.pk }},'{{ ct.name|escapejs }}')"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {% empty %}<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">No contact types found.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;">
+    <span class="table-footer">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</span>
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}<a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>{% endif %}
+      {% for num in page_obj.paginator.page_range %}{% if num == page_obj.number %}<span class="page-btn active">{{ num }}</span>{% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}<a href="?q={{ search }}&show={{ page_size }}&page={{ num }}" class="page-btn">{{ num }}</a>{% endif %}{% endfor %}
+      {% if page_obj.has_next %}<a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Add Contact Type</span><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <div class="form-group"><label>Name *</label><input class="form-control" id="c_name" placeholder="e.g. Accountant"></div>
+    <div class="form-group">
+      <label>Type</label>
+      <select class="form-control" id="c_type">
+        {% for val, label in type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="error-msg" id="addError"></div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="submitAdd()">Add</button></div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}<script>
+const CSRF='{{ csrf_token }}';
+document.getElementById('selectAll').addEventListener('change',function(){document.querySelectorAll('.row-check').forEach(c=>c.checked=this.checked);});
+function toggleMenu(btn){document.querySelectorAll('.dropdown-menu.open').forEach(m=>{if(m!==btn.nextElementSibling)m.classList.remove('open');});btn.nextElementSibling.classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.action-menu'))document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));});
+function toggleItem(id){fetch('{% url "contact_type_toggle" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();});}
+function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% url "contact_type_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok)document.querySelector('tr[data-id="'+id+'"]').remove();});}
+function openAddModal(){document.getElementById('addModal').classList.add('open');setTimeout(()=>document.getElementById('c_name').focus(),100);}
+function closeModal(){document.getElementById('addModal').classList.remove('open');document.getElementById('addError').style.display='none';}
+function submitAdd(){const name=document.getElementById('c_name').value.trim();const type=document.getElementById('c_type').value;if(!name){showErr('Name is required.');return;}const body=new URLSearchParams({name,type});fetch('{% url "contact_type_create" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(r=>r.json()).then(d=>{if(d.ok){closeModal();location.reload();}else showErr(d.error);});}
+function showErr(msg){const e=document.getElementById('addError');e.textContent=msg;e.style.display='block';}
+document.getElementById('addModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+</script>{% endblock %}

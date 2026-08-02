@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Debtor Duplicates{% endblock %}
+
+{% block extra_styles %}
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .page-header h2 { font-size: 22px; font-weight: 700; }
+  .summary-banner { display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .summary-card { background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 18px 24px; flex: 1; min-width: 180px; }
+  .summary-card .sc-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px; }
+  .summary-card .sc-value { font-size: 26px; font-weight: 800; color: var(--primary); }
+  .summary-card.warn .sc-value { color: #d97706; }
+  .dup-group { background: white; border: 1.5px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .dup-group-header { background: #f8faff; border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .dup-group-header h4 { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .badge-dup { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: #fef3c7; color: #92400e; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .dup-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .dup-table th { background: #f8faff; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .dup-table td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .dup-table tr:last-child td { border-bottom: none; }
+  .dup-table tr.primary-row td { background: #f0fdf4; }
+  .dup-table tr.primary-row td:first-child { border-left: 3px solid #22c55e; }
+  .dup-table input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+  .merge-btn { background: var(--primary); color: white; border: none; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .merge-btn:hover { background: var(--primary-dark, #1d4ed8); }
+  .merge-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .empty-state { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+  .empty-state i { font-size: 48px; margin-bottom: 16px; display: block; color: #22c55e; }
+  .empty-state h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text-dark); }
+  .debtor-id-badge { font-family: monospace; font-size: 11px; background: #f1f5f9; padding: 2px 7px; border-radius: 5px; color: var(--text-muted); }
+  .status-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; gap: 5px; }
+  .status-pill.active { background: #dcfce7; color: #15803d; }
+  .status-pill.inactive { background: #f1f5f9; color: #64748b; }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .confirm-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .confirm-overlay.show { display: flex; }
+  .confirm-modal { background: white; border-radius: 16px; padding: 32px; max-width: 440px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: mIn 0.2s; }
+  @keyframes mIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .confirm-modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .confirm-modal h3 i { color: var(--primary); font-size: 22px; }
+  .confirm-modal p { color: var(--text-muted); margin-bottom: 24px; line-height: 1.5; }
+  .confirm-modal .names-list { background: #f8faff; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; }
+  .confirm-modal .names-list div { padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+  .confirm-modal .names-list div:first-child { color: #15803d; font-weight: 600; }
+  .confirm-modal .names-list div:first-child::before { content: "→ Primary"; font-size: 10px; background: #dcfce7; color: #15803d; padding: 1px 6px; border-radius: 4px; }
+  .confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-outline { background: white; border: 1.5px solid var(--border); color: var(--text-dark); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2>Debtor Duplicates</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">Debtors with matching names detected by the system</p>
+  </div>
+  <a href="{% url 'debtors' %}" style="display:inline-flex;align-items:center;gap:6px;color:var(--primary);font-weight:600;font-size:13px;text-decoration:none;">
+    <i class="fas fa-arrow-left"></i> Back to Debtors
+  </a>
+</div>
+
+<div class="summary-banner">
+  <div class="summary-card">
+    <div class="sc-label">Duplicate Groups</div>
+    <div class="sc-value">{{ duplicate_groups|length }}</div>
+  </div>
+  <div class="summary-card warn">
+    <div class="sc-label">Extra Records</div>
+    <div class="sc-value">{{ total_duplicates }}</div>
+  </div>
+</div>
+
+{% if duplicate_groups %}
+  {% for group in duplicate_groups %}
+  <div class="dup-group" id="group-{{ forloop.counter }}">
+    <div class="dup-group-header">
+      <h4>{{ group.0.name }}</h4>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="badge-dup"><i class="fas fa-copy"></i> {{ group|length }} records</span>
+        {% if request.user.is_superuser %}
+        <button class="merge-btn" onclick="prepareMerge({{ forloop.counter }})" id="merge-btn-{{ forloop.counter }}" disabled>
+          <i class="fas fa-compress-alt"></i> Merge Selected
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    <table class="dup-table">
+      <thead>
+        <tr>
+          <th style="width:40px;"></th>
+          <th style="width:48px;">#</th>
+          <th>Debtor ID</th>
+          <th>Name</th>
+          <th>Passport / CR</th>
+          <th>ID Number</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Cases</th>
+          <th>Status</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody id="group-body-{{ forloop.counter }}">
+        {% for debtor in group %}
+        <tr {% if forloop.first %}class="primary-row"{% endif %}>
+          <td><input type="checkbox" class="group-{{ forloop.parentloop.counter }}-cb" data-id="{{ debtor.pk }}" onchange="updateMergeBtn({{ forloop.parentloop.counter }})" {% if forloop.first %}checked{% endif %} {% if not request.user.is_superuser %}disabled{% endif %}></td>
+          <td style="color:var(--text-muted);">{{ forloop.counter }}</td>
+          <td><span class="debtor-id-badge">{{ debtor.debtor_id }}</span></td>
+          <td style="font-weight:600;">
+            {{ debtor.name }}
+            {% if forloop.first %}<span style="font-size:10px;background:#dcfce7;color:#15803d;padding:1px 7px;border-radius:4px;margin-left:6px;font-weight:600;">Primary</span>{% endif %}
+          </td>
+          <td>{{ debtor.passport_cr_number|default:"—" }}</td>
+          <td>{{ debtor.id_number|default:"—" }}</td>
+          <td>{{ debtor.email|default:"—" }}</td>
+          <td>{{ debtor.phone|default:"—" }}</td>
+          <td>{{ debtor.total_cases }}</td>
+          <td>
+            {% if debtor.status == 'active' %}
+              <span class="status-pill active"><span class="pill-dot"></span> Active</span>
+            {% else %}
+              <span class="status-pill inactive"><span class="pill-dot"></span> Inactive</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--text-muted);">{{ debtor.created_at|date:"d M Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="fas fa-check-circle" style="font-size:56px;color:#22c55e;display:block;margin-bottom:16px;"></i>
+    <h3>No Duplicates Found</h3>
+    <p>All debtor records appear to have unique names. The system continuously monitors for duplicates.</p>
+  </div>
+{% endif %}
+
+<!-- Merge Confirm Modal -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-modal">
+    <h3><i class="fas fa-compress-alt"></i> Confirm Merge</h3>
+    <p>The first selected debtor (oldest record) will become the <strong>primary</strong>. All cases and contacts from the others will be reassigned to it, and the duplicates will be deleted.</p>
+    <div class="names-list" id="confirmNamesList"></div>
+    <div class="confirm-actions">
+      <button class="btn-outline" onclick="document.getElementById('confirmOverlay').classList.remove('show')">Cancel</button>
+      <button class="merge-btn" onclick="doMerge()"><i class="fas fa-compress-alt"></i> Merge Now</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let pendingMergeIds = [];
+  let pendingGroupIdx = null;
+
+  function updateMergeBtn(groupIdx) {
+    const checkboxes = document.querySelectorAll(`.group-${groupIdx}-cb:checked`);
+    const btn = document.getElementById(`merge-btn-${groupIdx}`);
+    if (btn) btn.disabled = checkboxes.length < 2;
+  }
+
+  function prepareMerge(groupIdx) {
+    const checkboxes = document.querySelectorAll(`.group-${groupIdx}-cb:checked`);
+    if (checkboxes.length < 2) return;
+
+    pendingMergeIds = Array.from(checkboxes).map(cb => cb.dataset.id);
+    pendingGroupIdx = groupIdx;
+
+    const namesList = document.getElementById('confirmNamesList');
+    namesList.innerHTML = '';
+    checkboxes.forEach((cb, i) => {
+      const row = cb.closest('tr');
+      const name = row.querySelector('td:nth-child(4)').textContent.trim().replace('Primary', '').trim();
+      const div = document.createElement('div');
+      div.textContent = name;
+      namesList.appendChild(div);
+    });
+
+    document.getElementById('confirmOverlay').classList.add('show');
+  }
+
+  function doMerge() {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    const formData = new FormData();
+    pendingMergeIds.forEach(id => formData.append('ids[]', id));
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch("{% url 'debtor_duplicates_merge' %}", { method: 'POST', body: formData })
+      .then(r => r.json())
+      .then(data => {
+        showToast(data.message, data.success ? 'success' : 'error');
+        if (data.success) {
+          setTimeout(() => location.reload(), 1200);
+        }
+      })
+      .catch(() => showToast('Network error. Please try again.', 'error'));
+  }
+
+  function showToast(msg, type = '') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // Initialize — ensure first checkbox in each group is checked
+  document.querySelectorAll('[class$="-cb"]').forEach(cb => {
+    cb.dispatchEvent(new Event('change'));
+  });
+</script>
+{% endblock %}

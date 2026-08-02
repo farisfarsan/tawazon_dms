@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+{% load core_filters %}
+
+{% block title %}Case Status Report{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .filter-input:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* ── KPI hero row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi-card { position: relative; background: white; border-radius: 14px; padding: 18px 18px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; transition: transform .15s, box-shadow .15s; }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,0.10); }
+  .kpi-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--kpi-accent, var(--primary)); }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .kpi-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; background: var(--kpi-accent, var(--primary)); opacity: 0.92; }
+  .kpi-val { font-size: 21px; font-weight: 800; color: var(--text-dark); font-variant-numeric: tabular-nums; line-height: 1.2; word-break: break-word; }
+  .kpi-val small { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } .kpi-row .kpi-card:first-child { grid-column: 1 / -1; } }
+
+  /* ── Section shell ── */
+  .rpt-section { background: white; border-radius: 14px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .rpt-header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  .rpt-header:hover { background: #fafbfc; }
+  .rpt-header-ico { width: 32px; height: 32px; border-radius: 9px; background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .rpt-header-title { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .rpt-header-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+  .rpt-caret { margin-left: auto; font-size: 13px; color: var(--text-muted); transition: transform 0.2s; }
+  .rpt-section.collapsed .rpt-caret { transform: rotate(-90deg); }
+  .rpt-body { padding: 16px 20px 20px; }
+  .rpt-section.collapsed .rpt-body { display: none; }
+
+  /* ── Toolbar: view / chart-type / metric switchers ── */
+  .rpt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .seg { display: inline-flex; background: #f1f5f9; border-radius: 9px; padding: 3px; gap: 2px; }
+  .seg button { border: none; background: transparent; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .seg button:hover { color: var(--text-dark); }
+  .seg button.on { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(15,23,42,0.12); }
+  .seg-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-right: -4px; }
+  .rpt-toolbar .spacer { flex: 1; }
+
+  /* ── Chart area ── */
+  .chart-wrap { display: flex; align-items: flex-start; gap: 30px; }
+  .chart-box { flex: 0 0 46%; position: relative; min-height: 240px; }
+  .chart-box canvas { width: 100% !important; }
+  .chart-box.wide { flex: 1 1 100%; }
+  .legend-box { flex: 1; display: flex; flex-direction: column; gap: 7px; padding-top: 8px; max-height: 300px; overflow-y: auto; }
+  .leg-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; }
+  .leg-row:hover { background: #f8fafc; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .leg-label { flex: 1; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leg-val { color: var(--text-muted); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .no-data { text-align: center; padding: 34px 0; color: var(--text-muted); font-size: 13px; }
+  .no-data i { display: block; font-size: 26px; margin-bottom: 8px; opacity: 0.3; }
+
+  /* ── Table view ── */
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rpt-table th { padding: 10px 14px; background: #f8fafc; border-bottom: 2px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; text-align: left; }
+  .rpt-table th.r, .rpt-table td.td-r { text-align: right; font-variant-numeric: tabular-nums; }
+  .rpt-table th.c, .rpt-table td.td-c { text-align: center; }
+  .rpt-table td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); }
+  .rpt-table tbody tr:hover td { background: #f8fafc; }
+  .rpt-table td.td-c { font-weight: 600; color: var(--primary); }
+  .rpt-table tfoot td { font-weight: 700; border-top: 2px solid #e2e8f0; border-bottom: none; color: var(--text-dark); }
+  .rpt-table .neg { color: #e34948; }
+  .pct-cell { color: var(--text-muted); font-size: 12px; }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+  <a href="{% url 'dashboard' %}" style="color:var(--text-muted);font-size:18px;text-decoration:none;"><i class="fas fa-arrow-circle-left"></i></a>
+  <div class="breadcrumb"><a href="{% url 'dashboard' %}" style="color:var(--primary);text-decoration:none;">Home</a> · Reports · Case Report</div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+  <div class="filter-panel-title"><i class="fas fa-sliders-h"></i> Filter Case Report</div>
+  <form method="get">
+    <div class="filter-grid" style="margin-bottom:14px;">
+{% if request.user.is_superuser %}
+      <select name="collector" class="filter-input">
+        <option value="">Select Collector</option>
+        {% for u in all_collectors %}
+        <option value="{{ u.pk }}" {% if filter_collector == u.pk|stringformat:"s" %}selected{% endif %}>
+          {{ u.get_full_name|default:u.username }}
+        </option>
+        {% endfor %}
+      </select>
+{% endif %}
+      <select name="client" class="filter-input">
+        <option value="">Select Client</option>
+        {% for c in all_clients %}
+        <option value="{{ c.pk }}" {% if filter_client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="debtor" class="filter-input">
+        <option value="">Select Debtor</option>
+        {% for d in all_debtors %}
+        <option value="{{ d.pk }}" {% if filter_debtor == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <input type="hidden" name="date_from" id="date_from" value="{{ filter_date_from }}">
+    <input type="hidden" name="date_to"   id="date_to"   value="{{ filter_date_to }}">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:0;">
+      <div style="display:flex;align-items:center;border:1.5px solid var(--border);border-radius:8px;background:white;">
+        <i class="fas fa-calendar-alt" style="padding:0 10px;color:var(--text-muted);font-size:13px;flex-shrink:0;"></i>
+        <input type="text" id="date_range_disp" placeholder="Case Received Date" autocomplete="off"
+               style="border:none;outline:none;padding:9px 8px 9px 0;font-size:13px;font-family:inherit;color:var(--text-dark);background:transparent;flex:1;min-width:0;">
+      </div>
+      <select name="agency" class="filter-input">
+        <option value="">Select Agency</option>
+        {% for a in all_agencies %}
+        <option value="{{ a.pk }}" {% if filter_agency == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="lawyer" class="filter-input">
+        <option value="">Lawyer Name</option>
+        {% for l in all_lawyers %}
+        <option value="{{ l.name }}" {% if filter_lawyer == l.name %}selected{% endif %}>{{ l.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="case_status" class="filter-input">
+        <option value="">Select Case Status</option>
+        {% for val, label in all_statuses %}
+        <option value="{{ val }}" {% if filter_case_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> SUBMIT</button>
+      <a href="{% url 'case_status_report' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> RESET</a>
+    </div>
+  </form>
+</div>
+
+<!-- KPI hero row (portfolio totals for current filters) -->
+<div class="kpi-row">
+  <div class="kpi-card" style="--kpi-accent:#00897b;">
+    <div class="kpi-top"><span class="kpi-lbl">Total Clients</span><span class="kpi-ico"><i class="fas fa-building"></i></span></div>
+    <div class="kpi-val">{{ n_clients }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#8e24aa;">
+    <div class="kpi-top"><span class="kpi-lbl">Case Count</span><span class="kpi-ico"><i class="fas fa-folder-open"></i></span></div>
+    <div class="kpi-val">{{ overall.count }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#3949ab;">
+    <div class="kpi-top"><span class="kpi-lbl">Approved Amount</span><span class="kpi-ico"><i class="fas fa-stamp"></i></span></div>
+    <div class="kpi-val">{{ overall.approved|omr }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#1baf7a;">
+    <div class="kpi-top"><span class="kpi-lbl">Received Amount</span><span class="kpi-ico"><i class="fas fa-hand-holding-usd"></i></span></div>
+    <div class="kpi-val">{{ overall.received|omr }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#d81b60;">
+    <div class="kpi-top"><span class="kpi-lbl">Remaining Amount</span><span class="kpi-ico"><i class="fas fa-hourglass-half"></i></span></div>
+    <div class="kpi-val">{{ overall.remaining|omr }}</div>
+  </div>
+</div>
+
+<!-- Report sections are generated by JS from the data below -->
+<div id="rptSections"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_daterange_premium.html" %}
+<script>
+// ── Data (from the view) ──
+const DATA = {
+  overall:        {{ overall_num_rows|safe }},
+  client:         {{ client_rows_json|safe }},
+  clientType:     {{ client_type_rows_json|safe }},
+  clientStatus:   {{ client_status_rows_json|safe }},
+  country:        {{ country_rows_json|safe }},
+  agencies:       {{ agency_rows_json|safe }},
+  collector:      {{ collector_rows_json|safe }},
+  lawyer:         {{ lawyer_rows_json|safe }},
+};
+
+// Validated 8-slot categorical palette (fixed order — never cycled; extra
+// categories fold into a gray "Other" slice on pie/donut).
+const PALETTE = ['#2a78d6','#1baf7a','#eda100','#008300','#4a3aa7','#e34948','#e87ba4','#eb6834'];
+const OTHER_COLOR = '#94a3b8';
+const BAR_COLOR   = '#2a78d6';   // single hue: bars compare magnitude, not identity
+
+const METRICS = [
+  { key: 'count',     label: 'Count',     money: false },
+  { key: 'approved',  label: 'Approved',  money: true  },
+  { key: 'received',  label: 'Received',  money: true  },
+  { key: 'remaining', label: 'Remaining', money: true  },
+];
+const CHART_TYPES = [
+  { key: 'donut',  label: 'Donut',  icon: 'fa-circle-notch' },
+  { key: 'pie',    label: 'Pie',    icon: 'fa-chart-pie' },
+  { key: 'bar',    label: 'Bar',    icon: 'fa-align-left' },
+  { key: 'column', label: 'Column', icon: 'fa-chart-bar' },
+];
+
+const SECTIONS = [
+  { id: 'overall',      title: 'Case Status Overview',    unit: ['status', 'statuses'],     icon: 'fa-layer-group', data: DATA.overall,      type: 'donut'  },
+  { id: 'client',       title: 'Client Wise Portfolio',   unit: ['client', 'clients'],      icon: 'fa-building',    data: DATA.client,       type: 'bar'    },
+  { id: 'clientType',   title: 'Client Type',             unit: ['type', 'types'],          icon: 'fa-building',    data: DATA.clientType,   type: 'donut'  },
+  { id: 'clientStatus', title: 'Client Status',           unit: ['status', 'statuses'],     icon: 'fa-user-check',  data: DATA.clientStatus, type: 'donut'  },
+  { id: 'country',      title: 'Country Distribution',    unit: ['country', 'countries'],   icon: 'fa-globe',       data: DATA.country,      type: 'bar'    },
+  { id: 'agencies',     title: 'Agency Portfolio',        unit: ['agency', 'agencies'],     icon: 'fa-sitemap',     data: DATA.agencies,     type: 'bar'    },
+  { id: 'collector',    title: 'Collector Wise Portfolio', unit: ['collector', 'collectors'], icon: 'fa-user-tie',  data: DATA.collector,    type: 'bar'    },
+  { id: 'lawyer',       title: 'Lawyer Wise Portfolio',   unit: ['lawyer', 'lawyers'],      icon: 'fa-gavel',       data: DATA.lawyer,       type: 'bar', closed: true },
+];
+
+const fmtMoney = v => new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v);
+const fmtVal = (v, money) => money ? fmtMoney(v) : String(v);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const _charts = {};   // live Chart.js instances per section
+const _state  = {};   // { type, metric, view } per section
+
+// ── Build section shells ──
+const host = document.getElementById('rptSections');
+SECTIONS.forEach((s, idx) => {
+  _state[s.id] = { type: s.type, metric: 'count', view: 'chart' };
+  const cases = s.data.reduce((a, r) => a + r.count, 0);
+  const sub = `${s.data.length} ${s.unit[s.data.length === 1 ? 0 : 1]} · ${cases} case${cases === 1 ? '' : 's'}`;
+  const el = document.createElement('div');
+  el.className = 'rpt-section';
+  el.id = 'sec-' + s.id;
+  el.innerHTML = `
+    <div class="rpt-header" onclick="toggleSec('sec-${s.id}')">
+      <span class="rpt-header-ico"><i class="fas ${s.icon}"></i></span>
+      <div>
+        <div class="rpt-header-title">${esc(s.title)}</div>
+        <div class="rpt-header-sub">${esc(sub)}</div>
+      </div>
+      <i class="fas fa-chevron-down rpt-caret"></i>
+    </div>
+    <div class="rpt-body">
+      <div class="rpt-toolbar">
+        <span class="seg" id="view-${s.id}">
+          <button data-v="chart" class="on" onclick="setView('${s.id}','chart')"><i class="fas fa-chart-pie"></i> Chart</button>
+          <button data-v="table" onclick="setView('${s.id}','table')"><i class="fas fa-table"></i> Table</button>
+        </span>
+        <span class="seg" id="type-${s.id}">
+          ${CHART_TYPES.map(t => `<button data-t="${t.key}" class="${t.key === s.type ? 'on' : ''}" title="${t.label}" onclick="setType('${s.id}','${t.key}')"><i class="fas ${t.icon}"></i> ${t.label}</button>`).join('')}
+        </span>
+        <span class="spacer"></span>
+        <span class="seg-lbl">Metric</span>
+        <span class="seg" id="metric-${s.id}">
+          ${METRICS.map(m => `<button data-m="${m.key}" class="${m.key === 'count' ? 'on' : ''}" onclick="setMetric('${s.id}','${m.key}')">${m.label}</button>`).join('')}
+        </span>
+      </div>
+      <div id="chartview-${s.id}">
+        <div class="chart-wrap" id="wrap-${s.id}">
+          <div class="chart-box" id="box-${s.id}"><canvas id="canvas-${s.id}"></canvas></div>
+          <div class="legend-box" id="legend-${s.id}"></div>
+        </div>
+      </div>
+      <div id="tableview-${s.id}" style="display:none;"></div>
+    </div>`;
+  host.appendChild(el);
+  renderChart(s);
+  renderTable(s);
+});
+
+function findSection(id) { return SECTIONS.find(s => s.id === id); }
+function toggleSec(id) { document.getElementById(id).classList.toggle('collapsed'); }
+
+function setView(id, v) {
+  _state[id].view = v;
+  document.querySelectorAll(`#view-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('chartview-' + id).style.display = v === 'chart' ? '' : 'none';
+  document.getElementById('tableview-' + id).style.display = v === 'table' ? '' : 'none';
+}
+function setType(id, t) {
+  _state[id].type = t;
+  document.querySelectorAll(`#type-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  renderChart(findSection(id));
+}
+function setMetric(id, m) {
+  _state[id].metric = m;
+  document.querySelectorAll(`#metric-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  renderChart(findSection(id));
+  renderTable(findSection(id));
+}
+
+// ── Chart rendering ──
+function renderChart(s) {
+  const st = _state[s.id];
+  const metric = METRICS.find(m => m.key === st.metric);
+  const box = document.getElementById('box-' + s.id);
+  const legendEl = document.getElementById('legend-' + s.id);
+  if (_charts[s.id]) { _charts[s.id].destroy(); delete _charts[s.id]; }
+
+  if (!s.data.length) {
+    box.classList.add('wide');
+    box.innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i>No data for the current filters</div>';
+    legendEl.style.display = 'none';
+    return;
+  }
+  // Recreate the canvas (destroyed charts leave stale sizing behind)
+  box.innerHTML = `<canvas id="canvas-${s.id}"></canvas>`;
+  const isPieish = st.type === 'donut' || st.type === 'pie';
+
+  // Rows sorted by the active metric for bars; original order kept for pies
+  let rows = s.data.map((r, i) => ({ ...r, _i: i }));
+  if (!isPieish) rows = rows.slice().sort((a, b) => b[st.metric] - a[st.metric]);
+
+  if (isPieish) {
+    // Parts-of-whole: only positive values; >8 categories fold into "Other"
+    let pieRows = rows.filter(r => r[st.metric] > 0);
+    let folded = null;
+    if (pieRows.length > 8) {
+      const keep = pieRows.slice().sort((a, b) => b[st.metric] - a[st.metric]).slice(0, 7).map(r => r._i);
+      folded = { label: 'Other', value: 0, n: 0 };
+      pieRows = pieRows.filter(r => {
+        if (keep.includes(r._i)) return true;
+        folded.value += r[st.metric]; folded.n += 1; return false;
+      });
+    }
+    const labels = pieRows.map(r => r.label);
+    const values = pieRows.map(r => r[st.metric]);
+    const colors = pieRows.map((_, i) => PALETTE[i % PALETTE.length]);
+    if (folded && folded.n) { labels.push(`Other (${folded.n})`); values.push(folded.value); colors.push(OTHER_COLOR); }
+    box.classList.remove('wide');
+    box.style.height = '260px';
+    legendEl.style.display = '';
+    _charts[s.id] = new Chart(document.getElementById('canvas-' + s.id), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: st.type === 'donut' ? '62%' : 0,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtVal(c.parsed, metric.money)}${metric.money ? ' OMR' : ''}` } },
+        },
+      },
+    });
+    const total = values.reduce((a, b) => a + b, 0);
+    legendEl.innerHTML = labels.map((label, i) => {
+      const pct = total ? Math.round(values[i] / total * 100) : 0;
+      return `<div class="leg-row"><div class="leg-dot" style="background:${colors[i]}"></div><span class="leg-label" title="${esc(label)}">${esc(label)}</span><span class="leg-val">${fmtVal(values[i], metric.money)} (${pct}%)</span></div>`;
+    }).join('');
+  } else {
+    // Magnitude comparison: single-hue bars, identity on the axis
+    const horizontal = st.type === 'bar';
+    const labels = rows.map(r => r.label);
+    const values = rows.map(r => r[st.metric]);
+    box.classList.add('wide');
+    legendEl.style.display = 'none';
+    box.style.height = horizontal ? Math.max(240, rows.length * 30 + 70) + 'px' : '300px';
+    _charts[s.id] = new Chart(document.getElementById('canvas-' + s.id), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: BAR_COLOR, borderRadius: 4, maxBarThickness: 22 }] },
+      options: {
+        indexAxis: horizontal ? 'y' : 'x',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${metric.label}: ${fmtVal(horizontal ? c.parsed.x : c.parsed.y, metric.money)}${metric.money ? ' OMR' : ''}` } },
+        },
+        scales: {
+          x: { grid: { display: horizontal }, border: { display: false },
+               ticks: horizontal ? { callback: v => metric.money ? Intl.NumberFormat('en-US', { notation: 'compact' }).format(v) : v }
+                                 : { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+          y: { grid: { display: !horizontal }, border: { display: false },
+               ticks: horizontal ? {} : { callback: v => metric.money ? Intl.NumberFormat('en-US', { notation: 'compact' }).format(v) : v } },
+        },
+      },
+    });
+  }
+}
+
+// ── Table rendering (all metrics side by side; active one highlighted) ──
+function renderTable(s) {
+  const el = document.getElementById('tableview-' + s.id);
+  if (!s.data.length) { el.innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i>No data for the current filters</div>'; return; }
+  const total = { count: 0, closed: 0, approved: 0, received: 0, remaining: 0 };
+  s.data.forEach(r => { total.count += r.count; total.closed += (r.closed || 0); total.approved += r.approved; total.received += r.received; total.remaining += r.remaining; });
+  const grand = total.count;
+  el.innerHTML = `
+    <table class="rpt-table">
+      <thead><tr>
+        <th>${esc(s.title)}</th>
+        <th class="c">Count${s.closed ? ' (Closed)' : ''}</th>
+        <th class="c">Share</th>
+        <th class="r">Approved (OMR)</th>
+        <th class="r">Received (OMR)</th>
+        <th class="r">Remaining (OMR)</th>
+      </tr></thead>
+      <tbody>
+        ${s.data.map(r => `
+        <tr>
+          <td>${esc(r.label)}</td>
+          <td class="td-c">${r.count}${s.closed ? `(${r.closed || 0})` : ''}</td>
+          <td class="td-c pct-cell">${grand ? Math.round(r.count / grand * 100) : 0}%</td>
+          <td class="td-r">${fmtMoney(r.approved)}</td>
+          <td class="td-r">${fmtMoney(r.received)}</td>
+          <td class="td-r ${r.remaining < 0 ? 'neg' : ''}">${fmtMoney(r.remaining)}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td>Total</td>
+        <td class="td-c">${total.count}${s.closed ? `(${total.closed})` : ''}</td>
+        <td class="td-c pct-cell">100%</td>
+        <td class="td-r">${fmtMoney(total.approved)}</td>
+        <td class="td-r">${fmtMoney(total.received)}</td>
+        <td class="td-r ${total.remaining < 0 ? 'neg' : ''}">${fmtMoney(total.remaining)}</td>
+      </tr></tfoot>
+    </table>`;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,671 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Users{% endblock %}
+
+{% block extra_styles %}
+  .page-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--text-dark); }
+
+  .filter-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+  .filter-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+  .filter-search { display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--primary); border-radius: 8px; padding: 7px 12px; background: white; min-width: 260px; }
+  .filter-search input { border: none; outline: none; font-size: 13px; flex: 1; color: var(--text-dark); font-family: inherit; }
+  .filter-search i { color: var(--primary); font-size: 13px; }
+  .show-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .show-select select { border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; outline: none; font-family: inherit; cursor: pointer; }
+
+  .data-card { background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table thead th { background: #f8fafc; padding: 11px 14px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #f8fafc; }
+  .data-table input[type=checkbox] { cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary); }
+
+  .sort-icon { font-size: 10px; margin-left: 4px; color: #cbd5e1; }
+
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .status-badge.enabled  { background: #dbeafe; color: var(--primary); }
+  .status-badge.disabled { background: #f1f5f9; color: #64748b; }
+
+  .action-menu { position: relative; display: inline-block; }
+  .action-btn-menu { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+  .action-btn-menu:hover { background: #f8fafc; color: var(--primary); border-color: var(--primary); }
+  .dropdown-menu { display: none; position: absolute; right: 0; top: 110%; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); z-index: 100; min-width: 150px; overflow: hidden; }
+  .dropdown-menu.open { display: block; }
+  .dropdown-item { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 13px; color: var(--text-dark); cursor: pointer; border: none; background: none; width: 100%; text-align: left; }
+  .dropdown-item:hover { background: #f8fafc; color: var(--primary); }
+  .dropdown-item.danger:hover { background: #fef2f2; color: #dc2626; }
+  .dropdown-item i { width: 14px; text-align: center; }
+
+  /* ── Permission matrix (per-user overrides) ── */
+  .perm-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .perm-table th { background: #f8fafc; padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 1px solid var(--border); text-align: center; }
+  .perm-table th:first-child { text-align: left; padding-left: 12px; }
+  .perm-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; text-align: center; }
+  .perm-table tr:last-child td { border-bottom: none; }
+  .perm-module { text-align: left !important; font-weight: 600; color: var(--text-dark); padding-left: 12px !important; white-space: nowrap; }
+  .perm-table input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  td.perm-grant  { background: #ecfdf5 !important; }   /* extra vs group */
+  td.perm-revoke { background: #fef2f2 !important; }   /* removed vs group */
+  .perm-key { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .perm-key-grant  { background: #ecfdf5; border: 1px solid #a7f3d0; }
+  .perm-key-revoke { background: #fef2f2; border: 1px solid #fecaca; }
+
+  .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 16px; font-size: 13px; }
+  .page-btn { padding: 6px 11px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; color: var(--text-dark); text-decoration: none; font-size: 13px; }
+  .page-btn:hover { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+  .page-info { color: var(--text-muted); }
+
+  /* Modal */
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 400; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 480px; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--text-dark); }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1/-1; }
+  .form-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-control { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .form-control:focus { border-color: var(--primary); }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save   { background: var(--primary); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-save:hover   { background: var(--primary-dark); }
+  .btn-cancel:hover { border-color: #94a3b8; color: var(--text-dark); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle-switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 22px; cursor: pointer; transition: background 0.2s; }
+  .toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
+  .error-msg { color: #dc2626; font-size: 12px; margin-top: 8px; display: none; }
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div>
+    <div class="breadcrumb">Home <span>· Users</span></div>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button class="btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> ADD USER</button>
+    <button class="btn-primary" style="background:#dc2626;" onclick="deleteSelectedUsers()"><i class="fas fa-trash"></i> DELETE</button>
+  </div>
+</div>
+
+<div class="data-card" style="padding:20px 22px;">
+  <div class="section-title" style="margin-bottom:16px;">Users</div>
+
+  <form method="get" id="filterForm">
+    <div class="filter-row">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="filter-label">Filter:</span>
+        <div class="filter-search">
+          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter..." id="searchInput">
+          <i class="fas fa-search" style="cursor:pointer;" onclick="document.getElementById('filterForm').submit()"></i>
+        </div>
+      </div>
+      <div class="show-select">
+        Show:
+        <select name="show" onchange="document.getElementById('filterForm').submit()">
+          {% for opt in page_size_options %}
+          <option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th style="width:36px;"><input type="checkbox" id="selectAll"></th>
+        <th style="width:28px;"><i class="fas fa-sort sort-icon" style="margin:0;"></i></th>
+        <th>Name <i class="fas fa-sort sort-icon"></i></th>
+        <th>Username <i class="fas fa-sort sort-icon"></i></th>
+        <th>User Group <i class="fas fa-sort sort-icon"></i></th>
+        <th>Phone <i class="fas fa-sort sort-icon"></i></th>
+        <th>Email <i class="fas fa-sort sort-icon"></i></th>
+        <th>Allowed IP</th>
+        <th>Status <i class="fas fa-sort sort-icon"></i></th>
+        <th>Actions <i class="fas fa-sort sort-icon"></i></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user in page_obj %}
+      <tr data-uid="{{ user.pk }}">
+        <td><input type="checkbox" class="row-check"></td>
+        <td></td>
+        <td>{{ user.get_full_name|default:user.username }}</td>
+        <td>{{ user.username }}</td>
+        <td>{{ user.profile.user_group.name|default:"—" }}</td>
+        <td>{{ user.profile.phone|default:"—" }}</td>
+        <td>{{ user.email|default:"—" }}</td>
+        <td>{% if user.profile.allowed_ips %}<span style="font-family:monospace;font-size:12px;">{{ user.profile.allowed_ips }}</span>{% else %}<span style="color:var(--text-muted);">Any</span>{% endif %}</td>
+        <td>
+          {% if user.profile.is_enabled %}
+            <span class="status-badge enabled">Enabled</span>
+          {% else %}
+            <span class="status-badge disabled">Disabled</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="action-menu">
+            <button class="action-btn-menu" onclick="toggleMenu(this)">
+              <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
+            </button>
+            <div class="dropdown-menu">
+              <button class="dropdown-item"
+                data-id="{{ user.pk }}"
+                data-first="{{ user.first_name|escape }}"
+                data-last="{{ user.last_name|escape }}"
+                data-username="{{ user.username|escape }}"
+                data-email="{{ user.email|escape }}"
+                data-phone="{{ user.profile.phone|escape }}"
+                data-personal-email="{{ user.profile.personal_email|escape }}"
+                data-personal-phone="{{ user.profile.personal_phone|escape }}"
+                data-idno="{{ user.profile.id_number|escape }}"
+                data-address="{{ user.profile.address|escape }}"
+                data-notes="{{ user.profile.notes|escape }}"
+                data-group="{{ user.profile.user_group_id|default:'' }}"
+                data-ips="{{ user.profile.allowed_ips|escape }}"
+                data-enabled="{{ user.profile.is_enabled|yesno:'1,0' }}"
+                onclick="openEditUserModal(this)">
+                <i class="fas fa-pen"></i> Edit
+              </button>
+              <button class="dropdown-item" onclick="openPermModal({{ user.pk }}, '{{ user.get_full_name|default:user.username|escapejs }}')">
+                <i class="fas fa-user-shield"></i> Permissions
+              </button>
+              <button class="dropdown-item" onclick="openIpModal({{ user.pk }}, '{{ user.get_full_name|default:user.username|escapejs }}', '{{ user.profile.allowed_ips|escapejs }}')">
+                <i class="fas fa-shield-halved"></i> Set Allowed IP
+              </button>
+              <button class="dropdown-item" onclick="toggleUser({{ user.pk }}, this)">
+                <i class="fas fa-{% if user.profile.is_enabled %}ban{% else %}check{% endif %}"></i>
+                {% if user.profile.is_enabled %}Disable{% else %}Enable{% endif %}
+              </button>
+              <button class="dropdown-item danger" onclick="deleteUser({{ user.pk }}, '{{ user.get_full_name|default:user.username }}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="10" style="text-align:center;padding:32px;color:var(--text-muted);">No users found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <div class="pagination">
+    <span class="page-info">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }}</span>
+    {% if page_obj.has_previous %}
+      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="page-btn active">{{ num }}</span>
+      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
+        <a href="?q={{ search }}&show={{ page_size }}&page={{ num }}" class="page-btn">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="userModalTitle">Add New User</span>
+      <button class="modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <input type="hidden" id="u_id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>First Name</label>
+        <input class="form-control" id="u_first_name" placeholder="First name">
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input class="form-control" id="u_last_name" placeholder="Last name">
+      </div>
+      <div class="form-group">
+        <label>Username *</label>
+        <input class="form-control" id="u_username" placeholder="Username">
+      </div>
+      <div class="form-group">
+        <label id="u_password_label">Password *</label>
+        <div style="position:relative;">
+          <input class="form-control" id="u_password" type="password" placeholder="Password" style="padding-right:38px;width:100%;box-sizing:border-box;">
+          <button type="button" onclick="togglePassword(this)" title="Show password"
+                  style="position:absolute;right:2px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:8px 10px;font-size:13px;">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Company Email</label>
+        <input class="form-control" id="u_email" type="email" placeholder="name@company.com">
+      </div>
+      <div class="form-group">
+        <label>Personal Email</label>
+        <input class="form-control" id="u_personal_email" type="email" placeholder="name@example.com">
+      </div>
+      <div class="form-group">
+        <label>Company Phone Number</label>
+        <div style="display:flex; gap:6px;">
+          <select class="form-control" id="u_phone_code" style="flex:0 0 90px;">
+            {% for c in all_countries %}
+            <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+            {% endfor %}
+          </select>
+          <input class="form-control" id="u_phone" placeholder="Phone number" style="flex:1;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Personal Phone Number</label>
+        <div style="display:flex; gap:6px;">
+          <select class="form-control" id="u_personal_phone_code" style="flex:0 0 90px;">
+            {% for c in all_countries %}
+            <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+            {% endfor %}
+          </select>
+          <input class="form-control" id="u_personal_phone" placeholder="Phone number" style="flex:1;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>ID No.</label>
+        <input class="form-control" id="u_id_number" placeholder="ID number">
+      </div>
+      <div class="form-group">
+        <label>Address</label>
+        <input class="form-control" id="u_address" placeholder="Address">
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea class="form-control" id="u_notes" rows="2" placeholder="Notes..." style="resize:vertical;font-family:inherit;"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>User Group</label>
+        <select class="form-control" id="u_group">
+          <option value="">— No Group —</option>
+          {% for g in group_choices %}
+          <option value="{{ g.pk }}">{{ g.name }}</option>
+          {% endfor %}
+        </select>
+        <div id="u_group_note" style="display:none;font-size:11.5px;color:#b45309;margin-top:5px;">
+          <i class="fas fa-info-circle"></i> Changing the group resets this user's personal permission overrides to the new group's baseline.
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Allowed IP(s) <span style="text-transform:none;font-weight:400;">— optional, comma-separated. Leave blank to allow login from any IP.</span></label>
+        <input class="form-control" id="u_allowed_ips" placeholder="e.g. 41.32.10.5, 105.98.4.12">
+      </div>
+      <div class="form-group full">
+        <div class="toggle-row">
+          <label style="text-transform:uppercase;font-size:11px;font-weight:700;color:var(--text-muted);">Enabled</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="u_enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="error-msg" id="addError"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="btn-save" id="userModalSave" onclick="submitAdd()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Set Allowed IP Modal -->
+<div class="modal-backdrop" id="ipModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Set Allowed IP — <span id="ip_username"></span></span>
+      <button class="modal-close" onclick="closeIpModal()">&times;</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Allowed IP(s) <span style="text-transform:none;font-weight:400;">— optional, comma-separated. Leave blank to allow login from any IP.</span></label>
+        <input class="form-control" id="ip_allowed_ips" placeholder="e.g. 41.32.10.5, 105.98.4.12">
+      </div>
+    </div>
+    <div class="error-msg" id="ipError"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeIpModal()">Cancel</button>
+      <button class="btn-save" onclick="submitIpModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Per-user Permissions Modal -->
+<div class="modal-backdrop" id="permModal">
+  <div class="modal" style="max-width:680px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-header">
+      <span class="modal-title">Permissions — <span id="perm_username"></span></span>
+      <button class="modal-close" onclick="closePermModal()">&times;</button>
+    </div>
+    <div id="permGroupNote" style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px;"></div>
+    <table class="perm-table" id="userPermTable">
+      <thead>
+        <tr>
+          <th>Module</th>
+          {% for action in permission_actions %}
+          <th>{{ action|title }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for mkey, mlabel in permission_modules %}
+        <tr data-module="{{ mkey }}">
+          <td class="perm-module">{{ mlabel }}</td>
+          {% for action in permission_actions %}
+          <td><input type="checkbox" class="uperm-cb" data-module="{{ mkey }}" data-action="{{ action }}" onchange="upermMark(this)"></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:16px;margin-top:10px;font-size:11.5px;color:var(--text-muted);align-items:center;">
+      <span><span class="perm-key perm-key-grant"></span> extra permission (not in group)</span>
+      <span><span class="perm-key perm-key-revoke"></span> removed from group baseline</span>
+    </div>
+    <div class="error-msg" id="permError"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closePermModal()">Cancel</button>
+      <button class="btn-save" onclick="submitPermModal()">Save Permissions</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+/* Select-all */
+document.getElementById('selectAll').addEventListener('change', function() {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+});
+
+/* Dropdown menus */
+function toggleMenu(btn) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => {
+    if (m !== btn.nextElementSibling) m.classList.remove('open');
+  });
+  btn.nextElementSibling.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.action-menu')) {
+    document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+/* ── Per-user Permissions ── */
+let _permUid = null;
+let _permGroupPerms = {};
+
+function openPermModal(uid, name) {
+  _permUid = uid;
+  document.getElementById('perm_username').textContent = name;
+  document.getElementById('permError').style.display = 'none';
+  fetch('{% url "user_permissions_get" %}?id=' + uid)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.ok) return;
+      _permGroupPerms = d.group_perms || {};
+      const note = document.getElementById('permGroupNote');
+      if (d.is_superuser) {
+        note.innerHTML = '<i class="fas fa-info-circle"></i> This user is a <strong>Super Admin</strong> and always has every permission — overrides below have no effect.';
+      } else if (d.group) {
+        note.innerHTML = 'Baseline comes from group <strong>' + d.group + '</strong>. Tick to grant extra permissions, untick to remove inherited ones — only the difference is saved, so future group changes still apply.';
+      } else {
+        note.textContent = 'This user has no group; everything ticked here is a direct personal permission.';
+      }
+      document.querySelectorAll('#userPermTable .uperm-cb').forEach(cb => {
+        const eff = d.effective || {};
+        cb.checked = !!(eff[cb.dataset.module] && eff[cb.dataset.module].includes(cb.dataset.action));
+        upermMark(cb);
+      });
+      document.getElementById('permModal').classList.add('open');
+    });
+}
+function closePermModal() { document.getElementById('permModal').classList.remove('open'); }
+
+/* Tint a cell when it differs from the group baseline */
+function upermMark(cb) {
+  const inGroup = !!(_permGroupPerms[cb.dataset.module] && _permGroupPerms[cb.dataset.module].includes(cb.dataset.action));
+  const td = cb.closest('td');
+  td.classList.toggle('perm-grant', cb.checked && !inGroup);
+  td.classList.toggle('perm-revoke', !cb.checked && inGroup);
+}
+
+function submitPermModal() {
+  const desired = {};
+  document.querySelectorAll('#userPermTable .uperm-cb:checked').forEach(cb => {
+    (desired[cb.dataset.module] = desired[cb.dataset.module] || []).push(cb.dataset.action);
+  });
+  const body = new URLSearchParams();
+  body.append('id', _permUid);
+  body.append('permissions', JSON.stringify(desired));
+  fetch('{% url "user_permissions_set" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(r => r.json()).then(d => {
+    if (d.ok) closePermModal();
+    else {
+      const e = document.getElementById('permError');
+      e.textContent = d.error || 'Failed to save.';
+      e.style.display = 'block';
+    }
+  });
+}
+// Permissions modal closes only via the × icon or Cancel (no backdrop click).
+
+/* Toggle enable/disable */
+function toggleUser(uid, btn) {
+  fetch('{% url "user_toggle" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'id=' + uid
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+  });
+}
+
+/* Bulk delete (toolbar button, uses the row checkboxes) */
+function deleteSelectedUsers() {
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { alert('Select at least one user.'); return; }
+  if (!confirm('Delete ' + checked.length + ' selected user(s)? This cannot be undone.')) return;
+  const body = new URLSearchParams();
+  checked.forEach(c => body.append('ids[]', c.closest('tr').dataset.uid));
+  fetch('{% url "user_delete" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(r => r.json()).then(d => {
+    if (d.ok) location.reload();
+    else alert(d.error || 'Delete failed.');
+  });
+}
+
+/* Delete */
+function deleteUser(uid, name) {
+  if (!confirm('Delete user "' + name + '"?')) return;
+  fetch('{% url "user_delete" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'id=' + uid
+  }).then(r => r.json()).then(d => {
+    if (d.ok) document.querySelector('tr[data-uid="' + uid + '"]').remove();
+    else alert(d.error);
+  });
+}
+
+/* Add modal */
+function openAddModal()  {
+  document.getElementById('u_id').value = '';
+  document.getElementById('userModalTitle').textContent = 'Add New User';
+  document.getElementById('userModalSave').textContent = 'Add User';
+  document.getElementById('u_password_label').textContent = 'Password *';
+  document.getElementById('u_password').placeholder = 'Password';
+  document.getElementById('u_group_note').style.display = 'none';
+  ['u_first_name','u_last_name','u_username','u_password','u_email','u_phone','u_allowed_ips',
+   'u_personal_email','u_personal_phone','u_id_number','u_address','u_notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('u_group').value = '';
+  document.getElementById('u_enabled').checked = true;
+  document.getElementById('addModal').classList.add('open');
+  ['u_phone_code','u_personal_phone_code'].forEach(id => {
+    const ce = document.getElementById(id);
+    if (ce && ce.querySelector('option[value="+968"]')) ce.value = '+968';
+  });
+}
+
+function openEditUserModal(btn) {
+  const d = btn.dataset;
+  document.getElementById('u_id').value = d.id;
+  document.getElementById('userModalTitle').textContent = 'Edit User — ' + (d.username || '');
+  document.getElementById('userModalSave').textContent = 'Save Changes';
+  document.getElementById('u_password_label').textContent = 'Password — leave blank to keep current';
+  document.getElementById('u_password').placeholder = 'Unchanged';
+  document.getElementById('u_password').value = '';
+  document.getElementById('u_group_note').style.display = '';
+  document.getElementById('u_first_name').value = d.first || '';
+  document.getElementById('u_last_name').value = d.last || '';
+  document.getElementById('u_username').value = d.username || '';
+  document.getElementById('u_email').value = d.email || '';
+  // Stored as "+968 91234501" — split the code off for the code + number inputs
+  function fillPhone(raw, codeId, numId) {
+    const phone = (raw || '').trim();
+    const ce = document.getElementById(codeId);
+    const m = phone.match(/^(\+\d+)\s+(.*)$/);
+    if (m && ce.querySelector(`option[value="${m[1]}"]`)) {
+      ce.value = m[1];
+      document.getElementById(numId).value = m[2];
+    } else {
+      document.getElementById(numId).value = phone.replace(/^\+\d+\s*/, '');
+    }
+  }
+  fillPhone(d.phone, 'u_phone_code', 'u_phone');
+  fillPhone(d.personalPhone, 'u_personal_phone_code', 'u_personal_phone');
+  document.getElementById('u_personal_email').value = d.personalEmail || '';
+  document.getElementById('u_id_number').value = d.idno || '';
+  document.getElementById('u_address').value = d.address || '';
+  document.getElementById('u_notes').value = d.notes || '';
+  document.getElementById('u_group').value = d.group || '';
+  document.getElementById('u_allowed_ips').value = d.ips || '';
+  document.getElementById('u_enabled').checked = d.enabled === '1';
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal() { document.getElementById('addModal').classList.remove('open'); document.getElementById('addError').style.display='none'; }
+
+const US_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/, US_PHONE_RE = /^\d{6,14}$/;
+const US_IP_RE = /^[0-9a-fA-F:.]+$/;
+
+function isValidIpList(v) {
+  if (!v.trim()) return true;
+  return v.split(',').every(ip => US_IP_RE.test(ip.trim()) && ip.trim().length > 0);
+}
+
+function submitAdd() {
+  const err = document.getElementById('addError');
+  err.style.display = 'none';
+  const emailVal = document.getElementById('u_email').value.trim();
+  const personalEmailVal = document.getElementById('u_personal_email').value.trim();
+  if ((emailVal && !US_EMAIL_RE.test(emailVal)) || (personalEmailVal && !US_EMAIL_RE.test(personalEmailVal))) {
+    err.textContent = 'Enter a valid email address.'; err.style.display = 'block'; return;
+  }
+  const phoneDigits = document.getElementById('u_phone').value.trim().replace(/[\s-]/g, '');
+  const personalPhoneDigits = document.getElementById('u_personal_phone').value.trim().replace(/[\s-]/g, '');
+  if ((phoneDigits && !US_PHONE_RE.test(phoneDigits)) || (personalPhoneDigits && !US_PHONE_RE.test(personalPhoneDigits))) {
+    err.textContent = 'Enter a valid phone number (digits only, 6-14 digits).'; err.style.display = 'block'; return;
+  }
+  const allowedIps = document.getElementById('u_allowed_ips').value.trim();
+  if (!isValidIpList(allowedIps)) {
+    err.textContent = 'Enter valid, comma-separated IP addresses.'; err.style.display = 'block'; return;
+  }
+  const uid = document.getElementById('u_id').value;
+  const body = new URLSearchParams({
+    first_name: document.getElementById('u_first_name').value,
+    last_name:  document.getElementById('u_last_name').value,
+    username:   document.getElementById('u_username').value,
+    password:   document.getElementById('u_password').value,
+    email:      emailVal,
+    phone:      phoneDigits ? `${document.getElementById('u_phone_code').value} ${phoneDigits}` : '',
+    personal_email: personalEmailVal,
+    personal_phone: personalPhoneDigits ? `${document.getElementById('u_personal_phone_code').value} ${personalPhoneDigits}` : '',
+    id_number:  document.getElementById('u_id_number').value.trim(),
+    address:    document.getElementById('u_address').value.trim(),
+    notes:      document.getElementById('u_notes').value.trim(),
+    user_group: document.getElementById('u_group').value,
+    is_enabled: document.getElementById('u_enabled').checked ? '1' : '0',
+    allowed_ips: allowedIps,
+  });
+  if (uid) body.append('id', uid);
+  const url = uid ? '{% url "user_update" %}' : '{% url "user_create" %}';
+  fetch(url, {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(r => r.json()).then(d => {
+    if (d.ok) { location.reload(); }
+    else {
+      const err = document.getElementById('addError');
+      err.textContent = d.error;
+      err.style.display = 'block';
+    }
+  });
+}
+
+/* Modals close only via the × icon or Cancel — no backdrop click. */
+
+/* Show / hide password */
+function togglePassword(btn) {
+  const input = document.getElementById('u_password');
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  btn.title = show ? 'Hide password' : 'Show password';
+  btn.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+
+/* Set Allowed IP modal */
+let _ipModalUserId = null;
+function openIpModal(userId, username, currentIps) {
+  _ipModalUserId = userId;
+  document.getElementById('ip_username').textContent = username;
+  document.getElementById('ip_allowed_ips').value = currentIps || '';
+  document.getElementById('ipError').style.display = 'none';
+  document.getElementById('ipModal').classList.add('open');
+}
+function closeIpModal() { document.getElementById('ipModal').classList.remove('open'); }
+
+function submitIpModal() {
+  const err = document.getElementById('ipError');
+  err.style.display = 'none';
+  const allowedIps = document.getElementById('ip_allowed_ips').value.trim();
+  if (!isValidIpList(allowedIps)) {
+    err.textContent = 'Enter valid, comma-separated IP addresses.'; err.style.display = 'block'; return;
+  }
+  fetch('{% url "user_set_allowed_ips" %}', {
+    method: 'POST',
+    headers: {'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({ id: _ipModalUserId, allowed_ips: allowedIps }).toString()
+  }).then(r => r.json()).then(d => {
+    if (d.ok) { location.reload(); }
+    else { err.textContent = d.error || 'Failed to save.'; err.style.display = 'block'; }
+  });
+}
+</script>
+{% endblock %}

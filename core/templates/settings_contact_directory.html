@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Contact Directory{% endblock %}
+{% block extra_styles %}
+  .import-card{background:white;border-radius:12px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,0.07);margin-bottom:20px;}
+  .import-title{font-size:15px;font-weight:700;color:var(--text-dark);margin-bottom:14px;}
+  .import-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .import-label{font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px;}
+  .file-input-wrap{display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;background:white;min-width:300px;}
+  .file-input-wrap input[type=file]{font-size:13px;border:none;outline:none;flex:1;}
+  .btn-import{background:var(--primary);color:white;border:none;padding:9px 24px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-import:hover{background:var(--primary-dark);}
+  .btn-sample{background:white;border:1.5px solid #dc2626;color:#dc2626;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;margin-top:10px;}
+  .section-card{background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+  .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+  .section-title{font-size:15px;font-weight:700;color:var(--text-dark);}
+  .toolbar-right{display:flex;align-items:center;gap:8px;}
+  
+  
+  .filter-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .filter-label{font-size:13px;color:var(--text-muted);font-weight:500;}
+  .filter-search{display:flex;align-items:center;gap:8px;border:1.5px solid var(--primary);border-radius:8px;padding:7px 12px;background:white;min-width:220px;}
+  .filter-search input{border:none;outline:none;font-size:13px;flex:1;color:var(--text-dark);font-family:inherit;}
+  .filter-search i{color:var(--primary);cursor:pointer;}
+  .show-select{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted);}
+  .show-select select{border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;outline:none;cursor:pointer;}
+  .data-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .data-table thead th{background:#f8fafc;padding:9px 12px;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .data-table td{padding:9px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-dark);vertical-align:middle;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:#f8fafc;}
+  .no-data{text-align:center;padding:32px;color:var(--text-muted);font-size:13px;}
+  .table-footer{font-size:12px;color:var(--text-muted);margin-top:12px;}
+  .alert-success{background:#dbeafe;color:var(--primary);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;}
+{% endblock %}
+{% block content %}
+<div style="margin-bottom:6px;"><div class="breadcrumb">Home <span>· Import</span></div></div>
+
+{% if msg %}<div class="alert-success"><i class="fas fa-check-circle"></i> {{ msg }}</div>{% endif %}
+
+<div class="import-card">
+  <div class="import-title">Import Contact Directory</div>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="import-label">Upload Import File</div>
+    <div class="import-row">
+      <div class="file-input-wrap"><input type="file" name="file" accept=".csv,.xlsx,.xls"></div>
+      <button type="submit" class="btn-import">IMPORT</button>
+    </div>
+    <div style="margin-top:12px;">
+      <button type="button" class="btn-sample" onclick="downloadSample()">Sample Excelsheet For Contact Directory</button>
+    </div>
+  </form>
+</div>
+
+<div class="section-card">
+  <div class="section-hdr">
+    <span class="section-title">Contact Directory List</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-chevron-down" style="cursor:pointer;color:var(--text-muted);"></i>
+      <i class="fas fa-sync" style="cursor:pointer;color:var(--text-muted);font-size:12px;"></i>
+    </div>
+  </div>
+  <form method="get" id="filterForm">
+    <div class="filter-row">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="filter-label">Filter:</span>
+        <div class="filter-search">
+          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter...">
+          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()"></i>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="show-select">Show: <select name="show" onchange="document.getElementById('filterForm').submit()">{% for opt in page_size_options %}<option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" onclick="copyTable('dirTable');this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+            <a class="exp-excel" href="{% url 'contact_directory_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
+            <a class="exp-pdf" href="{% url 'contact_directory_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+  <div style="overflow-x:auto;">
+    <table class="data-table" id="dirTable">
+      <thead><tr>
+        <th style="width:40px;"><input type="checkbox"></th>
+        <th style="width:28px;"><i class="fas fa-sort" style="font-size:10px;color:#cbd5e1;margin:0;"></i></th>
+        <th>SI No</th><th>Contact Name</th><th>Contact Type</th><th>Email</th>
+        <th>Phone Number 1</th><th>Phone Number 2</th><th>ID Number</th>
+        <th>Passport Number</th><th>Nationality</th><th>Date Created</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+        {% for entry in page_obj %}
+        <tr>
+          <td><input type="checkbox"></td><td></td>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ entry.contact_name }}</td>
+          <td>{{ entry.contact_type|default:"—" }}</td>
+          <td>{{ entry.email|default:"—" }}</td>
+          <td>{{ entry.phone_number1|default:"—" }}</td>
+          <td>{{ entry.phone_number2|default:"—" }}</td>
+          <td>{{ entry.id_number|default:"—" }}</td>
+          <td>{{ entry.passport_number|default:"—" }}</td>
+          <td>{{ entry.nationality|default:"—" }}</td>
+          <td>{{ entry.created_at|date:"Y-m-d" }}</td>
+          <td><i class="fas fa-ellipsis-v" style="color:var(--text-muted);cursor:pointer;"></i></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="13" class="no-data">No data available in table</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="table-footer">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</div>
+</div>
+{% endblock %}
+{% block extra_scripts %}<script>
+function downloadSample() {
+  const csv = 'Contact Name,Contact Type,Email,Phone Number 1,Phone Number 2,ID Number,Passport Number,Nationality\nJohn Doe,Client,john@example.com,+96812345678,,A123456,P987654,Omani\n';
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'contact_directory_sample.csv';
+  a.click();
+}
+
+function copyTable(tableId) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const rows = table.querySelectorAll('tr');
+  const text = Array.from(rows).map(r => Array.from(r.querySelectorAll('th,td')).map(c => c.textContent.trim()).join('\t')).join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard'));
+}
+</script>{% endblock %}

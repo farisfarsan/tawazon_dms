@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Collection Report{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .filter-input:focus { border-color: var(--primary); }
+  .date-wrap { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 8px; background: white; }
+  .date-wrap i { padding: 0 10px; color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+  .date-wrap input { border: none; outline: none; padding: 9px 8px 9px 0; font-size: 13px; font-family: inherit; color: var(--text-dark); background: transparent; flex: 1; min-width: 0; }
+  .date-wrap:focus-within { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* ── KPI hero row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi-card { position: relative; background: white; border-radius: 14px; padding: 18px 18px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; transition: transform .15s, box-shadow .15s; }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,0.10); }
+  .kpi-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--kpi-accent, var(--primary)); }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .kpi-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; background: var(--kpi-accent, var(--primary)); opacity: 0.92; }
+  .kpi-val { font-size: 21px; font-weight: 800; color: var(--text-dark); font-variant-numeric: tabular-nums; line-height: 1.2; word-break: break-word; }
+  @media (max-width: 900px) { .kpi-row { grid-template-columns: 1fr; } }
+
+  /* ── Section shell ── */
+  .rpt-section { background: white; border-radius: 14px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .rpt-header { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  .rpt-header:hover { background: #fafbfc; }
+  .rpt-header-ico { width: 32px; height: 32px; border-radius: 9px; background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .rpt-header-title { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .rpt-header-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+  .rpt-caret { margin-left: auto; font-size: 13px; color: var(--text-muted); transition: transform 0.2s; }
+  .rpt-section.collapsed .rpt-caret { transform: rotate(-90deg); }
+  .rpt-body { padding: 16px 20px 20px; }
+  .rpt-section.collapsed .rpt-body { display: none; }
+
+  /* ── Toolbar: view / chart-type / metric switchers ── */
+  .rpt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .seg { display: inline-flex; background: #f1f5f9; border-radius: 9px; padding: 3px; gap: 2px; }
+  .seg button { border: none; background: transparent; padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .seg button:hover { color: var(--text-dark); }
+  .seg button.on { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(15,23,42,0.12); }
+  .seg-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-right: -4px; }
+  .rpt-toolbar .spacer { flex: 1; }
+
+  /* ── Chart area ── */
+  .chart-wrap { display: flex; align-items: flex-start; gap: 30px; }
+  .chart-box { flex: 0 0 46%; position: relative; min-height: 240px; }
+  .chart-box canvas { width: 100% !important; }
+  .chart-box.wide { flex: 1 1 100%; }
+  .legend-box { flex: 1; display: flex; flex-direction: column; gap: 7px; padding-top: 8px; max-height: 300px; overflow-y: auto; }
+  .leg-row { display: flex; align-items: center; gap: 9px; font-size: 12.5px; padding: 3px 6px; border-radius: 6px; }
+  .leg-row:hover { background: #f8fafc; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .leg-label { flex: 1; color: var(--text-dark); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .leg-val { color: var(--text-muted); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .no-data { text-align: center; padding: 34px 0; color: var(--text-muted); font-size: 13px; }
+  .no-data i { display: block; font-size: 26px; margin-bottom: 8px; opacity: 0.3; }
+
+  /* ── Table view ── */
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rpt-table th { padding: 10px 14px; background: #f8fafc; border-bottom: 2px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; text-align: left; }
+  .rpt-table th.r, .rpt-table td.td-r { text-align: right; font-variant-numeric: tabular-nums; }
+  .rpt-table th.c, .rpt-table td.td-c { text-align: center; }
+  .rpt-table td { padding: 9px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); }
+  .rpt-table tbody tr:hover td { background: #f8fafc; }
+  .rpt-table td.td-c { font-weight: 600; color: var(--primary); }
+  .rpt-table tfoot td { font-weight: 700; border-top: 2px solid #e2e8f0; border-bottom: none; color: var(--text-dark); }
+  .pct-cell { color: var(--text-muted); font-size: 12px; }
+
+  /* ── Total Collection Report DataTable (kept from the previous page) ── */
+  .dt-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .dt-filter-wrap { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dt-search { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12.5px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 180px; box-sizing: border-box; }
+  .dt-search:focus { border-color: var(--primary); }
+  .dt-right { display: flex; align-items: center; gap: 8px; }
+  .dt-show-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .dt-show-sel { border: 1.5px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; }
+
+  .coll-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .coll-table thead tr { background: #3d4db7; }
+  .coll-table thead th { padding: 11px 12px; font-size: 11px; font-weight: 600; color: white; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+  .coll-table thead th .si { margin-left: 4px; font-size: 9px; opacity: 0.7; }
+  .coll-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .coll-table tr:last-child td { border-bottom: none; }
+  .coll-table tr:hover td { background: #f8fafc; }
+  .coll-table tfoot td { padding: 10px 12px; background: #fafafa; }
+  .footer-label { color: #e53935; font-size: 12px; font-weight: 600; }
+  .footer-val   { color: #e53935; font-size: 13px; font-weight: 700; display: block; margin-top: 2px; }
+
+  .dt-info { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .dt-pager { display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; }
+  .pg-btn { border: 1.5px solid var(--border); background: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; color: var(--text-dark); }
+  .pg-btn.active, .pg-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  @media (max-width: 900px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+  <a href="{% url 'dashboard' %}" style="color:var(--text-muted);font-size:18px;text-decoration:none;"><i class="fas fa-arrow-circle-left"></i></a>
+  <div class="breadcrumb"><a href="{% url 'dashboard' %}" style="color:var(--primary);text-decoration:none;">Home</a> · Reports · Collections</div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+  <div class="filter-panel-title"><i class="fas fa-sliders-h"></i> Filter Collection Report</div>
+  <form method="get">
+    <div class="filter-grid" style="margin-bottom:14px;">
+{% if request.user.is_superuser %}
+      <select name="collector" class="filter-input">
+        <option value="">Select Collector</option>
+        {% for u in all_collectors %}
+        <option value="{{ u.pk }}" {% if filter.collector == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+{% endif %}
+      <select name="client" class="filter-input">
+        <option value="">Select Client</option>
+        {% for c in all_clients %}
+        <option value="{{ c.pk }}" {% if filter.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="debtor" class="filter-input">
+        <option value="">Select Debtor</option>
+        {% for d in all_debtors %}
+        <option value="{{ d.pk }}" {% if filter.debtor == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <input type="hidden" name="date_from" id="date_from" value="{{ filter.date_from }}">
+    <input type="hidden" name="date_to"   id="date_to"   value="{{ filter.date_to }}">
+    <div class="filter-grid">
+      <div class="date-wrap">
+        <i class="fas fa-calendar-alt"></i>
+        <input type="text" id="date_range_disp" placeholder="Payment Date Range" autocomplete="off">
+      </div>
+      <select name="agency" class="filter-input">
+        <option value="">Select Agency</option>
+        {% for a in all_agencies %}
+        <option value="{{ a.pk }}" {% if filter.agency == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="lawyer" class="filter-input">
+        <option value="">Select Lawyer</option>
+        {% for l in all_lawyers %}
+        <option value="{{ l.pk }}" {% if filter.lawyer == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="case_status" class="filter-input">
+        <option value="">Select Case Status</option>
+        {% for val, label in case_statuses %}
+        <option value="{{ val }}" {% if filter.case_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> SUBMIT</button>
+      <a href="{% url 'collection_report' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> RESET</a>
+    </div>
+  </form>
+</div>
+
+<!-- KPI hero row (respects the filters above) -->
+<div class="kpi-row">
+  <div class="kpi-card" style="--kpi-accent:#00897b;">
+    <div class="kpi-top"><span class="kpi-lbl">Clients Collected From</span><span class="kpi-ico"><i class="fas fa-building"></i></span></div>
+    <div class="kpi-val">{{ total_clients }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#8e24aa;">
+    <div class="kpi-top"><span class="kpi-lbl">Collection Count</span><span class="kpi-ico"><i class="fas fa-receipt"></i></span></div>
+    <div class="kpi-val">{{ total_count }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#1baf7a;">
+    <div class="kpi-top"><span class="kpi-lbl">Total Collected</span><span class="kpi-ico"><i class="fas fa-hand-holding-usd"></i></span></div>
+    <div class="kpi-val">{{ total_amount|omr }}</div>
+  </div>
+</div>
+
+<!-- Report sections are generated by JS from the data below -->
+<div id="rptSections"></div>
+
+<!-- Total Collection Report (payment-level data table) -->
+<div class="rpt-section" id="sec-details">
+  <div class="rpt-header" onclick="toggleSec('sec-details')">
+    <span class="rpt-header-ico"><i class="fas fa-list"></i></span>
+    <div>
+      <div class="rpt-header-title">Total Collection Report</div>
+      <div class="rpt-header-sub">{{ total_count }} payment{{ total_count|pluralize }}</div>
+    </div>
+    <i class="fas fa-chevron-down rpt-caret"></i>
+  </div>
+  <div class="rpt-body">
+    <div class="dt-toolbar">
+      <div class="dt-filter-wrap">
+        <span>Filter:</span>
+        <input type="text" id="collSearch" class="dt-search" placeholder="Type to filter...">
+      </div>
+      <div class="dt-right">
+        <div class="dt-show-wrap">
+          <span>Show:</span>
+          <select id="collPageSize" class="dt-show-sel">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" id="collCopyBtn"><i class="fas fa-copy"></i> Copy</button>
+            <button class="exp-excel" id="collExcelBtn"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="exp-pdf" id="collPdfBtn"><i class="fas fa-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="coll-table" id="collTable">
+        <thead>
+          <tr>
+            <th data-col="0">Client <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="1">Debtor <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="2">Account Number <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="3">Case ID <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="4">Collection Amt (OMR) <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="5">Payment Date <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="6">Collector <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="7">Method <span class="si"><i class="fas fa-sort"></i></span></th>
+          </tr>
+        </thead>
+        <tbody id="collBody">
+          {% for p in payments %}
+          <tr>
+            <td>{{ p.case.client.name }}</td>
+            <td>{{ p.case.debtor.name }}</td>
+            <td>{{ p.case.account_no|default:"—" }}</td>
+            <td><a href="{% url 'case_detail' p.case.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+            <td class="num">{{ p.amount|omr }}</td>
+            <td>{{ p.payment_date|date:"d-M-Y" }}</td>
+            <td>{% if p.case.collector %}{{ p.case.collector.get_full_name|default:p.case.collector.username }}{% else %}—{% endif %}</td>
+            <td>{{ p.get_payment_method_display }}</td>
+          </tr>
+          {% empty %}
+          <tr class="empty-row"><td colspan="8" style="text-align:center;padding:28px 0;color:var(--text-muted);">No data</td></tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">
+              <span class="footer-label">Total Collection Count -</span>
+              <span class="footer-val">{{ total_count }}</span>
+            </td>
+            <td colspan="2">
+              <span class="footer-label">Total Collection Amt (OMR) -</span>
+              <span class="footer-val">{{ total_amount|omr }}</span>
+            </td>
+            <td colspan="4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;">
+      <div class="dt-info" id="collInfo">Showing 0 to 0 of 0 entries</div>
+      <div class="dt-pager" id="collPager"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_daterange_premium.html" %}
+<script>
+// ── Data (from the view) ──
+const DATA = {
+  period:     {{ period_rows_json|safe }},
+  client:     {{ client_rows_json|safe }},
+  clientType: {{ client_type_rows_json|safe }},
+  method:     {{ method_rows_json|safe }},
+  country:    {{ country_rows_json|safe }},
+  agency:     {{ agency_rows_json|safe }},
+  collector:  {{ collector_rows_json|safe }},
+  lawyer:     {{ lawyer_rows_json|safe }},
+};
+
+// Validated 8-slot categorical palette (fixed order — never cycled; extra
+// categories fold into a gray "Other" slice on pie/donut).
+const PALETTE = ['#2a78d6','#1baf7a','#eda100','#008300','#4a3aa7','#e34948','#e87ba4','#eb6834'];
+const OTHER_COLOR = '#94a3b8';
+const BAR_COLOR   = '#2a78d6';
+
+// This report tracks actual collected money, not case approvals — so the
+// metric set is just Count / Amount (no Approved/Received/Remaining).
+const METRICS = [
+  { key: 'count',  label: 'Count',  money: false },
+  { key: 'amount', label: 'Amount', money: true  },
+];
+const CHART_TYPES = [
+  { key: 'donut',  label: 'Donut',  icon: 'fa-circle-notch' },
+  { key: 'pie',    label: 'Pie',    icon: 'fa-chart-pie' },
+  { key: 'bar',    label: 'Bar',    icon: 'fa-align-left' },
+  { key: 'column', label: 'Column', icon: 'fa-chart-bar' },
+];
+
+const SECTIONS = [
+  { id: 'trend',      title: 'Collections Over Time',      unit: ['period', 'periods'],       icon: 'fa-calendar-alt', data: DATA.period.monthly, type: 'column', chrono: true, periods: ['monthly', 'quarterly', 'yearly'], tableLabel: 'Period' },
+  { id: 'client',     title: 'Client Wise Collection',     unit: ['client', 'clients'],       icon: 'fa-building',    data: DATA.client,     type: 'bar'    },
+  { id: 'clientType', title: 'Client Type with Collection', unit: ['type', 'types'],           icon: 'fa-building',    data: DATA.clientType, type: 'donut'  },
+  { id: 'method',     title: 'Payment Method',              unit: ['method', 'methods'],       icon: 'fa-credit-card', data: DATA.method,     type: 'donut'  },
+  { id: 'country',    title: 'Country with Collection',     unit: ['country', 'countries'],    icon: 'fa-globe',       data: DATA.country,    type: 'bar'    },
+  { id: 'agency',     title: 'Agency Wise Collection',      unit: ['agency', 'agencies'],      icon: 'fa-sitemap',     data: DATA.agency,     type: 'bar'    },
+  { id: 'collector',  title: 'Collector Wise Collection',   unit: ['collector', 'collectors'], icon: 'fa-user-tie',    data: DATA.collector,  type: 'bar'    },
+  { id: 'lawyer',     title: 'Lawyer Wise Collection',      unit: ['lawyer', 'lawyers'],       icon: 'fa-gavel',       data: DATA.lawyer,     type: 'bar'    },
+];
+
+const fmtMoney = v => new Intl.NumberFormat('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(v);
+const fmtVal = (v, money) => money ? fmtMoney(v) : String(v);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const _charts = {};
+const _state  = {};
+
+const host = document.getElementById('rptSections');
+SECTIONS.forEach((s) => {
+  _state[s.id] = { type: s.type, metric: 'count', view: 'chart' };
+  const total = s.data.reduce((a, r) => a + r.count, 0);
+  const sub = `${s.data.length} ${s.unit[s.data.length === 1 ? 0 : 1]} · ${total} payment${total === 1 ? '' : 's'}`;
+  const el = document.createElement('div');
+  el.className = 'rpt-section';
+  el.id = 'sec-' + s.id;
+  el.innerHTML = `
+    <div class="rpt-header" onclick="toggleSec('sec-${s.id}')">
+      <span class="rpt-header-ico"><i class="fas ${s.icon}"></i></span>
+      <div>
+        <div class="rpt-header-title">${esc(s.title)}</div>
+        <div class="rpt-header-sub">${esc(sub)}</div>
+      </div>
+      <i class="fas fa-chevron-down rpt-caret"></i>
+    </div>
+    <div class="rpt-body">
+      <div class="rpt-toolbar">
+        <span class="seg" id="view-${s.id}">
+          <button data-v="chart" class="on" onclick="setView('${s.id}','chart')"><i class="fas fa-chart-pie"></i> Chart</button>
+          <button data-v="table" onclick="setView('${s.id}','table')"><i class="fas fa-table"></i> Table</button>
+        </span>
+        ${s.periods ? `<span class="seg" id="period-${s.id}">` +
+          s.periods.map(p => `<button data-p="${p}" class="${p === 'monthly' ? 'on' : ''}" onclick="setPeriod('${s.id}','${p}')">${p.charAt(0).toUpperCase() + p.slice(1)}</button>`).join('') +
+          '</span>' : ''}
+        <span class="seg" id="type-${s.id}">
+          ${CHART_TYPES.map(t => `<button data-t="${t.key}" class="${t.key === s.type ? 'on' : ''}" title="${t.label}" onclick="setType('${s.id}','${t.key}')"><i class="fas ${t.icon}"></i> ${t.label}</button>`).join('')}
+        </span>
+        <span class="spacer"></span>
+        <span class="seg-lbl">Metric</span>
+        <span class="seg" id="metric-${s.id}">
+          ${METRICS.map(m => `<button data-m="${m.key}" class="${m.key === 'count' ? 'on' : ''}" onclick="setMetric('${s.id}','${m.key}')">${m.label}</button>`).join('')}
+        </span>
+      </div>
+      <div id="chartview-${s.id}">
+        <div class="chart-wrap" id="wrap-${s.id}">
+          <div class="chart-box" id="box-${s.id}"><canvas id="canvas-${s.id}"></canvas></div>
+          <div class="legend-box" id="legend-${s.id}"></div>
+        </div>
+      </div>
+      <div id="tableview-${s.id}" style="display:none;"></div>
+    </div>`;
+  host.appendChild(el);
+  renderChart(s);
+  renderTable(s);
+});
+
+function findSection(id) { return SECTIONS.find(s => s.id === id); }
+function toggleSec(id) { document.getElementById(id).classList.toggle('collapsed'); }
+
+function setView(id, v) {
+  _state[id].view = v;
+  document.querySelectorAll(`#view-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('chartview-' + id).style.display = v === 'chart' ? '' : 'none';
+  document.getElementById('tableview-' + id).style.display = v === 'table' ? '' : 'none';
+}
+function setType(id, t) {
+  _state[id].type = t;
+  document.querySelectorAll(`#type-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  renderChart(findSection(id));
+}
+function setMetric(id, m) {
+  _state[id].metric = m;
+  document.querySelectorAll(`#metric-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  renderChart(findSection(id));
+  renderTable(findSection(id));
+}
+function setPeriod(id, p) {
+  const s = findSection(id);
+  s.data = DATA.period[p] || [];
+  document.querySelectorAll(`#period-${id} button`).forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  const total = s.data.reduce((a, r) => a + r.count, 0);
+  const sub = document.querySelector(`#sec-${id} .rpt-header-sub`);
+  if (sub) sub.textContent = `${s.data.length} ${s.unit[s.data.length === 1 ? 0 : 1]} · ${total} payment${total === 1 ? '' : 's'}`;
+  renderChart(s);
+  renderTable(s);
+}
+
+function renderChart(s) {
+  const st = _state[s.id];
+  const metric = METRICS.find(m => m.key === st.metric);
+  const box = document.getElementById('box-' + s.id);
+  const legendEl = document.getElementById('legend-' + s.id);
+  if (_charts[s.id]) { _charts[s.id].destroy(); delete _charts[s.id]; }
+
+  if (!s.data.length) {
+    box.classList.add('wide');
+    box.innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i>No data for the current filters</div>';
+    legendEl.style.display = 'none';
+    return;
+  }
+  box.innerHTML = `<canvas id="canvas-${s.id}"></canvas>`;
+  const isPieish = st.type === 'donut' || st.type === 'pie';
+
+  let rows = s.data.map((r, i) => ({ ...r, _i: i }));
+  // Time-series sections stay chronological; everything else sorts by value
+  if (!isPieish && !s.chrono) rows = rows.slice().sort((a, b) => b[st.metric] - a[st.metric]);
+
+  if (isPieish) {
+    let pieRows = rows.filter(r => r[st.metric] > 0);
+    let folded = null;
+    if (pieRows.length > 8) {
+      const keep = pieRows.slice().sort((a, b) => b[st.metric] - a[st.metric]).slice(0, 7).map(r => r._i);
+      folded = { label: 'Other', value: 0, n: 0 };
+      pieRows = pieRows.filter(r => {
+        if (keep.includes(r._i)) return true;
+        folded.value += r[st.metric]; folded.n += 1; return false;
+      });
+    }
+    const labels = pieRows.map(r => r.label);
+    const values = pieRows.map(r => r[st.metric]);
+    const colors = pieRows.map((_, i) => PALETTE[i % PALETTE.length]);
+    if (folded && folded.n) { labels.push(`Other (${folded.n})`); values.push(folded.value); colors.push(OTHER_COLOR); }
+    box.classList.remove('wide');
+    box.style.height = '260px';
+    legendEl.style.display = '';
+    _charts[s.id] = new Chart(document.getElementById('canvas-' + s.id), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: st.type === 'donut' ? '62%' : 0,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${fmtVal(c.parsed, metric.money)}${metric.money ? ' OMR' : ''}` } },
+        },
+      },
+    });
+    const total = values.reduce((a, b) => a + b, 0);
+    legendEl.innerHTML = labels.map((label, i) => {
+      const pct = total ? Math.round(values[i] / total * 100) : 0;
+      return `<div class="leg-row"><div class="leg-dot" style="background:${colors[i]}"></div><span class="leg-label" title="${esc(label)}">${esc(label)}</span><span class="leg-val">${fmtVal(values[i], metric.money)} (${pct}%)</span></div>`;
+    }).join('');
+  } else {
+    const horizontal = st.type === 'bar';
+    const labels = rows.map(r => r.label);
+    const values = rows.map(r => r[st.metric]);
+    box.classList.add('wide');
+    legendEl.style.display = 'none';
+    box.style.height = horizontal ? Math.max(240, rows.length * 30 + 70) + 'px' : '300px';
+    _charts[s.id] = new Chart(document.getElementById('canvas-' + s.id), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: BAR_COLOR, borderRadius: 4, maxBarThickness: 22 }] },
+      options: {
+        indexAxis: horizontal ? 'y' : 'x',
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${metric.label}: ${fmtVal(horizontal ? c.parsed.x : c.parsed.y, metric.money)}${metric.money ? ' OMR' : ''}` } },
+        },
+        scales: {
+          x: { grid: { display: horizontal }, border: { display: false },
+               ticks: horizontal ? { callback: v => metric.money ? Intl.NumberFormat('en-US', { notation: 'compact' }).format(v) : v }
+                                 : { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+          y: { grid: { display: !horizontal }, border: { display: false },
+               ticks: horizontal ? {} : { callback: v => metric.money ? Intl.NumberFormat('en-US', { notation: 'compact' }).format(v) : v } },
+        },
+      },
+    });
+  }
+}
+
+function renderTable(s) {
+  const el = document.getElementById('tableview-' + s.id);
+  if (!s.data.length) { el.innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i>No data for the current filters</div>'; return; }
+  const total = { count: 0, amount: 0 };
+  s.data.forEach(r => { total.count += r.count; total.amount += r.amount; });
+  const grand = total.count;
+  el.innerHTML = `
+    <table class="rpt-table">
+      <thead><tr>
+        <th>${esc(s.tableLabel || s.title)}</th>
+        <th class="c">Count</th>
+        <th class="c">Share</th>
+        <th class="r">Amount (OMR)</th>
+      </tr></thead>
+      <tbody>
+        ${s.data.map(r => `
+        <tr>
+          <td>${esc(r.label)}</td>
+          <td class="td-c">${r.count}</td>
+          <td class="td-c pct-cell">${grand ? Math.round(r.count / grand * 100) : 0}%</td>
+          <td class="td-r">${fmtMoney(r.amount)}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td>Total</td>
+        <td class="td-c">${total.count}</td>
+        <td class="td-c pct-cell">100%</td>
+        <td class="td-r">${fmtMoney(total.amount)}</td>
+      </tr></tfoot>
+    </table>`;
+}
+</script>
+<script>
+// ── Total Collection Report DataTable (kept from the previous page) ──
+(function () {
+  var tbody   = document.getElementById('collBody');
+  var search  = document.getElementById('collSearch');
+  var pageSel = document.getElementById('collPageSize');
+  var infoEl  = document.getElementById('collInfo');
+  var pagerEl = document.getElementById('collPager');
+  var allRows = Array.from(tbody.querySelectorAll('tr:not(.empty-row)'));
+  var sortDir = {};
+  var curPage = 1;
+  var filtered = allRows.slice();
+
+  function getPS() { return parseInt(pageSel.value, 10); }
+
+  function renderDT() {
+    var q = search.value.toLowerCase();
+    filtered = allRows.filter(function (tr) { return !q || tr.innerText.toLowerCase().includes(q); });
+    var total = filtered.length, ps = getPS(), pages = Math.max(1, Math.ceil(total / ps));
+    if (curPage > pages) curPage = pages;
+    var start = (curPage - 1) * ps, end = Math.min(start + ps, total);
+    allRows.forEach(function (tr) { tr.style.display = 'none'; });
+    filtered.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
+    var noRow = tbody.querySelector('.empty-row');
+    if (total === 0) { if (!noRow) tbody.insertAdjacentHTML('beforeend', '<tr class="empty-row"><td colspan="8" style="text-align:center;padding:28px;color:var(--text-muted);">No data</td></tr>'); }
+    else { if (noRow) noRow.remove(); }
+    infoEl.textContent = total === 0 ? 'Showing 0 to 0 of 0 entries' : 'Showing ' + (start + 1) + ' to ' + end + ' of ' + total + ' entries';
+    pagerEl.innerHTML = '';
+    function pgBtn(lbl, pg, active) {
+      var b = document.createElement('button'); b.className = 'pg-btn' + (active ? ' active' : ''); b.textContent = lbl;
+      b.addEventListener('click', function () { curPage = pg; renderDT(); }); pagerEl.appendChild(b);
+    }
+    if (curPage > 1) pgBtn('‹', curPage - 1, false);
+    for (var i = 1; i <= pages; i++) pgBtn(i, i, i === curPage);
+    if (curPage < pages) pgBtn('›', curPage + 1, false);
+  }
+
+  search.addEventListener('input', function () { curPage = 1; renderDT(); });
+  pageSel.addEventListener('change', function () { curPage = 1; renderDT(); });
+
+  document.querySelectorAll('#collTable thead th').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = parseInt(th.dataset.col, 10), dir = sortDir[col] === 'asc' ? 'desc' : 'asc';
+      sortDir = {}; sortDir[col] = dir;
+      allRows.sort(function (a, b) {
+        var va = (a.cells[col] ? a.cells[col].innerText : '').toLowerCase();
+        var vb = (b.cells[col] ? b.cells[col].innerText : '').toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      allRows.forEach(function (tr) { tbody.appendChild(tr); }); curPage = 1; renderDT();
+    });
+  });
+
+  document.getElementById('collCopyBtn').addEventListener('click', function () {
+    var text = filtered.map(function (tr) { return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }).join('\t'); }).join('\n');
+    navigator.clipboard.writeText(text).catch(function () {});
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('collExcelBtn').addEventListener('click', function () {
+    var headers = Array.from(document.querySelectorAll('#collTable thead th')).map(function (th) { return th.innerText.trim(); });
+    var dataRows = filtered.map(function (tr) { return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }); });
+    var csv = [headers].concat(dataRows).map(function (r) { return r.map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'collection_report.csv'; a.click();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('collPdfBtn').addEventListener('click', function () {
+    var table = document.getElementById('collTable');
+    var win = window.open('', '_blank');
+    win.document.write('<html><head><title>Collection Report</title><style>body{font-family:sans-serif;font-size:11px;margin:20px;}h2{color:#1a6b3a;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left;}th{background:#1a6b3a;color:#fff;}tr:nth-child(even){background:#f8fafc;}</style></head><body><h2>Collection Report</h2>' + table.outerHTML + '</body></html>');
+    win.document.close(); win.print();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  renderDT();
+})();
+</script>
+{% endblock %}

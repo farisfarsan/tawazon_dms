@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load core_filters %}
+
+{% block title %}Pending Payments{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; }
+  .filter-input:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  .panel-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .panel-title-bar h3 { font-size: 17px; font-weight: 700; }
+  .panel-summary { font-size: 13px; color: var(--text-muted); }
+  .panel-summary strong { color: var(--primary); font-size: 16px; }
+
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+
+  /* .amt-cell replaced by global .num */
+  .amt-pending { color: #d97706; font-weight: 600; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-pending { background: #fef9e7; color: #92400e; border: 1px solid #fbbf24; }
+  .badge-method { background: #f0f9ff; color: #0369a1; }
+
+  .confirm-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .confirm-dot.yes { background: #22c55e; }
+  .confirm-dot.no { background: #e5e7eb; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 420px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+  @keyframes modalIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .modal p { color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal.danger h3 i { color: #dc2626; }
+  .btn-danger { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  .conf-btn { border: none; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .conf-btn.approve { background: #059669; color: white; }
+  .conf-btn.approve:hover { background: #047857; }
+  .conf-btn.reject { background: #fee2e2; color: #dc2626; margin-left: 6px; }
+  .conf-btn.reject:hover { background: #dc2626; color: white; }
+  .conf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  th.pp-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  .pp-sort-ic { font-size: 11px; opacity: 0.55; margin-left: 3px; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Cases <span>— Collection Confirmation</span></div>
+      <div class="breadcrumb-sub">{{ still_pending_count }} pending payment(s)</div>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-panel-title"><i class="fas fa-filter"></i> Filter Pending Payments</div>
+    <form method="get">
+      <div class="filter-grid">
+{% if request.user.is_superuser %}
+        <div class="filter-group">
+          <label>Collector</label>
+          <select name="collector" class="filter-input">
+            <option value="">All Collectors</option>
+            {% for u in all_users %}
+            <option value="{{ u.id }}" {% if filter_collector == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+{% endif %}
+        <div class="filter-group">
+          <label>Debtor</label>
+          <select name="debtor" class="filter-input">
+            <option value="">All Debtors</option>
+            {% for d in all_debtors %}
+            <option value="{{ d.id }}" {% if filter_debtor == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Client</label>
+          <select name="client" class="filter-input">
+            <option value="">All Clients</option>
+            {% for c in all_clients %}
+            <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Payment Date From</label>
+          <input type="date" name="date_from" class="filter-input" value="{{ filter_date_from }}">
+        </div>
+        <div class="filter-group">
+          <label>Payment Date To</label>
+          <input type="date" name="date_to" class="filter-input" value="{{ filter_date_to }}">
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> Submit</button>
+        <a href="{% url 'pending_payments' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="data-card">
+    <div class="panel-title-bar">
+      <h3>Pending Payments</h3>
+      {% if payments %}
+      <div class="panel-summary">
+        Total pending: <strong>{{ still_pending_count }}</strong> payment(s)
+      </div>
+      {% endif %}
+    </div>
+
+    {% if payments %}
+    <div style="overflow-x:auto;">
+    <table class="data-table" id="ppTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th class="pp-sortable" onclick="ppSort(1, this)">Case ID <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(2, this)">Client <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(3, this)">Debtor <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(4, this)">Collector <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(5, this)">Mode <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(6, this)">Collection Date <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(7, this)">Collection Amt (OMR) <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(8, this)">Notes <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th class="pp-sortable" onclick="ppSort(9, this)">Status <i class="fas fa-sort pp-sort-ic"></i></th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for payment in payments %}
+        <tr id="pp-row-{{ payment.pk }}">
+          <td class="pp-serial" style="color:var(--text-muted);">{{ forloop.counter }}</td>
+          <td><a href="{% url 'debtor_detail' payment.case.debtor.pk %}" class="clickable" style="font-size:12px;">{{ payment.case.case_id }}</a></td>
+          <td><span class="clickable">{{ payment.case.client.name }}</span></td>
+          <td><a href="{% url 'debtor_detail' payment.case.debtor.pk %}" class="clickable">{{ payment.case.debtor.name }}</a></td>
+          <td>{% if payment.case.collector %}{{ payment.case.collector.get_full_name|default:payment.case.collector.username }}{% else %}—{% endif %}</td>
+          <td><span class="badge badge-method">{{ payment.get_payment_method_display }}</span></td>
+          <td data-iso="{{ payment.payment_date|date:'Y-m-d' }}">{{ payment.payment_date|date:"d-M-Y" }}</td>
+          <td class="num amt-pending">{{ payment.amount|omr }}</td>
+          <td style="max-width:140px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:var(--text-muted);">{{ payment.notes|default:"—" }}</td>
+          <td id="pp-status-{{ payment.pk }}">
+            {% if payment.status == 'cleared' %}
+            <span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>
+            {% elif payment.status == 'bounced' %}
+            <span class="badge" style="background:#fee2e2;color:#b91c1c;">Rejected</span>
+            {% else %}
+            <span class="badge badge-pending">Pending</span>
+            {% endif %}
+          </td>
+          <td class="actions" id="pp-actions-{{ payment.pk }}" style="white-space:nowrap;">
+            {% if payment.status == 'pending' and request.user.is_superuser %}
+            <button class="conf-btn approve" onclick="confirmPayment({{ payment.pk }}, 'approve', this)"><i class="fas fa-check-circle"></i> Approve</button>
+            <button class="conf-btn reject" onclick="confirmPayment({{ payment.pk }}, 'reject', this)"><i class="fas fa-times-circle"></i> Reject</button>
+            {% else %}
+            <span style="color:#9ca3af;font-size:12px;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-clock"></i>
+        <p>No pending payments found. All payments are cleared!</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  // Column sort: numbers sort numerically, the date column sorts on its ISO
+  // attribute, everything else alphabetically. Serial numbers re-count 1..N
+  // top-to-bottom after every sort.
+  let _ppSortCol = -1, _ppSortAsc = true;
+  function ppSort(col, thEl) {
+    const tbody = document.querySelector('#ppTable tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    if (!rows.length) return;
+    _ppSortAsc = (_ppSortCol === col) ? !_ppSortAsc : true;
+    _ppSortCol = col;
+    rows.sort((a, b) => {
+      const ac = a.cells[col], bc = b.cells[col];
+      const av = ac ? (ac.dataset.iso || ac.textContent.trim()) : '';
+      const bv = bc ? (bc.dataset.iso || bc.textContent.trim()) : '';
+      const an = parseFloat(av.replace(/[^0-9.-]/g, '')), bn = parseFloat(bv.replace(/[^0-9.-]/g, ''));
+      const numeric = !isNaN(an) && !isNaN(bn) && /[0-9]/.test(av) && /[0-9]/.test(bv) && !ac.dataset.iso;
+      const cmp = numeric ? an - bn : av.localeCompare(bv);
+      return _ppSortAsc ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    document.querySelectorAll('#ppTable .pp-sort-ic').forEach(ic => ic.className = 'fas fa-sort pp-sort-ic');
+    const icon = thEl.querySelector('.pp-sort-ic');
+    if (icon) icon.className = _ppSortAsc ? 'fas fa-sort-up pp-sort-ic' : 'fas fa-sort-down pp-sort-ic';
+    tbody.querySelectorAll('.pp-serial').forEach((td, i) => { td.textContent = i + 1; });
+  }
+
+  async function confirmPayment(pk, action, btn) {
+    const label = action === 'approve' ? 'Approve' : 'Reject';
+    if (!confirm(label + ' this payment?')) return;
+    const row = btn.closest('tr');
+    row.querySelectorAll('.conf-btn').forEach(b => b.disabled = true);
+    const fd = new FormData();
+    fd.append('payment_pk', pk);
+    fd.append('action', action);
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    try {
+      const res = await fetch('{% url "payment_confirm" %}', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' }, body: fd });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message, 'success');
+        // Flip the row's Status/Actions in place — it stays listed (now
+        // showing Approved/Rejected) for 1 day rather than vanishing, so the
+        // action you just took is still visible right after you take it.
+        const statusCell = document.getElementById('pp-status-' + pk);
+        const actionsCell = document.getElementById('pp-actions-' + pk);
+        if (action === 'approve') {
+          statusCell.innerHTML = '<span class="badge" style="background:#d1fae5;color:#065f46;">Approved</span>';
+        } else {
+          statusCell.innerHTML = '<span class="badge" style="background:#fee2e2;color:#b91c1c;">Rejected</span>';
+        }
+        actionsCell.innerHTML = '<span style="color:#9ca3af;font-size:12px;">—</span>';
+        // The "Total pending" counters only count still-pending items.
+        document.querySelectorAll('.panel-summary strong, .breadcrumb-sub').forEach(el => {
+          const n = parseInt(el.textContent, 10);
+          if (!isNaN(n) && n > 0) {
+            if (el.tagName === 'STRONG') el.textContent = n - 1;
+            else el.textContent = el.textContent.replace(/^\d+/, n - 1);
+          }
+        });
+      } else {
+        showToast(data.message || 'Action failed.', 'error');
+        row.querySelectorAll('.conf-btn').forEach(b => b.disabled = false);
+      }
+    } catch (e) {
+      showToast('Network error — please try again.', 'error');
+      row.querySelectorAll('.conf-btn').forEach(b => b.disabled = false);
+    }
+  }
+</script>
+{% endblock %}

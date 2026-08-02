@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+db.sqlite3.backup-*
+media/
+staticfiles/
+
+# Environment / secrets
+.env
+.env.*
+
+# Frontend build cache (no real source currently tracked here)
+frontend/.vite/
+frontend/node_modules/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Claude Code local settings (machine-specific, not shared config)
+.claude/settings.local.json
+
+# Logs
+*.log

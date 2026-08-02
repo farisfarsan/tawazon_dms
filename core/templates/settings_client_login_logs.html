@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Client Login Logs{% endblock %}
+
+{% block extra_styles %}
+  .page-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .page-header a { color: var(--text-muted); font-size: 18px; text-decoration: none; }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--primary); text-decoration: none; }
+
+  .tbl-card { background: white; border-radius: 12px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .tbl-card-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 4px; }
+  .tbl-sub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px; }
+  .tbl-sub b { color: var(--text-dark); }
+
+  .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log-table thead th { text-align: left; padding: 11px 14px; font-size: 11.5px; font-weight: 600; color: var(--text-dark); border-bottom: 2px solid var(--border); }
+  .log-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); }
+  .log-table tr:last-child td { border-bottom: none; }
+  .log-table tr:hover td { background: #f8fafc; }
+  .ip { font-family: 'SF Mono', Consolas, monospace; font-size: 12.5px; }
+  .no-data { text-align: center; padding: 34px; color: var(--text-muted); font-size: 13px; }
+  .count-pill { display:inline-block; background:#00bcd4; color:white; font-size:11px; font-weight:700; padding:3px 11px; border-radius:20px; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{% url 'client_login_access_list' %}"><i class="fas fa-arrow-circle-left"></i></a>
+  <div class="breadcrumb"><a href="{% url 'client_login_access_list' %}">Client Login List</a> · Client Login Logs</div>
+</div>
+
+<div class="tbl-card">
+  <div class="tbl-card-title">Client Login Access</div>
+  <div class="tbl-sub">
+    Login history for <b>{{ access.client.name }}</b> &nbsp;·&nbsp; {{ access.email }}
+    &nbsp; <span class="count-pill">{{ logs|length }} login{{ logs|length|pluralize }}</span>
+  </div>
+
+  <table class="log-table">
+    <thead>
+      <tr>
+        <th style="width:80px;">SI No</th>
+        <th>IP Address</th>
+        <th>Login Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td class="ip">{{ log.ip_address|default:"—" }}</td>
+        <td>{{ log.created_at|date:"d M Y, h:i A" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="no-data">No logins recorded yet for this client.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

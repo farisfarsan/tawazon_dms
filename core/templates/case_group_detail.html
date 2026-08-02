@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+
+{% block title %}Case Group — {{ group.name }}{% endblock %}
+
+{% block extra_styles %}
+  .cg-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 22px; background: white; }
+  .cg-tab { flex: 1; text-align: center; padding: 12px 10px; font-size: 13px; font-weight: 600; color: var(--text-muted); background: white; border: none; cursor: pointer; font-family: inherit; border-right: 1px solid var(--border); }
+  .cg-tab:last-child { border-right: none; }
+  .cg-tab.active { background: var(--primary); color: white; }
+  .cg-tab:not(.active):hover { background: #f1f5f9; }
+  .cg-section { display: none; }
+  .cg-section.active { display: block; }
+
+  .case-id-link { color: var(--primary); font-weight: 600; font-size: 12px; font-family: monospace; text-decoration: none; }
+  .case-id-link:hover { text-decoration: underline; }
+  .amt-cell { font-variant-numeric: tabular-nums; }
+  .total-row td { font-weight: 700; background: #f8fafc; border-top: 2px solid var(--border); }
+
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.active { background: #dcfce7; color: #166534; }
+  .badge.closed { background: #fee2e2; color: #991b1b; }
+  .badge.closed_by_client { background: #fef3c7; color: #92400e; }
+  .badge.contactable { background: #eff6ff; color: #1d4ed8; }
+  .badge.broken_promise { background: #fce7f3; color: #9d174d; }
+  .badge.promise_to_pay { background: #ccfbf1; color: #0d9488; }
+  .badge.under_tracing { background: #f3e8ff; color: #6b21a8; }
+  .badge.refuse_to_pay { background: #fee2e2; color: #991b1b; }
+  .badge.pending { background: #fef3c7; color: #92400e; }
+  .badge.completed { background: #d1fae5; color: #065f46; }
+
+  .rm-case-btn { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; }
+  .rm-case-btn:hover { background: #fee2e2; }
+  .cg-act-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 4px 9px; border-radius: 6px; }
+  .cg-act-btn:hover { background: #ede9fe; color: var(--primary); }
+
+  .cg-row-menu { display: none; position: fixed; background: white; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.18); padding: 6px 0; min-width: 180px; z-index: 1200; }
+  .cg-row-menu.open { display: block; }
+  .cg-row-menu button, .cg-row-menu a { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 16px; font-size: 13px; color: var(--text-dark); background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; text-decoration: none; }
+  .cg-row-menu button:hover, .cg-row-menu a:hover { background: #f8fafc; }
+  .cg-row-menu i { width: 15px; color: var(--text-muted); }
+  .cg-row-menu .danger, .cg-row-menu .danger i { color: #dc2626; }
+  .cg-row-menu .menu-divider { height: 1px; background: var(--border); margin: 5px 0; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 760px; width: 94%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  @keyframes modalIn { from { transform: scale(0.93); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .modal-header h3 { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; }
+  .modal-close:hover { background: #f1f5f9; }
+  .modal-field { margin-bottom: 14px; }
+  .modal-field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-dark); margin-bottom: 6px; }
+  .modal-input { width: 100%; padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; box-sizing: border-box; background: white; color: var(--text-dark); }
+  .modal-input:focus { border-color: var(--primary); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Cases <span>— Case Group ({{ group.name }})</span></div>
+      <div class="breadcrumb-sub">
+        {{ cases|length }} case(s)
+        {% if group.collector %} · Collector: {{ group.collector.get_full_name|default:group.collector.username }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <a href="{% url 'case_groups' %}" class="btn-primary" style="text-decoration:none;">
+        <i class="fas fa-arrow-left"></i> Back
+      </a>
+    </div>
+  </div>
+
+  <div class="cg-tabs">
+    <button class="cg-tab active" data-tab="financial" onclick="switchTab('financial')">Financial</button>
+    <button class="cg-tab" data-tab="followups" onclick="switchTab('followups')">Follow Ups</button>
+    <button class="cg-tab" data-tab="reminders" onclick="switchTab('reminders')">Reminders</button>
+    <button class="cg-tab" data-tab="history" onclick="switchTab('history')">Case Group History</button>
+  </div>
+
+  <!-- ── Financial ── -->
+  <div class="cg-section active" id="tab-financial">
+    <div class="data-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case No.</th>
+            <th>A/C Number</th>
+            <th>Case Type</th>
+            <th>Status</th>
+            <th style="text-align:right;">O/S Amt</th>
+            <th style="text-align:right;">O/S Amt (OMR)</th>
+            <th style="text-align:right;">Principal Amt</th>
+            <th style="text-align:right;">Total Approved Amt</th>
+            <th style="text-align:right;">Total Approved (OMR)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in fin_rows %}
+          <tr>
+            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link">{{ r.case.case_id }}</a></td>
+            <td>{{ r.case.account_no|default:"—" }}</td>
+            <td>{{ r.case.case_type.name|default:"—" }}</td>
+            <td><span class="badge {{ r.case.status }}">{{ r.case.get_status_display }}</span></td>
+            <td class="amt-cell" style="text-align:right;">{{ r.currency_code }} {{ r.os_amt|floatformat:3 }}</td>
+            <td class="amt-cell" style="text-align:right;">{{ r.os_omr|floatformat:3 }}</td>
+            <td class="amt-cell" style="text-align:right;">{{ r.case.principal_amount|floatformat:3 }}</td>
+            <td class="amt-cell" style="text-align:right;">{{ r.currency_code }} {{ r.case.approved_amount|floatformat:3 }}</td>
+            <td class="amt-cell" style="text-align:right;">{{ r.approved_omr|floatformat:3 }}</td>
+            <td style="text-align:right;white-space:nowrap;">
+              <button class="rm-case-btn" title="Remove from group" onclick="removeCase({{ r.case.pk }}, '{{ r.case.case_id|escapejs }}')">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+              <button class="cg-act-btn" title="Actions" onclick="openCaseActions(event, {{ r.case.pk }}, '{{ r.case.case_id|escapejs }}')">
+                <i class="fas fa-ellipsis-vertical"></i>
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" style="text-align:center;padding:28px;color:var(--text-muted);">No cases in this group.</td></tr>
+          {% endfor %}
+          {% if fin_rows %}
+          <tr class="total-row">
+            <td colspan="5">Total</td>
+            <td class="amt-cell" style="text-align:right;">{{ total_os_omr|floatformat:3 }}</td>
+            <td colspan="2"></td>
+            <td class="amt-cell" style="text-align:right;">{{ total_approved_omr|floatformat:3 }}</td>
+            <td></td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Follow Ups ── -->
+  <div class="cg-section" id="tab-followups">
+    <div class="data-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case No.</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Followed By</th>
+            <th>Case Status</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in follow_ups %}
+          <tr>
+            <td><a href="{% url 'case_detail' f.case.pk %}" class="case-id-link">{{ f.case.case_id }}</a></td>
+            <td style="white-space:nowrap;">{{ f.follow_up_date|date:"d/m/Y" }}</td>
+            <td>{{ f.get_follow_up_type_display }}</td>
+            <td>{% if f.followed_by %}{{ f.followed_by.get_full_name|default:f.followed_by.username }}{% else %}—{% endif %}</td>
+            <td><span class="badge {{ f.case_status }}">{{ f.get_case_status_display }}</span></td>
+            <td style="color:var(--text-muted);max-width:340px;">{{ f.notes|default:"—"|truncatechars:120 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:28px;color:var(--text-muted);">No follow ups for this group's cases.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Reminders ── -->
+  <div class="cg-section" id="tab-reminders">
+    <div class="data-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case No.</th>
+            <th>Title</th>
+            <th>Date</th>
+            <th>Created By</th>
+            <th>Other Users</th>
+            <th>Status</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in reminders %}
+          <tr>
+            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link">{{ r.case.case_id }}</a></td>
+            <td style="font-weight:500;">{{ r.title }}</td>
+            <td style="white-space:nowrap;">{{ r.reminder_date|date:"d/m/Y" }}</td>
+            <td>{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
+            <td>
+              {% for u in r.other_users.all %}{{ u.get_full_name|default:u.username }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+            </td>
+            <td><span class="badge {{ r.status }}">{{ r.get_status_display }}</span></td>
+            <td style="color:var(--text-muted);max-width:300px;">{{ r.description|default:"—"|truncatechars:100 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:28px;color:var(--text-muted);">No reminders for this group's cases.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── History ── -->
+  <div class="cg-section" id="tab-history">
+    <div class="data-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case No.</th>
+            <th>Action</th>
+            <th>Action By</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in history %}
+          <tr>
+            <td><a href="{% url 'case_detail' h.case.pk %}" class="case-id-link">{{ h.case.case_id }}</a></td>
+            <td>{{ h.action }}</td>
+            <td>{% if h.action_by %}{{ h.action_by.get_full_name|default:h.action_by.username }}{% else %}—{% endif %}</td>
+            <td style="white-space:nowrap;">{{ h.created_at|date:"d/m/Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;padding:28px;color:var(--text-muted);">No history for this group's cases.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Per-case actions menu (shared, positioned at the clicked button) -->
+  <div class="cg-row-menu" id="cgRowMenu">
+    <a id="cgm-details" href="#"><i class="fas fa-eye"></i> Details</a>
+    <div class="menu-divider"></div>
+    <a id="cgm-followup" href="#"><i class="fas fa-phone-alt"></i> Add Follow Up</a>
+    <a id="cgm-payment" href="#"><i class="fas fa-money-bill-wave"></i> Add Payment</a>
+    <a id="cgm-reminder" href="#"><i class="fas fa-bell"></i> Add Reminder</a>
+    <div class="menu-divider"></div>
+    <button class="danger" id="cgm-remove"><i class="fas fa-trash-alt"></i> Remove from Group</button>
+  </div>
+
+  <!-- Group Add Payment modal: one payment allocated across the group's cases -->
+  <div class="modal-overlay" id="gpModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="fas fa-money-bill-wave" style="color:var(--primary);"></i> Add Payment</h3>
+        <button class="modal-close" onclick="closeModal('gpModal')">&times;</button>
+      </div>
+
+      <div class="modal-field">
+        <label>Payment Mode</label>
+        <select id="gp-mode" class="modal-input">
+          <option value="">— Select Mode —</option>
+          {% for m in payment_modes %}<option value="{{ m.pk }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="modal-field">
+          <label>Collection Date <span style="color:#dc2626;">*</span></label>
+          <input type="date" id="gp-date" class="modal-input" onchange="gpSyncDateMins(true)">
+        </div>
+        <div class="modal-field">
+          <label>Collection Currency</label>
+          <select id="gp-col-currency" class="modal-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Collection Amt <span style="color:#dc2626;">*</span></label>
+          <input type="number" id="gp-amount" class="modal-input" placeholder="0.000" step="0.001" min="0" oninput="gpTotalChanged()">
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label>Transfer Date</label>
+        <input type="date" id="gp-transfer-date" class="modal-input" onchange="gpSyncDateMins(true)">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div class="modal-field">
+          <label>Received Date</label>
+          <input type="date" id="gp-received-date" class="modal-input" onchange="gpSyncDateMins(true)">
+        </div>
+        <div class="modal-field">
+          <label>Received Currency</label>
+          <select id="gp-recv-currency" class="modal-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Received Amt</label>
+          <input type="number" id="gp-received-amount" class="modal-input" placeholder="0.000" step="0.001" min="0">
+        </div>
+      </div>
+
+      <div class="modal-field">
+        <label>Confirmation Date</label>
+        <input type="date" id="gp-confirm-date" class="modal-input" onchange="gpSyncDateMins(true)">
+      </div>
+
+      <div class="modal-field">
+        <label>Notes</label>
+        <input type="text" id="gp-notes" class="modal-input" placeholder="Optional notes...">
+      </div>
+
+      <div class="modal-field">
+        <label>Select Case IDs <span style="color:#dc2626;">*</span></label>
+        <div id="gp-case-list" style="display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;"></div>
+      </div>
+
+      <div id="gp-tracker" style="display:flex;gap:18px;font-size:12.5px;font-weight:600;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;">
+        <span>Total: <span id="gp-tr-total">0.000</span></span>
+        <span>Allocated: <span id="gp-tr-alloc">0.000</span></span>
+        <span>Left: <span id="gp-tr-left" style="color:#059669;">0.000</span></span>
+      </div>
+      <div id="gp-error" style="display:none;color:#dc2626;font-size:12.5px;font-weight:600;margin-bottom:6px;"></div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('gpModal')">Close</button>
+        <button class="btn-primary" id="gp-save-btn" onclick="submitGroupPayment()"><i class="fas fa-check"></i> Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function switchTab(name) {
+    document.querySelectorAll('.cg-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.cg-section').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  async function removeCase(caseId, caseLabel) {
+    if (!confirm('Remove case ' + caseLabel + ' from this group?')) return;
+    const fd = new FormData();
+    fd.append('group_id', '{{ group.pk }}');
+    fd.append('case_id', caseId);
+    const res  = await fetch('{% url "case_group_remove_case" %}', {
+      method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' }, body: fd,
+    });
+    const json = await res.json();
+    showToast(json.message, json.success ? 'success' : 'error');
+    if (json.success) setTimeout(() => location.reload(), 800);
+  }
+
+  // ── Per-case actions menu ──
+  function openCaseActions(e, casePk, caseLabel) {
+    e.stopPropagation();
+    const menu = document.getElementById('cgRowMenu');
+    const base = '/cases/' + casePk + '/';
+    document.getElementById('cgm-details').href  = base;
+    document.getElementById('cgm-followup').href = base + '?open=followup';
+    document.getElementById('cgm-reminder').href = base + '?open=reminder';
+    // Add Payment opens the group payment modal HERE, with this case pre-selected
+    const payEl = document.getElementById('cgm-payment');
+    payEl.href = 'javascript:void(0)';
+    payEl.onclick = ev => { ev.preventDefault(); closeCaseActions(); openGroupPayModal(casePk); };
+    document.getElementById('cgm-remove').onclick = () => { closeCaseActions(); removeCase(casePk, caseLabel); };
+    const r = e.currentTarget.getBoundingClientRect();
+    menu.classList.add('open');
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - mw - 8)) + 'px';
+    menu.style.top  = (r.bottom + mh > window.innerHeight ? r.top - mh - 4 : r.bottom + 4) + 'px';
+  }
+
+  function closeCaseActions() { document.getElementById('cgRowMenu').classList.remove('open'); }
+  document.addEventListener('click', e => { if (!e.target.closest('#cgRowMenu')) closeCaseActions(); });
+  window.addEventListener('scroll', closeCaseActions, true);
+
+  // ── Group Add Payment (one payment allocated across the group's cases) ──
+  const GD_CASES = [
+    {% for r in fin_rows %}
+    { id: {{ r.case.pk }}, label: "{{ r.case.case_id|escapejs }}{% if r.case.case_type %} ({{ r.case.case_type.name|escapejs }}){% endif %}", remaining: {{ r.os_amt|stringformat:'.3f' }}, ccy: "{{ r.currency_code }}" },
+    {% endfor %}
+  ];
+
+  function openModal(id)  { document.getElementById(id).classList.add('show'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+  document.querySelectorAll('.modal-overlay').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+  });
+
+  function openGroupPayModal(preselectPk) {
+    ['gp-mode','gp-date','gp-amount','gp-transfer-date','gp-received-date',
+     'gp-received-amount','gp-confirm-date','gp-notes','gp-col-currency','gp-recv-currency']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('gp-error').style.display = 'none';
+    document.getElementById('gp-case-list').innerHTML = GD_CASES.map(c => `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="display:flex;flex-direction:column;gap:1px;flex:1;font-size:13px;cursor:pointer;">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" class="gp-case-cb" value="${c.id}" onchange="gpCaseToggled(this)"
+              ${c.id === preselectPk ? 'checked' : ''}> ${c.label}
+          </span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:22px;">Outstanding: ${c.remaining.toFixed(3)} ${c.ccy}</span>
+        </label>
+        <input type="number" class="gp-case-amt" data-case="${c.id}" placeholder="0.000" step="0.001" min="0"
+          ${c.id === preselectPk ? '' : 'disabled'} oninput="gpRecalc()"
+          style="width:130px;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13px;font-family:inherit;">
+      </div>`).join('');
+    gpSyncDateMins(false);
+    gpRecalc();
+    openModal('gpModal');
+  }
+
+  // Checking a case auto-fills its amount with whatever is left to allocate
+  function gpCaseToggled(cb) {
+    const amt = document.querySelector(`.gp-case-amt[data-case="${cb.value}"]`);
+    amt.disabled = !cb.checked;
+    if (!cb.checked) { amt.value = ''; }
+    else {
+      const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+      let alloc = 0;
+      document.querySelectorAll('.gp-case-amt').forEach(i => { if (i !== amt) alloc += parseFloat(i.value) || 0; });
+      const left = total - alloc;
+      if (left > 0) amt.value = left.toFixed(3);
+    }
+    gpRecalc();
+  }
+
+  function gpRecalc() {
+    const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+    let alloc = 0;
+    document.querySelectorAll('.gp-case-amt').forEach(i => { alloc += parseFloat(i.value) || 0; });
+    const left = total - alloc;
+    document.getElementById('gp-tr-total').textContent = total.toFixed(3);
+    document.getElementById('gp-tr-alloc').textContent = alloc.toFixed(3);
+    const leftEl = document.getElementById('gp-tr-left');
+    leftEl.textContent = left.toFixed(3);
+    leftEl.style.color = Math.abs(left) < 0.0005 ? '#059669' : (left < 0 ? '#dc2626' : '#d97706');
+  }
+
+  // With a single case ticked, its allocation just follows the total.
+  function gpTotalChanged() {
+    const checked = document.querySelectorAll('.gp-case-cb:checked');
+    if (checked.length === 1) {
+      const amt = document.querySelector(`.gp-case-amt[data-case="${checked[0].value}"]`);
+      const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+      amt.value = total > 0 ? total.toFixed(3) : '';
+    }
+    gpRecalc();
+  }
+
+  // Keep dates in order: Collection ≤ Transfer ≤ Received ≤ Confirmation
+  function gpSyncDateMins(clearInvalid) {
+    let floor = document.getElementById('gp-date').value || '';
+    ['gp-transfer-date','gp-received-date','gp-confirm-date'].forEach(id => {
+      const el = document.getElementById(id);
+      if (floor) el.setAttribute('min', floor); else el.removeAttribute('min');
+      if (clearInvalid && el.value && floor && el.value < floor) el.value = '';
+      if (el.value) floor = el.value;
+    });
+  }
+
+  async function submitGroupPayment() {
+    const errEl = document.getElementById('gp-error');
+    const show = m => { errEl.textContent = m; errEl.style.display = 'block'; };
+    errEl.style.display = 'none';
+    const date  = document.getElementById('gp-date').value;
+    const total = parseFloat(document.getElementById('gp-amount').value) || 0;
+    if (!date)      return show('Collection date is required.');
+    if (total <= 0) return show('Collection amount is required.');
+    const allocs = [];
+    document.querySelectorAll('.gp-case-cb:checked').forEach(cb => {
+      const a = parseFloat(document.querySelector(`.gp-case-amt[data-case="${cb.value}"]`).value) || 0;
+      if (a > 0) allocs.push([cb.value, a]);
+    });
+    if (!allocs.length) return show('Select at least one case and enter its amount.');
+    const alloc = allocs.reduce((s, x) => s + x[1], 0);
+    if (Math.abs(alloc - total) > 0.0005) return show('Allocated amounts must equal the collection amount (' + (total - alloc).toFixed(3) + ' left).');
+    const seq = [['Collection Date', date],
+                 ['Transfer Date', document.getElementById('gp-transfer-date').value],
+                 ['Received Date', document.getElementById('gp-received-date').value],
+                 ['Confirmation Date', document.getElementById('gp-confirm-date').value]];
+    let prev = null;
+    for (const [label, v] of seq) {
+      if (!v) continue;
+      if (prev && v < prev.v) return show(`${label} cannot be before ${prev.label}.`);
+      prev = { label, v };
+    }
+    const fd = new FormData();
+    fd.append('payment_date', date);
+    fd.append('payment_mode_id',        document.getElementById('gp-mode').value);
+    fd.append('collection_currency_id', document.getElementById('gp-col-currency').value);
+    fd.append('transfer_date',          document.getElementById('gp-transfer-date').value);
+    fd.append('received_date',          document.getElementById('gp-received-date').value);
+    fd.append('received_currency_id',   document.getElementById('gp-recv-currency').value);
+    fd.append('received_amount',        document.getElementById('gp-received-amount').value);
+    fd.append('confirmation_date',      document.getElementById('gp-confirm-date').value);
+    fd.append('notes',                  document.getElementById('gp-notes').value.trim());
+    allocs.forEach(([cid, a]) => { fd.append('case_ids[]', cid); fd.append('case_amounts[]', a); });
+    const btn = document.getElementById('gp-save-btn');
+    btn.disabled = true;
+    try {
+      const res  = await fetch('{% url "group_payment_create" %}', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token }}' }, body: fd });
+      const data = await res.json();
+      if (data.success) {
+        closeModal('gpModal');
+        showToast(data.message);
+        setTimeout(() => location.reload(), 900);
+      } else show(data.message || 'Something went wrong.');
+    } catch { show('Network error.'); }
+    finally { btn.disabled = false; }
+  }
+</script>
+{% endblock %}

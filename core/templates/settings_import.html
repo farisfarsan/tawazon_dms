@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Import{% endblock %}
+{% block extra_styles %}
+  .import-card{background:white;border-radius:12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+  .import-title{font-size:15px;font-weight:700;color:var(--text-dark);margin-bottom:22px;}
+  .import-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:end;margin-bottom:20px;}
+  .form-group{display:flex;flex-direction:column;gap:6px;}
+  .form-group label{font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;}
+  .form-control{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;color:var(--text-dark);background:white;width:100%;box-sizing:border-box;}
+  .form-control:focus{border-color:var(--primary);}
+  .file-wrap{display:flex;align-items:center;gap:10px;border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;background:white;}
+  .file-wrap input[type=file]{font-size:13px;border:none;outline:none;flex:1;}
+  .btn-row{display:flex;justify-content:flex-end;margin-bottom:16px;}
+  .btn-import{background:var(--primary);color:white;border:none;padding:9px 28px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-import:hover{background:var(--primary-dark);}
+  .sample-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn-sample-red{background:white;border:1.5px solid #dc2626;color:#dc2626;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
+  .btn-sample-green{background:white;border:1.5px solid #16a34a;color:#16a34a;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
+  .alert-success{background:#dbeafe;color:var(--primary);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;}
+{% endblock %}
+{% block content %}
+<div style="margin-bottom:12px;"><div class="breadcrumb">Home <span>· Import</span></div></div>
+{% if msg %}<div class="alert-success"><i class="fas fa-check-circle"></i> {{ msg }}</div>{% endif %}
+<div class="import-card">
+  <div class="import-title">Import Client / Debtors - Cases</div>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="import-grid">
+      <div class="form-group">
+        <label>Select File Type</label>
+        <select class="form-control" name="file_type">
+          <option value="">Select Import File</option>
+          <option value="client">Client</option>
+          <option value="debtor_case">Debtor - Case</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Upload Import File</label>
+        <div class="file-wrap"><input type="file" name="file" accept=".csv,.xlsx,.xls"></div>
+      </div>
+    </div>
+    <div class="btn-row"><button type="submit" class="btn-import">IMPORT</button></div>
+    <div class="sample-row">
+      <button type="button" class="btn-sample-red">Sample Excelsheet For Client</button>
+      <button type="button" class="btn-sample-green">Sample Excelsheet For Debtor - Case</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

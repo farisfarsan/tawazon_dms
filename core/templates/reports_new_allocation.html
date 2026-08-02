@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}New/Additional Allocation Report{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .date-wrap { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 8px; background: white; max-width: 320px; }
+  .date-wrap i { padding: 0 10px; color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+  .date-wrap input { border: none; outline: none; padding: 9px 8px 9px 0; font-size: 13px; font-family: inherit; color: var(--text-dark); background: transparent; flex: 1; min-width: 0; }
+  .date-wrap:focus-within { border-color: var(--primary); }
+
+  /* Range vs Month mode toggle */
+  .date-mode-tabs { display: inline-flex; background: #f1f5f9; border-radius: 9px; padding: 3px; gap: 2px; margin-bottom: 14px; }
+  .date-mode-tabs button { border: none; background: transparent; padding: 7px 16px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 7px; }
+  .date-mode-tabs button:hover { color: var(--text-dark); }
+  .date-mode-tabs button.on { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(15,23,42,0.12); }
+
+  .month-picker { display: flex; gap: 10px; max-width: 320px; }
+  .month-picker select { flex: 1; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; color: var(--text-dark); background: white; outline: none; cursor: pointer; }
+  .month-picker select:focus { border-color: var(--primary); }
+
+  /* Brand the flatpickr calendar to match the app instead of stock blue */
+  .flatpickr-calendar { border-radius: 14px; box-shadow: 0 12px 32px rgba(15,23,42,0.16); border: 1px solid var(--border); }
+  .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange,
+  .flatpickr-day.selected.inRange, .flatpickr-day.startRange.inRange, .flatpickr-day.endRange.inRange,
+  .flatpickr-day.selected:focus, .flatpickr-day.startRange:focus, .flatpickr-day.endRange:focus,
+  .flatpickr-day.selected:hover, .flatpickr-day.startRange:hover, .flatpickr-day.endRange:hover {
+    background: var(--primary); border-color: var(--primary);
+  }
+  .flatpickr-day.inRange {
+    background: color-mix(in srgb, var(--primary) 12%, white);
+    border-color: color-mix(in srgb, var(--primary) 12%, white);
+    box-shadow: -5px 0 0 color-mix(in srgb, var(--primary) 12%, white), 5px 0 0 color-mix(in srgb, var(--primary) 12%, white);
+  }
+  .flatpickr-day:hover { background: color-mix(in srgb, var(--primary) 15%, white); }
+  .flatpickr-day.today { border-color: var(--primary); }
+  .flatpickr-months .flatpickr-month { color: var(--text-dark); }
+  .flatpickr-current-month input.cur-year { font-weight: 700; color: var(--text-dark); }
+  .flatpickr-weekday { font-weight: 700; color: var(--text-muted); }
+
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* ── KPI hero row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+  .kpi-card { position: relative; background: white; border-radius: 14px; padding: 18px 18px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; transition: transform .15s, box-shadow .15s; }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(15,23,42,0.10); }
+  .kpi-card::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--kpi-accent, var(--primary)); }
+  .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .kpi-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-ico { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; background: var(--kpi-accent, var(--primary)); opacity: 0.92; }
+  .kpi-val { font-size: 21px; font-weight: 800; color: var(--text-dark); font-variant-numeric: tabular-nums; line-height: 1.2; word-break: break-word; }
+  @media (max-width: 1200px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } .kpi-row .kpi-card:first-child { grid-column: 1 / -1; } }
+
+  /* ── Report card / table ── */
+  .rpt-card { background: white; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .rpt-card-hdr { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .rpt-card-title { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .rpt-card-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+  .rpt-body { padding: 16px 20px 20px; }
+
+  .dt-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .dt-filter-wrap { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dt-search { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px; font-size: 12.5px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 180px; box-sizing: border-box; }
+  .dt-search:focus { border-color: var(--primary); }
+  .dt-right { display: flex; align-items: center; gap: 8px; }
+  .dt-show-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .dt-show-sel { border: 1.5px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; }
+
+  .alloc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .alloc-table thead tr { background: #3d4db7; }
+  .alloc-table thead th { padding: 11px 12px; font-size: 11px; font-weight: 600; color: white; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+  .alloc-table thead th .si { margin-left: 4px; font-size: 9px; opacity: 0.7; }
+  .alloc-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .alloc-table tr:last-child td { border-bottom: none; }
+  .alloc-table tr:hover td { background: #f8fafc; }
+  .no-data { text-align: center; padding: 32px 0; color: var(--text-muted); font-size: 13px; }
+
+  .status-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 600; }
+  .status-active         { background: #dcfce7; color: #15803d; }
+  .status-broken_promise { background: #fef3c7; color: #b45309; }
+  .status-contactable    { background: #dbeafe; color: #1d4ed8; }
+  .status-closed_by_client { background: #f1f5f9; color: #64748b; }
+  .status-closed         { background: #fee2e2; color: #dc2626; }
+
+  .action-icon { color: var(--text-muted); font-size: 14px; cursor: pointer; padding: 4px; }
+  .action-icon:hover { color: var(--primary); }
+
+  .dt-info { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .dt-pager { display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; }
+  .pg-btn { border: 1.5px solid var(--border); background: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; color: var(--text-dark); }
+  .pg-btn.active, .pg-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;">
+  <div class="breadcrumb">Reports <span>· New/Additional Allocation Report</span></div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+  <div class="filter-panel-title"><i class="fas fa-sliders-h"></i> Filter by Received Date</div>
+  <form method="get">
+    <input type="hidden" name="date_from" id="date_from" value="{{ filter.date_from }}">
+    <input type="hidden" name="date_to"   id="date_to"   value="{{ filter.date_to }}">
+
+    <div class="date-mode-tabs">
+      <button type="button" class="on" data-mode="range" onclick="setDateMode('range')"><i class="fas fa-calendar-week"></i> Date Range</button>
+      <button type="button" data-mode="month" onclick="setDateMode('month')"><i class="fas fa-calendar-alt"></i> Month</button>
+    </div>
+
+    <div id="mode-range">
+      <div class="date-wrap">
+        <i class="fas fa-calendar-alt"></i>
+        <input type="text" id="date_range_disp" placeholder="Received Date Range" autocomplete="off">
+      </div>
+    </div>
+
+    <div id="mode-month" style="display:none;">
+      <div class="month-picker">
+        <select id="month_sel"></select>
+        <select id="year_sel"></select>
+      </div>
+    </div>
+
+    <div class="filter-actions">
+      <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> SUBMIT</button>
+      <a href="{% url 'new_allocation_report' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> RESET</a>
+    </div>
+  </form>
+</div>
+
+<!-- KPI hero row -->
+<div class="kpi-row">
+  <div class="kpi-card" style="--kpi-accent:#00897b;">
+    <div class="kpi-top"><span class="kpi-lbl">Total Clients</span><span class="kpi-ico"><i class="fas fa-building"></i></span></div>
+    <div class="kpi-val">{{ total_clients }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#8e24aa;">
+    <div class="kpi-top"><span class="kpi-lbl">Case Count</span><span class="kpi-ico"><i class="fas fa-folder-open"></i></span></div>
+    <div class="kpi-val">{{ total_cases }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#3949ab;">
+    <div class="kpi-top"><span class="kpi-lbl">Approved Amount</span><span class="kpi-ico"><i class="fas fa-stamp"></i></span></div>
+    <div class="kpi-val">{{ total_approved|omr }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#1baf7a;">
+    <div class="kpi-top"><span class="kpi-lbl">Received Amount</span><span class="kpi-ico"><i class="fas fa-hand-holding-usd"></i></span></div>
+    <div class="kpi-val">{{ total_received|omr }}</div>
+  </div>
+  <div class="kpi-card" style="--kpi-accent:#d81b60;">
+    <div class="kpi-top"><span class="kpi-lbl">Remaining Amount</span><span class="kpi-ico"><i class="fas fa-hourglass-half"></i></span></div>
+    <div class="kpi-val">{{ total_remaining|omr }}</div>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="rpt-card">
+  <div class="rpt-card-hdr">
+    <div class="rpt-card-title">New/Additional Allocation Report</div>
+    <div class="rpt-card-sub">{{ total_cases }} case{{ total_cases|pluralize }}{% if filter.date_range %} received {{ filter.date_range }}{% endif %}</div>
+  </div>
+  <div class="rpt-body">
+    <div class="dt-toolbar">
+      <div class="dt-filter-wrap">
+        <span>Filter:</span>
+        <input type="text" id="allocSearch" class="dt-search" placeholder="Type to filter...">
+      </div>
+      <div class="dt-right">
+        <div class="dt-show-wrap">
+          <span>Show:</span>
+          <select id="allocPageSize" class="dt-show-sel">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" id="allocCopyBtn"><i class="fas fa-copy"></i> Copy</button>
+            <button class="exp-excel" id="allocExcelBtn"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="exp-pdf" id="allocPdfBtn"><i class="fas fa-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="alloc-table" id="allocTable">
+        <thead>
+          <tr>
+            <th data-col="0">Case ID <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="1">Received Date <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="2">Client <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="3">Debtor <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="4">Outstanding Amt <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="5">Collector <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="6">Case Status <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="allocBody">
+          {% for c in cases %}
+          <tr>
+            <td><a href="{% url 'case_detail' c.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ c.case_id }}</a></td>
+            <td>{{ c.received_date|date:"d-M-Y"|default:"—" }}</td>
+            <td>{{ c.client.name }}</td>
+            <td>{{ c.debtor.name }}</td>
+            <td class="num" style="font-weight:600;">{{ c.remaining_amount|omr }}</td>
+            <td>{% if c.collector %}{{ c.collector.get_full_name|default:c.collector.username }}{% else %}—{% endif %}</td>
+            <td><span class="status-badge status-{{ c.status }}">{{ c.get_status_display }}</span></td>
+            <td>
+              <a href="{% url 'case_detail' c.pk %}" class="action-icon" title="View">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr class="empty-row"><td colspan="8" class="no-data">No Case Added</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;">
+      <div class="dt-info" id="allocInfo">Showing 0 to 0 of 0 entries</div>
+      <div class="dt-pager" id="allocPager"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_daterange_premium.html" %}
+<script>
+(function () {
+  var fromH = document.getElementById('date_from');
+  var toH   = document.getElementById('date_to');
+  var disp  = document.getElementById('date_range_disp');
+  var monthSel = document.getElementById('month_sel');
+  var yearSel  = document.getElementById('year_sel');
+
+  var MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var today = new Date();
+  var curYear = today.getFullYear();
+
+  MONTH_NAMES.forEach(function (name, i) {
+    var opt = document.createElement('option');
+    opt.value = i + 1; opt.textContent = name;
+    monthSel.appendChild(opt);
+  });
+  for (var y = curYear + 1; y >= curYear - 6; y--) {
+    var yopt = document.createElement('option');
+    yopt.value = y; yopt.textContent = y;
+    yearSel.appendChild(yopt);
+  }
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function lastDayOfMonth(y, m) { return new Date(y, m, 0).getDate(); }
+  function applyMonthSelection() {
+    var y = parseInt(yearSel.value, 10), m = parseInt(monthSel.value, 10);
+    fromH.value = y + '-' + pad(m) + '-01';
+    toH.value   = y + '-' + pad(m) + '-' + pad(lastDayOfMonth(y, m));
+  }
+
+  // If the current filter is exactly a full calendar month, land back on the
+  // Month tab with that month/year preselected instead of defaulting to Range.
+  var initialMode = 'range';
+  if (fromH.value && toH.value) {
+    var fParts = fromH.value.split('-'), tParts = toH.value.split('-');
+    var fy = parseInt(fParts[0], 10), fm = parseInt(fParts[1], 10), fd = parseInt(fParts[2], 10);
+    var ty = parseInt(tParts[0], 10), tm = parseInt(tParts[1], 10), td = parseInt(tParts[2], 10);
+    if (fy === ty && fm === tm && fd === 1 && td === lastDayOfMonth(fy, fm)) {
+      initialMode = 'month';
+      monthSel.value = fm; yearSel.value = fy;
+    }
+  }
+  if (!monthSel.value) monthSel.value = today.getMonth() + 1;
+  if (!yearSel.value) yearSel.value = curYear;
+
+  monthSel.addEventListener('change', applyMonthSelection);
+  yearSel.addEventListener('change', applyMonthSelection);
+
+  // The range picker itself comes from the shared _daterange_premium include
+  // (window._premiumFP).
+
+  function showMode(mode) {
+    document.querySelectorAll('.date-mode-tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
+    document.getElementById('mode-range').style.display = mode === 'range' ? '' : 'none';
+    document.getElementById('mode-month').style.display = mode === 'month' ? '' : 'none';
+  }
+
+  // Exposed for the tab buttons' onclick — re-derives the hidden date_from/
+  // date_to from whichever mode is now active so switching tabs never leaves
+  // stale values from the other mode behind.
+  window.setDateMode = function (mode) {
+    showMode(mode);
+    if (mode === 'month') {
+      applyMonthSelection();
+    } else {
+      var sel = (window._premiumFP && window._premiumFP.selectedDates) || [];
+      if (sel.length) {
+        var f = function (d) { return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()); };
+        fromH.value = f(sel[0]); toH.value = f(sel[1] || sel[0]);
+      } else {
+        fromH.value = ''; toH.value = '';
+      }
+    }
+  };
+
+  showMode(initialMode);
+  if (initialMode === 'month') applyMonthSelection();
+})();
+</script>
+<script>
+// ── New Allocation DataTable (search / sort / paginate / export) ──
+(function () {
+  var tbody   = document.getElementById('allocBody');
+  var search  = document.getElementById('allocSearch');
+  var pageSel = document.getElementById('allocPageSize');
+  var infoEl  = document.getElementById('allocInfo');
+  var pagerEl = document.getElementById('allocPager');
+  var allRows = Array.from(tbody.querySelectorAll('tr:not(.empty-row)'));
+  var sortDir = {};
+  var curPage = 1;
+  var filtered = allRows.slice();
+
+  function getPS() { return parseInt(pageSel.value, 10); }
+
+  function renderDT() {
+    var q = search.value.toLowerCase();
+    filtered = allRows.filter(function (tr) { return !q || tr.innerText.toLowerCase().includes(q); });
+    var total = filtered.length, ps = getPS(), pages = Math.max(1, Math.ceil(total / ps));
+    if (curPage > pages) curPage = pages;
+    var start = (curPage - 1) * ps, end = Math.min(start + ps, total);
+    allRows.forEach(function (tr) { tr.style.display = 'none'; });
+    filtered.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
+    var noRow = tbody.querySelector('.empty-row');
+    if (total === 0) { if (!noRow) tbody.insertAdjacentHTML('beforeend', '<tr class="empty-row"><td colspan="8" class="no-data">No Case Added</td></tr>'); }
+    else { if (noRow) noRow.remove(); }
+    infoEl.textContent = total === 0 ? 'Showing 0 to 0 of 0 entries' : 'Showing ' + (start + 1) + ' to ' + end + ' of ' + total + ' entries';
+    pagerEl.innerHTML = '';
+    function pgBtn(lbl, pg, active) {
+      var b = document.createElement('button'); b.className = 'pg-btn' + (active ? ' active' : ''); b.textContent = lbl;
+      b.addEventListener('click', function () { curPage = pg; renderDT(); }); pagerEl.appendChild(b);
+    }
+    if (curPage > 1) pgBtn('‹', curPage - 1, false);
+    for (var i = 1; i <= pages; i++) pgBtn(i, i, i === curPage);
+    if (curPage < pages) pgBtn('›', curPage + 1, false);
+  }
+
+  search.addEventListener('input', function () { curPage = 1; renderDT(); });
+  pageSel.addEventListener('change', function () { curPage = 1; renderDT(); });
+
+  document.querySelectorAll('#allocTable thead th[data-col]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = parseInt(th.dataset.col, 10), dir = sortDir[col] === 'asc' ? 'desc' : 'asc';
+      sortDir = {}; sortDir[col] = dir;
+      allRows.sort(function (a, b) {
+        var va = (a.cells[col] ? a.cells[col].innerText : '').toLowerCase();
+        var vb = (b.cells[col] ? b.cells[col].innerText : '').toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      allRows.forEach(function (tr) { tbody.appendChild(tr); }); curPage = 1; renderDT();
+    });
+  });
+
+  document.getElementById('allocCopyBtn').addEventListener('click', function () {
+    var text = filtered.map(function (tr) { return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }).join('\t'); }).join('\n');
+    navigator.clipboard.writeText(text).catch(function () {});
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('allocExcelBtn').addEventListener('click', function () {
+    var headers = Array.from(document.querySelectorAll('#allocTable thead th')).map(function (th) { return th.innerText.trim(); });
+    var dataRows = filtered.map(function (tr) { return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }); });
+    var csv = [headers].concat(dataRows).map(function (r) { return r.map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'new_allocation_report.csv'; a.click();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('allocPdfBtn').addEventListener('click', function () {
+    var table = document.getElementById('allocTable');
+    var win = window.open('', '_blank');
+    win.document.write('<html><head><title>New Allocation Report</title><style>body{font-family:sans-serif;font-size:11px;margin:20px;}h2{color:#1a6b3a;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left;}th{background:#1a6b3a;color:#fff;}tr:nth-child(even){background:#f8fafc;}</style></head><body><h2>New Allocation Report</h2>' + table.outerHTML + '</body></html>');
+    win.document.close(); win.print();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  renderDT();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+{# Client portal chat widget — chat with the staff handling each case. #}
+{% csrf_token %}
+<style>
+  .chatc-launcher { position: fixed; bottom: 24px; right: 24px; width: 58px; height: 58px; border-radius: 50%;
+    background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; border: none; cursor: pointer;
+    box-shadow: 0 10px 28px rgba(12,61,34,0.4); display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 3000; transition: transform .15s; }
+  .chatc-launcher:hover { transform: scale(1.06); }
+  .chatc-badge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; display: none; align-items: center; justify-content: center; border: 2px solid #fff; }
+  .chatc-badge.show { display: flex; }
+  .chatc-panel { position: fixed; bottom: 24px; right: 24px; width: 380px; max-width: calc(100vw - 32px); height: 560px; max-height: calc(100vh - 48px);
+    background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.28); z-index: 3001; display: none; flex-direction: column; overflow: hidden; }
+  .chatc-panel.show { display: flex; }
+  .chatc-head { background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; padding: 16px 18px; display: flex; align-items: center; gap: 12px; }
+  .chatc-head .t { font-weight: 700; font-size: 15px; flex: 1; line-height: 1.2; }
+  .chatc-head .t small { display: block; font-weight: 500; font-size: 11.5px; opacity: 0.85; }
+  .chatc-hbtn { background: rgba(255,255,255,0.16); border: none; color: #fff; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .chatc-hbtn:hover { background: rgba(255,255,255,0.28); }
+  .chatc-body { flex: 1; overflow-y: auto; background: #f8fafc; }
+  .chatc-conv { display: flex; gap: 12px; padding: 14px 16px; cursor: pointer; border-bottom: 1px solid #eef2f6; align-items: center; }
+  .chatc-conv:hover { background: #eef2ff; }
+  .chatc-ava { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #818cf8, #4f46e5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+  .chatc-conv-name { font-weight: 700; font-size: 13.5px; color: #0f172a; }
+  .chatc-conv-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .chatc-uc { background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; }
+  .chatc-havatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; position: relative; }
+  .chatc-havatar .dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid #4338ca; }
+  .chatc-thread { padding: 16px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .chatc-row { display: flex; align-items: flex-end; gap: 8px; margin-top: 9px; }
+  .chatc-row.me { justify-content: flex-end; }
+  .chatc-row.grouped { margin-top: 2px; }
+  .chatc-mava { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .chatc-mava.them { background: linear-gradient(135deg, #818cf8, #4f46e5); }
+  .chatc-mava.me { background: linear-gradient(135deg, #4f46e5, #4338ca); }
+  .chatc-mava.hidden { visibility: hidden; }
+  .chatc-mava img, .chatc-havatar img, .chatc-ava img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chatc-mava, .chatc-havatar, .chatc-ava { overflow: hidden; }
+  .chatc-msg { max-width: 74%; padding: 9px 13px; border-radius: 16px; font-size: 13px; line-height: 1.45; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .chatc-msg .mt { font-size: 10px; margin-top: 4px; opacity: 0.7; }
+  .chatc-msg { position: relative; }
+  .chatc-msg.them { background: #fff; border: 1px solid #e5e9ef; color: #0f172a; border-bottom-left-radius: 5px; }
+  .chatc-msg.me { background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff; border-bottom-right-radius: 5px; }
+  .chatc-mact { position: absolute; top: 3px; right: 5px; opacity: 0; background: rgba(255,255,255,0.22); border: none; color: #fff; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 9px; display: flex; align-items: center; justify-content: center; transition: opacity .12s; }
+  .chatc-msg.me:hover .chatc-mact { opacity: 1; }
+  .chatc-msg.me .chatc-mbody { padding-right: 14px; }
+  .chatc-msgmenu { position: fixed; background: #fff; border: 1px solid #e2e8f0; border-radius: 11px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 5px 0; z-index: 3002; display: none; min-width: 140px; }
+  .chatc-msgmenu.show { display: block; }
+  .chatc-msgmenu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; padding: 9px 15px; font-size: 13px; font-weight: 500; cursor: pointer; color: #334155; }
+  .chatc-msgmenu button:hover { background: #f1f5f9; }
+  .chatc-msgmenu button.danger { color: #dc2626; }
+  .chatc-date { text-align: center; margin: 12px 0 4px; }
+  .chatc-date span { background: #e2e8f0; color: #64748b; font-size: 10.5px; font-weight: 600; padding: 3px 12px; border-radius: 10px; }
+  .chatc-sysmsg { align-self: center; text-align: center; max-width: 90%; background: #eef2f6; color: #475569; font-size: 11.5px; padding: 8px 14px; border-radius: 12px; margin: 8px auto; line-height: 1.45; }
+  .chatc-sysmsg i { color: #4f46e5; margin-right: 4px; }
+  .chatc-quick { display: flex; gap: 7px; padding: 9px 12px; overflow-x: auto; background: #fff; border-top: 1px solid #eef2f6; scrollbar-width: thin; }
+  .chatc-quick button { flex-shrink: 0; white-space: nowrap; background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; border-radius: 16px; padding: 6px 13px; font-size: 12px; cursor: pointer; font-family: inherit; }
+  .chatc-quick button:hover { background: #4f46e5; color: #fff; }
+  .chatc-foot { padding: 10px 12px; border-top: 1px solid #eef2f6; background: #fff; display: flex; gap: 8px; align-items: flex-end; }
+  .chatc-foot textarea { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 9px 14px; font-size: 13px; font-family: inherit; resize: none; outline: none; max-height: 90px; line-height: 1.4; }
+  .chatc-foot textarea:focus { border-color: #4f46e5; }
+  .chatc-send { width: 38px; height: 38px; border-radius: 50%; border: none; background: #4f46e5; color: #fff; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .chatc-empty { text-align: center; color: #94a3b8; padding: 40px 24px; font-size: 13px; }
+  .chatc-empty i { font-size: 28px; display: block; margin-bottom: 10px; opacity: 0.5; }
+</style>
+
+<button class="chatc-launcher" onclick="chatcToggle()" title="Chat with your collector">
+  <i class="fas fa-comments"></i><span class="chatc-badge" id="chatcBadge">0</span>
+</button>
+
+<div class="chatc-panel" id="chatcPanel">
+  <div id="chatcListView" style="display:flex;flex-direction:column;height:100%;">
+    <div class="chatc-head"><i class="fas fa-comments" style="font-size:18px;"></i>
+      <div class="t">Chat <small>Message your case handler</small></div>
+      <button class="chatc-hbtn" onclick="chatcToggle()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="chatc-body" id="chatcList">
+      {% for c in chat_cases %}
+      <div class="chatc-conv" data-pk="{{ c.pk }}" onclick="chatcOpen({{ c.pk }}, '{{ c.ref|escapejs }}')">
+        <div class="chatc-ava"><i class="fas fa-folder"></i></div>
+        <div style="flex:1;min-width:0;">
+          <div class="chatc-conv-name">{{ c.ref }}<span class="chatc-uc" style="display:none;" id="chatc-uc-{{ c.pk }}">0</span></div>
+          <div class="chatc-conv-sub">{% if c.debtor %}Debtor: {{ c.debtor }}{% else %}Tap to chat{% endif %}</div>
+        </div>
+        <i class="fas fa-chevron-right" style="color:#cbd5e1;font-size:12px;"></i>
+      </div>
+      {% empty %}
+      <div class="chatc-empty"><i class="fas fa-comment-slash"></i>No cases available to chat about.</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="chatcThreadView" style="display:none;flex-direction:column;height:100%;">
+    <div class="chatc-head">
+      <button class="chatc-hbtn" onclick="chatcBack()"><i class="fas fa-arrow-left"></i></button>
+      <div class="chatc-havatar" id="chatcHeadAva"><i class="fas fa-headset" style="font-size:15px;"></i><span class="dot"></span></div>
+      <div class="t" id="chatcTitle">Chat<small id="chatcSub"></small></div>
+    </div>
+    <div class="chatc-body chatc-thread" id="chatcThread"></div>
+    <div class="chatc-quick">
+      <button onclick="chatcSend(this.textContent)">Hi dear 👋</button>
+      <button onclick="chatcSend(this.textContent)">Any update on my case?</button>
+      <button onclick="chatcSend(this.textContent)">What's the current status?</button>
+      <button onclick="chatcSend(this.textContent)">When can I expect a resolution?</button>
+      <button onclick="chatcSend(this.textContent)">I'd like to discuss a payment.</button>
+      <button onclick="chatcSend(this.textContent)">Can you share the payment details?</button>
+      <button onclick="chatcSend(this.textContent)">Please call me back.</button>
+      <button onclick="chatcSend(this.textContent)">I have a question about my case.</button>
+      <button onclick="chatcSend(this.textContent)">Thank you. 🙏</button>
+    </div>
+    <div class="chatc-foot">
+      <textarea id="chatcInput" rows="1" placeholder="Type a message..." onkeydown="chatcKey(event)" oninput="chatcGrow(this)"></textarea>
+      <button class="chatc-send" onclick="chatcSend()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="chatc-msgmenu" id="chatcMsgMenu">
+  <button onclick="chatcEditMsg()"><i class="fas fa-pen" style="width:14px;"></i> Edit</button>
+  <button class="danger" onclick="chatcUnsend()"><i class="fas fa-rotate-left" style="width:14px;"></i> Unsend</button>
+</div>
+
+<script>
+(function () {
+  var CSRF = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  var CLIENT_INITIAL = '{{ client.name|slice:":1"|upper|escapejs }}' || 'C';
+  var open = false, view = 'list', cur = null;
+  var panel = document.getElementById('chatcPanel');
+  var badge = document.getElementById('chatcBadge');
+  function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function avatarUrl(name, kind){
+    var seed = encodeURIComponent((name||'user').trim() || 'user');
+    if (kind === 'staff') return 'https://api.dicebear.com/9.x/notionists/svg?seed='+seed+'&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50';
+    return 'https://api.dicebear.com/9.x/shapes/svg?seed='+seed+'&radius=50';
+  }
+  function avaImg(name, kind){ return '<img src="'+avatarUrl(name,kind)+'" alt="" loading="lazy">'; }
+  var curMsgId=null, curEditBody='';
+
+  window.chatcBubble = function(m, mine){
+    var timeShort = m.time.split(',').slice(1).join(',').trim() || m.time;
+    var meta = esc(timeShort);
+    if (m.edited) meta += ' · edited';
+    if (mine) meta += m.read ? ' · <b>Seen</b>' : ' · Sent';
+    if (!mine && m.staff) meta += ' · ' + esc(m.staff);
+    var act = mine ? '<button class="chatc-mact" onclick="chatcMenu(event,'+m.id+')"><i class="fas fa-ellipsis-h"></i></button>' : '';
+    return '<div class="chatc-msg '+(mine?'me':'them')+'" data-id="'+m.id+'">'+act+'<div class="chatc-mbody">'+esc(m.body)+'</div><div class="mt">'+meta+'</div></div>';
+  };
+  window.chatcMenu = function(e, id){
+    e.stopPropagation(); curMsgId=id;
+    var el=document.querySelector('.chatc-msg[data-id="'+id+'"] .chatc-mbody'); curEditBody = el? el.textContent : '';
+    var menu=document.getElementById('chatcMsgMenu');
+    menu.style.left=Math.min(e.clientX, window.innerWidth-150)+'px'; menu.style.top=Math.min(e.clientY, window.innerHeight-100)+'px'; menu.classList.add('show');
+  };
+  window.chatcEditMsg = function(){
+    document.getElementById('chatcMsgMenu').classList.remove('show');
+    var nv=prompt('Edit message', curEditBody); if(nv==null) return; nv=nv.trim(); if(!nv) return;
+    var fd=new FormData(); fd.append('id',curMsgId); fd.append('body',nv); fd.append('csrfmiddlewaretoken',CSRF);
+    fetch('{% url "client_chat_edit" %}',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(r=>r.json()).then(d=>{ if(d.success) chatcLoad(false); });
+  };
+  window.chatcUnsend = function(){
+    document.getElementById('chatcMsgMenu').classList.remove('show');
+    if(!confirm('Unsend this message?')) return;
+    var fd=new FormData(); fd.append('id',curMsgId); fd.append('csrfmiddlewaretoken',CSRF);
+    fetch('{% url "client_chat_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(r=>r.json()).then(d=>{ if(d.success) chatcLoad(false); });
+  };
+  document.addEventListener('click', function(){ var m=document.getElementById('chatcMsgMenu'); if(m) m.classList.remove('show'); });
+
+  window.chatcToggle = function(){ open=!open; panel.classList.toggle('show',open); if(open) chatcBack(); };
+  window.chatcBack = function(){ view='list'; cur=null;
+    document.getElementById('chatcListView').style.display='flex';
+    document.getElementById('chatcThreadView').style.display='none'; };
+
+  window.chatcOpen = function(pk, ref){
+    cur = { pk: pk, ref: ref }; view='thread';
+    document.getElementById('chatcListView').style.display='none';
+    document.getElementById('chatcThreadView').style.display='flex';
+    document.getElementById('chatcSub').textContent = ref;
+    chatcLoad(true);
+  };
+  function chatcLoad(scroll){
+    if(!cur) return;
+    fetch('{% url "client_chat_thread" %}?case_id='+cur.pk).then(r=>r.json()).then(d=>{
+      if(!d.success) return;
+      var staffName = d.staff_name || 'Support';
+      document.getElementById('chatcTitle').childNodes[0].nodeValue = staffName + ' ';
+      document.getElementById('chatcHeadAva').innerHTML = avaImg(staffName, 'staff') + '<span class="dot"></span>';
+      var t=document.getElementById('chatcThread');
+      var prevSender=null, prevDate=null, html='';
+      d.messages.forEach(function(m){
+        var mine = m.sender==='client';
+        var name = mine ? '{{ client.name|escapejs }}' : (m.staff||staffName);
+        var datePart = (m.time.split(',')[0]||'').trim();
+        if(datePart!==prevDate){ html+='<div class="chatc-date"><span>'+esc(datePart)+'</span></div>'; prevDate=datePart; prevSender=null; }
+        if(m.auto){ html+='<div class="chatc-sysmsg"><i class="fas fa-headset"></i> '+esc(m.body)+'</div>'; prevSender=null; return; }
+        var grouped = (m.sender===prevSender);
+        var ava='<div class="chatc-mava '+(mine?'me':'them')+(grouped?' hidden':'')+'">'+avaImg(name, mine?'client':'staff')+'</div>';
+        var bubble=chatcBubble(m, mine);
+        html+='<div class="chatc-row '+(mine?'me':'them')+(grouped?' grouped':'')+'">'+(mine? bubble+ava : ava+bubble)+'</div>';
+        prevSender=m.sender;
+      });
+      t.innerHTML = html || '<div class="chatc-empty"><i class="fas fa-comments"></i>Send a message to your case handler.</div>';
+      if(scroll) t.scrollTop=t.scrollHeight;
+    });
+  }
+  window.chatcSend = function(preset){
+    var el=document.getElementById('chatcInput');
+    var body=(preset!=null?preset:el.value).trim(); if(!body||!cur) return;
+    if(preset==null){ el.value=''; chatcGrow(el); }
+    var fd=new FormData(); fd.append('case_id',cur.pk); fd.append('body',body); fd.append('csrfmiddlewaretoken',CSRF);
+    fetch('{% url "client_chat_send" %}', {method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(r=>r.json()).then(d=>{ if(d.success) chatcLoad(true); });
+  };
+  window.chatcKey=function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); chatcSend(); } };
+  window.chatcGrow=function(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; };
+
+  function chatcPoll(){
+    fetch('{% url "client_chat_poll" %}').then(r=>r.json()).then(d=>{
+      if(!d.success) return;
+      badge.textContent=d.total; badge.classList.toggle('show', d.total>0);
+      document.querySelectorAll('.chatc-uc').forEach(function(b){ b.style.display='none'; });
+      Object.keys(d.per_case||{}).forEach(function(pk){
+        var b=document.getElementById('chatc-uc-'+pk); if(b){ b.textContent=d.per_case[pk]; b.style.display='inline-flex'; }
+      });
+      if(open && view==='thread') chatcLoad(false);
+    }).catch(function(){});
+  }
+  chatcPoll(); setInterval(chatcPoll, 5000);
+})();
+</script>

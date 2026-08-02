@@ -1,0 +1,1563 @@
+{% extends "base.html" %}
+{% load core_filters %}
+
+{% block title %}All Clients{% endblock %}
+
+{% block extra_styles %}
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+  .show-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .show-select select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; }
+
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+
+  .btn-group { display: flex; gap: 10px; }
+  .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 480px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  @keyframes modalIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .modal h3 i { font-size: 22px; }
+  .modal p { color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal.danger h3 i { color: #dc2626; }
+  .modal.info h3 i { color: #2563eb; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  /* ===== ADD CLIENT WIZARD ===== */
+  :root { --wiz: #00BCD4; --wiz-dark: #00ACC1; }
+  .wiz-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.48); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 20px; }
+  .wiz-overlay.show { display: flex; }
+  .wizard-modal { background: white; border-radius: 12px; width: 100%; max-width: 780px; box-shadow: 0 20px 60px rgba(0,0,0,0.25); animation: modalIn 0.2s; max-height: 92vh; overflow-y: auto; }
+  .wiz-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 28px 0; }
+  .wiz-title { font-size: 18px; font-weight: 700; color: var(--text-dark); }
+  .wiz-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.15s; }
+  .wiz-close:hover { background: #f1f5f9; color: var(--text-dark); }
+
+  .wiz-alert { display: flex; align-items: center; gap: 8px; margin: 0 28px 16px; padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; border-radius: 8px; font-size: 13px; font-weight: 500; }
+  .wiz-alert i { font-size: 13px; }
+
+  .wiz-steps { display: flex; align-items: flex-start; padding: 28px 28px 20px; }
+  .wiz-step { display: flex; flex-direction: column; align-items: center; gap: 8px; flex-shrink: 0; }
+  .wiz-connector { flex: 1; height: 2px; background: #e5e7eb; margin-top: 20px; transition: background 0.4s; }
+  .wiz-connector.done { background: var(--wiz); }
+  .wiz-circle { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #9ca3af; background: white; transition: all 0.3s; cursor: default; }
+  .wiz-circle.active { border-color: var(--wiz); color: var(--wiz); background: white; }
+  .wiz-circle.done { border-color: var(--wiz); background: var(--wiz); color: white; }
+  .wiz-label { font-size: 11px; color: #9ca3af; font-weight: 500; text-align: center; max-width: 80px; line-height: 1.3; }
+  .wiz-label.active { color: var(--text-dark); font-weight: 700; }
+
+  .wiz-body { padding: 0 28px 4px; min-height: 200px; }
+  .wiz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+  .wiz-group { display: flex; flex-direction: column; gap: 5px; }
+  .wiz-group label { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+  .wiz-group label.req { color: #dc2626; font-weight: 600; }
+  .wiz-input { padding: 10px 13px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s; font-family: inherit; color: var(--text-dark); width: 100%; box-sizing: border-box; background: white; }
+  .wiz-input:focus { border-color: var(--wiz); box-shadow: 0 0 0 2px rgba(0,188,212,0.15); }
+  .wiz-input.error { border-color: #dc2626; }
+  .wiz-input::placeholder { color: #adb5bd; }
+
+  .wiz-nav { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 28px 22px; }
+  .btn-wiz-prev { background: white; color: #6b7280; border: 1.5px solid #d1d5db; padding: 10px 22px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; transition: all 0.2s; }
+  .btn-wiz-prev:not(:disabled):hover { border-color: #9ca3af; color: var(--text-dark); }
+  .btn-wiz-prev:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-wiz-next { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; letter-spacing: 0.02em; transition: filter 0.2s; }
+  .btn-wiz-next:hover { filter: brightness(1.1); }
+  .btn-wiz-next:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Contact row in step 4 */
+  .contact-row { display: grid; grid-template-columns: 160px 1fr 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 10px; }
+  .contact-row .wiz-group label { font-size: 12px; }
+  .btn-add-contact { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--wiz); background: white; color: var(--wiz); font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; line-height: 1; }
+  .btn-add-contact:hover { background: var(--wiz); color: white; }
+  .btn-rm-contact { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #e5e7eb; background: white; color: #9ca3af; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+  .btn-rm-contact:hover { border-color: #dc2626; color: #dc2626; }
+
+  /* Client detail modal */
+  .cd-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.48); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+  .cd-overlay.show { display: flex; }
+  .cd-modal { background: white; border-radius: 16px; width: 100%; max-width: 620px; box-shadow: 0 20px 60px rgba(0,0,0,0.22); animation: modalIn 0.2s; display: flex; flex-direction: column; max-height: 90vh; }
+  .cd-header { display: flex; align-items: center; justify-content: space-between; padding: 22px 26px 0; flex-shrink: 0; }
+  .cd-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .cd-title { font-size: 18px; font-weight: 700; color: var(--text-dark); }
+  .cd-status-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
+  .cd-status-badge.active { background: #d1fae5; color: #065f46; }
+  .cd-status-badge.inactive { background: #fee2e2; color: #991b1b; }
+  .cd-status-badge.suspended { background: #fef9c3; color: #854d0e; }
+  .cd-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.15s; flex-shrink: 0; }
+  .cd-close:hover { background: #f1f5f9; color: var(--text-dark); }
+  .cd-id { font-size: 12px; color: var(--text-muted); padding: 4px 26px 0; flex-shrink: 0; font-family: monospace; }
+  .cd-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 26px; margin-top: 16px; flex-shrink: 0; }
+  .cd-tab { padding: 10px 18px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+  .cd-tab:hover { color: var(--text-dark); }
+  .cd-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .cd-body { overflow-y: auto; padding: 22px 26px; flex: 1; }
+  .cd-pane { display: none; }
+  .cd-pane.active { display: block; }
+  /* View mode */
+  .cd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+  .cd-field { display: flex; flex-direction: column; gap: 3px; }
+  .cd-field.full { grid-column: 1 / -1; }
+  .cd-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .cd-val { font-size: 14px; color: var(--text-dark); font-weight: 500; word-break: break-word; }
+  .cd-val.empty { color: #cbd5e1; font-style: italic; font-weight: 400; }
+  .cd-divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+  .cd-notes { background: #f8fafc; border-radius: 8px; padding: 14px; font-size: 13px; color: var(--text-dark); line-height: 1.6; min-height: 48px; }
+  /* Edit mode toggle */
+  .cd-edit-row { display: none; }
+  .cd-modal.editing .cd-edit-row { display: block; }
+  .cd-modal.editing .cd-view-row { display: none; }
+  /* Edit inputs */
+  .cd-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cd-edit-grid .full { grid-column: 1 / -1; }
+  .cd-edit-field { display: flex; flex-direction: column; gap: 5px; }
+  .cd-input, .cd-select { padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); width: 100%; box-sizing: border-box; background: white; transition: border-color 0.2s; }
+  .cd-input:focus, .cd-select:focus { border-color: var(--primary); }
+  .cd-input.error { border-color: #dc2626; }
+  .cd-textarea { padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); width: 100%; box-sizing: border-box; resize: vertical; min-height: 72px; transition: border-color 0.2s; }
+  .cd-textarea:focus { border-color: var(--primary); }
+  /* Footer */
+  .cd-footer { padding: 14px 26px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .cd-footer-view, .cd-footer-edit { display: flex; gap: 10px; justify-content: flex-end; }
+  .cd-footer-edit { display: none; }
+  .cd-modal.editing .cd-footer-view { display: none; }
+  .cd-modal.editing .cd-footer-edit { display: flex; }
+  .cd-btn-edit { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: filter 0.15s; }
+  .cd-btn-edit:hover { filter: brightness(1.08); }
+  .cd-btn-save { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: filter 0.15s; }
+  .cd-btn-save:hover { filter: brightness(1.08); }
+  .cd-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cd-btn-close { padding: 10px 22px; background: white; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+  .cd-btn-close:hover { background: #f1f5f9; }
+  /* Contacts table */
+  .cd-contacts-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cd-contacts-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; border-bottom: 2px solid var(--border); }
+  .cd-contacts-table td { padding: 10px 10px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .cd-contacts-table tr:last-child td { border-bottom: none; }
+  .cd-del-col { width: 36px; }
+  .cd-contact-del { background: none; border: none; color: #dc2626; cursor: pointer; padding: 5px 7px; border-radius: 6px; visibility: hidden; }
+  .cd-modal.editing .cd-contact-del { visibility: visible; }
+  .cd-contact-del:hover { background: #fee2e2; }
+  /* Add contact section */
+  .cd-add-contact { display: none; border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 16px; margin-top: 16px; background: #f8fafc; }
+  .cd-modal.editing .cd-add-contact { display: block; }
+  .cd-add-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 12px; }
+  .cd-add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .cd-btn-add-contact { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: #f0fdf4; color: var(--primary); border: 1.5px solid #bbf7d0; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .cd-btn-add-contact:hover { background: #dcfce7; }
+  .cd-empty-contacts { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
+  .clickable-btn { background: none; border: none; padding: 0; color: var(--primary); font-weight: 500; cursor: pointer; font-size: inherit; font-family: inherit; }
+  .clickable-btn:hover { text-decoration: underline; }
+
+  /* Action dropdown */
+  /* action styles now shared via base.html */
+  /* ── Sortable columns ── */
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+  .table-toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: #1a56db; }
+  th.sortable .sort-ic { margin-left: 5px; opacity: 0.5; font-size: 10px; }
+  th.sortable.asc .sort-ic, th.sortable.desc .sort-ic { opacity: 1; }
+  /* ── Per-column filter row ── */
+  #cli-filter-row td { padding: 4px 6px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; }
+  .col-fi { width: 100%; padding: 4px 8px; border: 1.5px solid #e2e8f0; border-radius: 5px; font-size: 12px; outline: none; font-family: inherit; color: var(--text-dark); background: white; }
+  .col-fi:focus { border-color: var(--primary); }
+  /* ── Column toggle panel ── */
+  .col-toggle-wrap { position: relative; }
+  .btn-col-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-col-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .col-panel { display: none; position: absolute; right: 0; top: calc(100% + 6px); background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; min-width: 180px; }
+  .col-panel.open { display: block; }
+  .col-panel-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 14px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .col-panel label { display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text-dark); transition: background 0.12s; }
+  .col-panel label:hover { background: #f8fafc; }
+  .col-panel label input { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+  .btn-filter-cols { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-filter-cols:hover, .btn-filter-cols.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+  /* right-click menu styles shared via base.html */
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Clients <span>— All Clients</span></div>
+      <div class="breadcrumb-sub"><span id="selectedCount">0</span> of {{ total_count }} selected</div>
+    </div>
+    {% if request.user.is_superuser %}
+    <div class="btn-group">
+      <button class="btn-primary" onclick="openAddModal()">
+        <i class="fas fa-plus"></i> Add Client
+      </button>
+      <button id="mergeBtn" class="btn-outline" disabled onclick="openMergeModal()">
+        <i class="fas fa-clone"></i> Merge Duplicate
+      </button>
+      <button id="deleteBtn" class="btn-danger" disabled onclick="openDeleteModal()">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="data-card">
+    <form method="get" class="filter-controls" id="clientFilterForm">
+      <div class="filter-search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" name="filter" id="clientSearch" value="{{ filter_q }}" placeholder="Search by name, ID, email..." autocomplete="off" oninput="liveSearch(this.value)">
+      </div>
+      <button type="submit" class="filter-apply-btn"><i class="fas fa-search"></i> Search</button>
+      {% if filter_q %}<a href="{% url 'clients' %}" class="filter-clear-link">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-toolbar">
+      <div class="table-toolbar-left">
+        <div class="show-select">Show:
+          <select name="show" form="clientFilterForm" onchange="this.form.submit()">
+            {% for opt in page_size_options %}
+            <option value="{{ opt }}" {% if opt|stringformat:"s" == page_size %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn-filter-cols" id="cliFilterBtn" onclick="toggleColFilter()"><i class="fas fa-filter"></i> Filter</button>
+        <div class="col-toggle-wrap">
+          <button class="btn-col-toggle" onclick="toggleColPanel()"><i class="fas fa-table-columns"></i> Columns</button>
+          <div class="col-panel" id="cliColPanel">
+            <div class="col-panel-title">Toggle Columns</div>
+            <label><input type="checkbox" checked onchange="toggleCol(2,this)"> Client ID</label>
+            <label><input type="checkbox" checked onchange="toggleCol(3,this)"> Name</label>
+            <label><input type="checkbox" checked onchange="toggleCol(4,this)"> Contact</label>
+            <label><input type="checkbox" checked onchange="toggleCol(5,this)"> Client Type</label>
+            <label><input type="checkbox" checked onchange="toggleCol(6,this)"> Country</label>
+            <label><input type="checkbox" checked onchange="toggleCol(7,this)"> Cases</label>
+            <label><input type="checkbox" checked onchange="toggleCol(8,this)"> Status</label>
+            <label><input type="checkbox" id="colCreatedBy" onchange="toggleCol(9,this)"> Created By</label>
+          </div>
+        </div>
+      </div>
+      {% if request.user.is_superuser %}
+      <div class="export-dropdown">
+        <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+        <div class="export-drop-menu">
+          <button class="exp-copy" onclick="copyTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+          <a class="exp-excel" href="{% url 'client_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
+          <a class="exp-pdf" href="{% url 'client_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if clients %}
+    <table class="data-table" id="clientsTable">
+      <thead>
+        <tr id="cli-col-headers">
+          <th data-col="0"><input type="checkbox" id="selectAll"></th>
+          <th style="width:48px;">#</th>
+          <th data-col="2" class="sortable" onclick="sortCol(2)" style="width:130px;">Client ID <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="3" class="sortable" onclick="sortCol(3)" style="min-width:200px;">Name <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="4" class="sortable" onclick="sortCol(4)" style="width:115px;">Contact <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="5" class="sortable" onclick="sortCol(5)">Client Type <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="6" class="sortable" onclick="sortCol(6)">Country <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="7" class="sortable" onclick="sortCol(7)" style="width:70px;">Cases <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="8" class="sortable" onclick="sortCol(8)" style="width:80px;">Status <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="9" class="sortable" onclick="sortCol(9)">Created By <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="10" style="width:60px;">Actions</th>
+        </tr>
+        <tr id="cli-filter-row" style="display:none;">
+          <td></td>
+          <td></td>
+          <td><input class="col-fi" data-col="2" placeholder="Client ID…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="3" placeholder="Name…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="4" placeholder="Contact…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="5" placeholder="Type…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="6" placeholder="Country…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="7" placeholder="Cases…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="8" placeholder="Status…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="9" placeholder="Created By…" oninput="applyColFilters()"></td>
+          <td></td>
+        </tr>
+      </thead>
+      <tbody>
+        {% for client in clients %}
+        <tr data-id="{{ client.id }}" oncontextmenu="openCliCtx(event,{{ client.id }},'{{ client.status }}')"
+            style="cursor:context-menu;">
+          <td><input type="checkbox" class="row-checkbox" value="{{ client.id }}"></td>
+          <td style="color:var(--text-muted);">{{ forloop.counter0|add:page_obj.start_index }}</td>
+          <td><button class="clickable-btn" onclick="openClientModal({{ client.id }})">{{ client.client_id }}</button></td>
+          <td><button class="clickable-btn" onclick="openClientModal({{ client.id }})">{{ client.name }}</button></td>
+          <td style="white-space:nowrap;">
+            {% if client.phone or client.mobile %}
+              {{ client.phone|default:"" }}{% if client.phone and client.mobile %}<br>{{ client.mobile|default:"" }}{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ client.get_client_type_display }}</td>
+          <td>{{ client.country }}</td>
+          <td><a href="{% url 'cases' %}?client={{ client.id }}" class="clickable">{{ client.total_cases }}</a></td>
+          <td><span class="badge {{ client.status }}">{{ client.get_status_display }}</span></td>
+          <td>{% if client.created_by %}{{ client.created_by.get_full_name|default:client.created_by.username }}{% else %}N/A{% endif %}</td>
+          <td class="actions">
+            <button class="row-action-btn" title="Actions"
+              onclick="openCliCtx(event,{{ client.id }},'{{ client.status }}')">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="tbl-total-row">
+          <td colspan="7">Total</td>
+          <td class="num" id="cliTotalCases">{{ total_cases_sum }}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="table-footer">
+      <span class="page-info">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</span>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="srv-pagination">
+      {% if page_obj.has_previous %}
+        <a class="srv-pg-btn" href="?page=1{% if query_string %}&{{ query_string }}{% endif %}">«</a>
+        <a class="srv-pg-btn" href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">‹ Prev</a>
+      {% endif %}
+      <span class="srv-pg-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;·&nbsp; {{ total_count }} record{{ total_count|pluralize }}</span>
+      {% if page_obj.has_next %}
+        <a class="srv-pg-btn" href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Next ›</a>
+        <a class="srv-pg-btn" href="?page={{ page_obj.paginator.num_pages }}{% if query_string %}&{{ query_string }}{% endif %}">»</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-users"></i>
+        <p>No clients{% if filter_q %} matching "{{ filter_q }}"{% else %} yet. Click "Add Client" to create one{% endif %}.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Unified floating action menu -->
+  <div class="row-ctx-menu" id="clientCtxMenu">
+    <button class="ctx-item" id="cliCtxView" onclick="cliCtxView()"><i class="fas fa-eye"></i> View Details</button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item warn" id="cliCtxToggle" onclick="cliCtxToggle()"><i class="fas fa-ban"></i> Disable</button>
+    {% if request.user.is_superuser %}
+    <div class="ctx-divider"></div>
+    <button class="ctx-item danger" onclick="cliCtxDelete()"><i class="fas fa-trash-alt"></i> Delete</button>
+    {% endif %}
+  </div>
+
+  <!-- Delete Modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal danger">
+      <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+      <p id="deleteMsg">Are you sure? This will permanently delete the selected client(s) and all their cases. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('deleteModal')" style="background:white; color:var(--text-muted); border:1px solid var(--border); padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button class="btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge Modal -->
+  <div class="modal-overlay" id="mergeModal">
+    <div class="modal info">
+      <h3><i class="fas fa-clone"></i> Merge Clients</h3>
+      <p>This will merge the selected clients into one. Cases and contacts from all selected clients will be moved to the oldest one, and the others will be deleted.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('mergeModal')" style="background:white; color:var(--text-muted); border:1px solid var(--border); padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button class="btn-primary" onclick="confirmMerge()">Yes, Merge</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Client Wizard Modal -->
+  <div class="wiz-overlay" id="addClientModal">
+    <div class="wizard-modal">
+      <div class="wiz-header">
+        <span class="wiz-title">Add Client</span>
+        <button class="wiz-close" onclick="closeAddModal()">&times;</button>
+      </div>
+
+      <div class="wiz-steps">
+        <div class="wiz-step">
+          <div class="wiz-circle active" id="wc1"><i class="fas fa-pen"></i></div>
+          <div class="wiz-label active" id="wl1">Profile</div>
+        </div>
+        <div class="wiz-connector" id="wcon1"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc2">2</div>
+          <div class="wiz-label" id="wl2">Address</div>
+        </div>
+        <div class="wiz-connector" id="wcon2"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc3">3</div>
+          <div class="wiz-label" id="wl3">Additional data</div>
+        </div>
+        <div class="wiz-connector" id="wcon3"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc4">4</div>
+          <div class="wiz-label" id="wl4">Client Contact data</div>
+        </div>
+      </div>
+
+      <div class="wiz-alert" id="wizAlert" style="display:none;"><i class="fas fa-circle-exclamation"></i> <span id="wizAlertMsg"></span></div>
+
+      <!-- Step 1: Profile -->
+      <div class="wiz-body" id="wb1">
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label class="req">Name *</label>
+            <input type="text" id="w-name" class="wiz-input" placeholder="Enter Name">
+          </div>
+          <div class="wiz-group">
+            <label>Alias Name</label>
+            <input type="text" id="w-alias-name" class="wiz-input" placeholder="Enter Alias Name">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label class="req">Telephone *</label>
+            <div style="display:flex; gap:6px;">
+              <select id="w-phone-code" class="wiz-input" style="flex:0 0 100px;">
+                {% for c in all_countries %}
+                <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+                {% endfor %}
+              </select>
+              <input type="tel" id="w-phone" class="wiz-input" placeholder="Enter Telephone" style="flex:1;">
+            </div>
+          </div>
+          <div class="wiz-group">
+            <label>Mobile</label>
+            <div style="display:flex; gap:6px;">
+              <select id="w-mobile-code" class="wiz-input" style="flex:0 0 100px;">
+                {% for c in all_countries %}
+                <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+                {% endfor %}
+              </select>
+              <input type="tel" id="w-mobile" class="wiz-input" placeholder="Enter Mobile" style="flex:1;">
+            </div>
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label class="req">Email *</label>
+            <input type="email" id="w-email" class="wiz-input" placeholder="Enter Email">
+          </div>
+          <div class="wiz-group">
+            <label>Contact Person</label>
+            <input type="text" id="w-contact-person" class="wiz-input" placeholder="Enter Contact Person">
+          </div>
+        </div>
+        <div class="wiz-row" style="grid-template-columns:1fr;">
+          <div class="wiz-group">
+            <label>Google Location <i class="fas fa-location-dot" style="color:#4f46e5;"></i></label>
+            <input type="url" id="w-google-location" class="wiz-input" placeholder="Paste Google Maps link (e.g. https://maps.app.goo.gl/...)">
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Address -->
+      <div class="wiz-body" id="wb2" style="display:none">
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label class="req">Address *</label>
+            <input type="text" id="w-address" class="wiz-input" placeholder="Enter Address">
+          </div>
+          <div class="wiz-group">
+            <label>Address 2 (Optional)</label>
+            <input type="text" id="w-address2" class="wiz-input" placeholder="Enter Address 2">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>City</label>
+            <input type="text" id="w-city" class="wiz-input" placeholder="Munich">
+          </div>
+          <div class="wiz-group">
+            <label>Country:</label>
+            <select id="w-country" class="wiz-input">
+              {% for c in all_countries %}
+              <option value="{{ c.name }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>State / Governorate</label>
+            <select id="w-state" class="wiz-input">
+              <option value="">— Select State —</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Additional data -->
+      <div class="wiz-body" id="wb3" style="display:none">
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Client Type</label>
+            <select id="w-client-type" class="wiz-input">
+              <option value="agency">Agency</option>
+              <option value="bank">Bank</option>
+              <option value="corporate">Corporate</option>
+              <option value="education">Education</option>
+              <option value="finance">Finance</option>
+              <option value="hospital">Hospital</option>
+              <option value="hotel">Hotel</option>
+              <option value="individual">Individual</option>
+              <option value="insurance">Insurance</option>
+              <option value="telecommunication">Telecommunication</option>
+            </select>
+          </div>
+          <div class="wiz-group">
+            <label>Contract Type</label>
+            <select id="w-contract-type" class="wiz-input">
+              <option value="">— Select —</option>
+              <option value="one_time">One time</option>
+              <option value="fixed_regular">Fixed Regular</option>
+              <option value="variable_regular">Variable Regular</option>
+            </select>
+          </div>
+        </div>
+        <div class="wiz-group" style="margin-bottom:14px;">
+          <label>Notes:</label>
+          <textarea id="w-notes" class="wiz-input" rows="6" placeholder="Enter notes about this client..."></textarea>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Status</label>
+            <select id="w-status" class="wiz-input">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="suspended">Suspended</option>
+            </select>
+          </div>
+          <div class="wiz-group"></div>
+        </div>
+      </div>
+
+      <!-- Step 4: Client Contact data -->
+      <div class="wiz-body" id="wb4" style="display:none">
+        <p style="color:var(--text-muted);font-size:12px;margin-bottom:14px;">Optional — add contacts for this client. Click <strong>+</strong> to add more rows.</p>
+        <div id="contactRows">
+          <div class="contact-row" id="crow-0">
+            <div class="wiz-group">
+              <label>Contact Type</label>
+              <select name="contact_type[]" class="wiz-input">
+                <option value="accounts">Accounts</option>
+                <option value="sales_manager">Sales Manager</option>
+                <option value="chairman">Chairman</option>
+                <option value="assistant_manager">Assistant Manager</option>
+                <option value="managing_partner">Managing Partner</option>
+                <option value="owner">Owner</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="wiz-group">
+              <label>Contact Name</label>
+              <input type="text" name="contact_name[]" class="wiz-input" placeholder="Enter Name">
+            </div>
+            <div class="wiz-group">
+              <label>Email</label>
+              <input type="email" name="contact_email[]" class="wiz-input" placeholder="eugene@kopyov.com">
+            </div>
+            <div class="wiz-group">
+              <label>Phone</label>
+              <input type="text" name="contact_phone[]" class="wiz-input" placeholder="+99-99-9999-9999">
+            </div>
+            <div style="padding-bottom:2px;">
+              <button type="button" class="btn-add-contact" onclick="addContactRow()" title="Add contact">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wiz-nav">
+        <button class="btn-wiz-prev" id="wiz-prev-btn" onclick="wizardPrev()" disabled>
+          <i class="fas fa-arrow-left"></i> PREVIOUS
+        </button>
+        <button class="btn-wiz-next" id="wiz-next-btn" onclick="wizardNext()">
+          NEXT <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Detail Modal -->
+  <div class="cd-overlay" id="clientDetailModal">
+    <div class="cd-modal">
+      <div class="cd-header">
+        <div class="cd-header-left">
+          <span class="cd-title" id="cdName">—</span>
+          <span class="cd-status-badge" id="cdStatusBadge"></span>
+        </div>
+        <button class="cd-close" onclick="closeClientModal()">&times;</button>
+      </div>
+      <div class="cd-id" id="cdClientId"></div>
+      <div class="cd-tabs">
+        <button class="cd-tab active" id="cdTabProfile" onclick="showClientTab('profile',this)"><i class="fas fa-user"></i> Profile</button>
+        <button class="cd-tab" id="cdTabAddress" onclick="showClientTab('address',this)"><i class="fas fa-map-marker-alt"></i> Address</button>
+        <button class="cd-tab" id="cdTabContacts" onclick="showClientTab('contacts',this)"><i class="fas fa-address-book"></i> Contacts</button>
+      </div>
+      <div class="cd-body">
+
+        <!-- ── Profile Pane ── -->
+        <div class="cd-pane active" id="cdPane-profile">
+          <!-- View -->
+          <div class="cd-view-row">
+            <div class="cd-grid">
+              <div class="cd-field"><span class="cd-label">Client Type</span><span class="cd-val" id="cdClientType">—</span></div>
+              <div class="cd-field"><span class="cd-label">Contract Type</span><span class="cd-val" id="cdContractType">—</span></div>
+              <div class="cd-field"><span class="cd-label">Alias Name</span><span class="cd-val" id="cdAliasName">—</span></div>
+              <div class="cd-field"><span class="cd-label">Contact Person</span><span class="cd-val" id="cdContactPerson">—</span></div>
+              <div class="cd-field"><span class="cd-label">Phone</span><span class="cd-val" id="cdPhone">—</span></div>
+              <div class="cd-field"><span class="cd-label">Mobile</span><span class="cd-val" id="cdMobile">—</span></div>
+              <div class="cd-field full"><span class="cd-label">Email</span><span class="cd-val" id="cdEmail">—</span></div>
+            </div>
+            <hr class="cd-divider">
+            <div class="cd-label" style="margin-bottom:8px;">Notes</div>
+            <div class="cd-notes" id="cdNotes"></div>
+          </div>
+          <!-- Edit -->
+          <div class="cd-edit-row">
+            <div class="cd-edit-grid">
+              <div class="cd-edit-field full">
+                <label class="cd-label">Client Name *</label>
+                <input type="text" id="editName" class="cd-input" placeholder="Client Name">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Alias Name</label>
+                <input type="text" id="editAliasName" class="cd-input" placeholder="Alias">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Contact Person</label>
+                <input type="text" id="editContactPerson" class="cd-input" placeholder="Contact Person">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Phone</label>
+                <input type="text" id="editPhone" class="cd-input" placeholder="+968 ...">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Mobile</label>
+                <input type="text" id="editMobile" class="cd-input" placeholder="+968 ...">
+              </div>
+              <div class="cd-edit-field full">
+                <label class="cd-label">Email</label>
+                <input type="email" id="editEmail" class="cd-input" placeholder="email@example.com">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Client Type</label>
+                <select id="editClientType" class="cd-select">
+                  <option value="agency">Agency</option>
+                  <option value="bank">Bank</option>
+                  <option value="corporate">Corporate</option>
+                  <option value="education">Education</option>
+                  <option value="finance">Finance</option>
+                  <option value="hospital">Hospital</option>
+                  <option value="hotel">Hotel</option>
+                  <option value="individual">Individual</option>
+                  <option value="insurance">Insurance</option>
+                  <option value="telecommunication">Telecommunication</option>
+                </select>
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Contract Type</label>
+                <select id="editContractType" class="cd-select">
+                  <option value="">— None —</option>
+                  <option value="one_time">One time</option>
+                  <option value="fixed_regular">Fixed Regular</option>
+                  <option value="variable_regular">Variable Regular</option>
+                </select>
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Status</label>
+                <select id="editStatus" class="cd-select">
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </div>
+              <div class="cd-edit-field full">
+                <label class="cd-label">Notes</label>
+                <textarea id="editNotes" class="cd-textarea" placeholder="Notes..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Address Pane ── -->
+        <div class="cd-pane" id="cdPane-address">
+          <!-- View -->
+          <div class="cd-view-row">
+            <div class="cd-grid">
+              <div class="cd-field full"><span class="cd-label">Country</span><span class="cd-val" id="cdCountry">—</span></div>
+              <div class="cd-field full"><span class="cd-label">Address Line 1</span><span class="cd-val" id="cdAddress">—</span></div>
+              <div class="cd-field full"><span class="cd-label">Address Line 2</span><span class="cd-val" id="cdAddress2">—</span></div>
+              <div class="cd-field full">
+                <span class="cd-label">Google Location</span>
+                <span style="display:flex; align-items:center; gap:8px;">
+                  <span class="cd-val" id="cdGoogleLocation">—</span>
+                  <button type="button" id="cdGoogleLocationCopyBtn" onclick="copyGoogleLocation()" title="Copy link" style="display:none; background:none; border:none; cursor:pointer; color:var(--primary); font-size:13px; padding:2px 4px;">
+                    <i class="fas fa-copy"></i>
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <!-- Edit -->
+          <div class="cd-edit-row">
+            <div class="cd-edit-grid">
+              <div class="cd-edit-field full">
+                <label class="cd-label">Country</label>
+                <input type="text" id="editCountry" class="cd-input" placeholder="Country">
+              </div>
+              <div class="cd-edit-field full">
+                <label class="cd-label">Address Line 1</label>
+                <input type="text" id="editAddress" class="cd-input" placeholder="Address line 1">
+              </div>
+              <div class="cd-edit-field full">
+                <label class="cd-label">Address Line 2</label>
+                <input type="text" id="editAddress2" class="cd-input" placeholder="Address line 2">
+              </div>
+              <div class="cd-edit-field full">
+                <label class="cd-label">Google Location</label>
+                <input type="url" id="editGoogleLocation" class="cd-input" placeholder="Paste Google Maps link (e.g. https://maps.app.goo.gl/...)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Contacts Pane ── -->
+        <div class="cd-pane" id="cdPane-contacts">
+          <table class="cd-contacts-table">
+            <thead>
+              <tr>
+                <th>Name</th><th>Type</th><th>Email</th><th>Phone</th>
+                <th class="cd-del-col"></th>
+              </tr>
+            </thead>
+            <tbody id="cdContactsBody"></tbody>
+          </table>
+          <!-- Add contact form (edit mode only) -->
+          <div class="cd-add-contact">
+            <div class="cd-add-title"><i class="fas fa-plus-circle"></i> Add Contact</div>
+            <div class="cd-add-grid">
+              <div class="cd-edit-field">
+                <label class="cd-label">Name *</label>
+                <input type="text" id="newContactName" class="cd-input" placeholder="Contact Name">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Type</label>
+                <select id="newContactType" class="cd-select">
+                  <option value="accounts">Accounts</option>
+                  <option value="sales_manager">Sales Manager</option>
+                  <option value="chairman">Chairman</option>
+                  <option value="assistant_manager">Assistant Manager</option>
+                  <option value="managing_partner">Managing Partner</option>
+                  <option value="owner">Owner</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Email</label>
+                <input type="email" id="newContactEmail" class="cd-input" placeholder="email@...">
+              </div>
+              <div class="cd-edit-field">
+                <label class="cd-label">Phone</label>
+                <input type="text" id="newContactPhone" class="cd-input" placeholder="+968 ...">
+              </div>
+            </div>
+            <button type="button" class="cd-btn-add-contact" onclick="addContact()">
+              <i class="fas fa-plus"></i> Add Contact
+            </button>
+          </div>
+        </div>
+
+      </div><!-- .cd-body -->
+      <div class="cd-footer">
+        <div class="cd-footer-view">
+          <button class="cd-btn-close" onclick="closeClientModal()">Close</button>
+          {% if request.user.is_superuser %}
+          <button class="cd-btn-edit" onclick="enableEditMode()"><i class="fas fa-pen"></i> Edit</button>
+          {% endif %}
+        </div>
+        <div class="cd-footer-edit">
+          <button class="cd-btn-close" onclick="cancelEdit()">Cancel</button>
+          <button class="cd-btn-save" id="cdSaveBtn" onclick="saveClient()"><i class="fas fa-check"></i> Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const csrfToken = '{{ csrf_token }}';
+
+  // ── Client Detail Modal ──
+  let _currentClientPk = null;
+  let _cdData = null;
+
+  function setText(id, v) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = v || '—';
+  }
+  function setVal(id, v) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (v && v.trim()) { el.textContent = v; el.classList.remove('empty'); }
+    else { el.textContent = '—'; el.classList.add('empty'); }
+  }
+  function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function setGoogleLocationVal(v) {
+    const el = document.getElementById('cdGoogleLocation');
+    const copyBtn = document.getElementById('cdGoogleLocationCopyBtn');
+    if (v && v.trim()) {
+      el.innerHTML = `<a href="${esc(v)}" target="_blank" rel="noopener" style="color:var(--primary);">${esc(v)}</a>`;
+      el.classList.remove('empty');
+      copyBtn.style.display = 'inline-flex';
+    } else {
+      el.textContent = '—';
+      el.classList.add('empty');
+      copyBtn.style.display = 'none';
+    }
+  }
+
+  function copyGoogleLocation() {
+    if (!_cdData || !_cdData.google_location) return;
+    navigator.clipboard.writeText(_cdData.google_location).then(() => showToast('Copied to clipboard'));
+  }
+
+  function _renderContacts(contacts) {
+    const tbody = document.getElementById('cdContactsBody');
+    if (!contacts.length) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="cd-empty-contacts"><i class="fas fa-address-book" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.3;"></i>No contacts added</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = contacts.map(c =>
+      `<tr data-contact-id="${c.id}">
+        <td style="font-weight:500;">${esc(c.name)}</td>
+        <td style="color:var(--text-muted);">${esc(c.contact_type)}</td>
+        <td>${c.email ? `<a href="mailto:${esc(c.email)}" style="color:var(--primary);">${esc(c.email)}</a>` : '<span style="color:#cbd5e1">—</span>'}</td>
+        <td>${esc(c.phone) || '<span style="color:#cbd5e1">—</span>'}</td>
+        <td><button class="cd-contact-del" onclick="deleteContact(${c.id}, this.closest('tr'))" title="Remove"><i class="fas fa-trash-alt"></i></button></td>
+      </tr>`
+    ).join('');
+  }
+
+  async function openClientModal(pk) {
+    _currentClientPk = pk;
+    _cdData = null;
+    const modal = document.getElementById('clientDetailModal');
+    modal.classList.remove('show');
+    modal.querySelector('.cd-modal').classList.remove('editing');
+    modal.classList.add('show');
+    showClientTab('profile', document.getElementById('cdTabProfile'));
+    ['cdName','cdClientId','cdClientType','cdContractType','cdAliasName','cdContactPerson',
+     'cdPhone','cdMobile','cdEmail','cdNotes','cdCountry','cdAddress','cdAddress2','cdGoogleLocation']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '…'; });
+    document.getElementById('cdGoogleLocationCopyBtn').style.display = 'none';
+    try {
+      const d = await fetch(`/clients/${pk}/json/`).then(r => r.json());
+      _cdData = d;
+      setText('cdName', d.name);
+      document.getElementById('cdClientId').textContent = d.client_id || '';
+      const badge = document.getElementById('cdStatusBadge');
+      badge.textContent = d.status;
+      badge.className = `cd-status-badge ${d.status_class}`;
+      setVal('cdClientType',    d.client_type);
+      setVal('cdContractType',  d.contract_type || '');
+      setVal('cdAliasName',     d.alias_name);
+      setVal('cdContactPerson', d.contact_person);
+      setVal('cdPhone',         d.phone);
+      setVal('cdMobile',        d.mobile);
+      setVal('cdEmail',         d.email);
+      setVal('cdCountry',       d.country);
+      setVal('cdAddress',       d.address);
+      setVal('cdAddress2',      d.address2);
+      setGoogleLocationVal(d.google_location);
+      const notes = document.getElementById('cdNotes');
+      if (d.notes) { notes.textContent = d.notes; }
+      else { notes.innerHTML = '<em style="color:#cbd5e1">No notes</em>'; }
+      _renderContacts(d.contacts);
+    } catch {
+      showToast('Failed to load client details.', 'error');
+      closeClientModal();
+    }
+  }
+
+  function enableEditMode() {
+    if (!_cdData) return;
+    const d = _cdData;
+    document.getElementById('editName').value         = d.name || '';
+    document.getElementById('editAliasName').value    = d.alias_name || '';
+    document.getElementById('editContactPerson').value= d.contact_person || '';
+    document.getElementById('editPhone').value        = d.phone || '';
+    document.getElementById('editMobile').value       = d.mobile || '';
+    document.getElementById('editEmail').value        = d.email || '';
+    document.getElementById('editClientType').value   = d.client_type_raw || '';
+    document.getElementById('editContractType').value = d.contract_type_raw || '';
+    document.getElementById('editStatus').value       = d.status_raw || 'active';
+    document.getElementById('editNotes').value        = d.notes || '';
+    document.getElementById('editCountry').value      = d.country || '';
+    document.getElementById('editAddress').value      = d.address || '';
+    document.getElementById('editAddress2').value     = d.address2 || '';
+    document.getElementById('editGoogleLocation').value = d.google_location || '';
+    // clear add-contact fields
+    ['newContactName','newContactEmail','newContactPhone'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    document.getElementById('newContactType').value = 'accounts';
+    document.getElementById('clientDetailModal').querySelector('.cd-modal').classList.add('editing');
+  }
+
+  function cancelEdit() {
+    document.getElementById('clientDetailModal').querySelector('.cd-modal').classList.remove('editing');
+  }
+
+  async function saveClient() {
+    if (!_currentClientPk) return;
+    const btn = document.getElementById('cdSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    const body = new FormData();
+    const fields = {
+      name: 'editName', alias_name: 'editAliasName', contact_person: 'editContactPerson',
+      phone: 'editPhone', mobile: 'editMobile', email: 'editEmail',
+      client_type: 'editClientType', contract_type: 'editContractType', status: 'editStatus',
+      notes: 'editNotes', country: 'editCountry', address: 'editAddress', address2: 'editAddress2',
+      google_location: 'editGoogleLocation'
+    };
+    for (const [key, elId] of Object.entries(fields)) {
+      body.append(key, document.getElementById(elId).value);
+    }
+    try {
+      const r = await fetch(`/clients/${_currentClientPk}/update-ajax/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body
+      }).then(r => r.json());
+      if (r.success) {
+        showToast(r.message || 'Client updated.', 'success');
+        // refresh data
+        const d = await fetch(`/clients/${_currentClientPk}/json/`).then(r => r.json());
+        _cdData = d;
+        setText('cdName', d.name);
+        const badge = document.getElementById('cdStatusBadge');
+        badge.textContent = d.status; badge.className = `cd-status-badge ${d.status_class}`;
+        setVal('cdClientType', d.client_type); setVal('cdContractType', d.contract_type || '');
+        setVal('cdAliasName', d.alias_name); setVal('cdContactPerson', d.contact_person);
+        setVal('cdPhone', d.phone); setVal('cdMobile', d.mobile); setVal('cdEmail', d.email);
+        setVal('cdCountry', d.country); setVal('cdAddress', d.address); setVal('cdAddress2', d.address2);
+        setGoogleLocationVal(d.google_location);
+        const notes = document.getElementById('cdNotes');
+        if (d.notes) { notes.textContent = d.notes; }
+        else { notes.innerHTML = '<em style="color:#cbd5e1">No notes</em>'; }
+        cancelEdit();
+        // sync the row in the background table
+        const row = document.querySelector(`tr[data-id="${_currentClientPk}"]`);
+        if (row) {
+          const cells = row.cells;
+          cells[3].querySelector('button').textContent = d.name;
+          cells[4].textContent = [d.phone, d.mobile].filter(Boolean).join('/') || '—';
+          cells[5].textContent = d.client_type;
+          cells[6].textContent = d.country;
+          const badge = cells[8].querySelector('.badge');
+          badge.textContent = d.status;
+          badge.className = `badge ${d.status_class}`;
+        }
+      } else {
+        showToast(r.message || 'Save failed.', 'error');
+      }
+    } catch {
+      showToast('Save failed.', 'error');
+    } finally {
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
+    }
+  }
+
+  async function addContact() {
+    if (!_currentClientPk) return;
+    const name = document.getElementById('newContactName').value.trim();
+    if (!name) { showToast('Contact name is required.', 'error'); return; }
+    const body = new FormData();
+    body.append('client_id', _currentClientPk);
+    body.append('name', name);
+    body.append('contact_type', document.getElementById('newContactType').value);
+    body.append('email', document.getElementById('newContactEmail').value.trim());
+    body.append('phone', document.getElementById('newContactPhone').value.trim());
+    try {
+      const r = await fetch('/clients/contacts/create/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body
+      }).then(r => r.json());
+      if (r.success) {
+        showToast(r.message || 'Contact added.', 'success');
+        // add row to table
+        if (_cdData) _cdData.contacts.push(r.contact);
+        _renderContacts(_cdData ? _cdData.contacts : []);
+        document.getElementById('newContactName').value  = '';
+        document.getElementById('newContactEmail').value = '';
+        document.getElementById('newContactPhone').value = '';
+        document.getElementById('newContactType').value  = 'accounts';
+      } else {
+        showToast(r.message || 'Failed to add contact.', 'error');
+      }
+    } catch {
+      showToast('Failed to add contact.', 'error');
+    }
+  }
+
+  async function deleteContact(contactId, rowEl) {
+    if (!confirm('Remove this contact?')) return;
+    const body = new FormData();
+    body.append('ids[]', contactId);
+    try {
+      const r = await fetch('/clients/contacts/delete/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body
+      }).then(r => r.json());
+      if (r.success) {
+        rowEl.remove();
+        if (_cdData) _cdData.contacts = _cdData.contacts.filter(c => c.id !== contactId);
+        if (!_cdData || !_cdData.contacts.length) {
+          document.getElementById('cdContactsBody').innerHTML =
+            `<tr><td colspan="5"><div class="cd-empty-contacts"><i class="fas fa-address-book" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.3;"></i>No contacts added</div></td></tr>`;
+        }
+        showToast('Contact removed.', 'success');
+      } else {
+        showToast(r.message || 'Failed to remove contact.', 'error');
+      }
+    } catch {
+      showToast('Failed to remove contact.', 'error');
+    }
+  }
+
+  function showClientTab(tab, btn) {
+    document.querySelectorAll('.cd-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.cd-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('cdPane-' + tab).classList.add('active');
+    if (btn) btn.classList.add('active');
+  }
+
+  function closeClientModal() {
+    const modal = document.getElementById('clientDetailModal');
+    modal.querySelector('.cd-modal').classList.remove('editing');
+    modal.classList.remove('show');
+  }
+
+  // ── End Client Detail Modal ──
+
+  const selectAll = document.getElementById('selectAll');
+  const rowCheckboxes = () => document.querySelectorAll('.row-checkbox');
+  const selectedCount = document.getElementById('selectedCount');
+  const mergeBtn = document.getElementById('mergeBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+
+  function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  }
+
+  function updateButtons() {
+    const ids = getSelectedIds();
+    selectedCount.textContent = ids.length;
+    if (deleteBtn) deleteBtn.disabled = ids.length === 0;
+    if (mergeBtn) mergeBtn.disabled = ids.length < 2;
+  }
+
+  selectAll?.addEventListener('change', e => {
+    rowCheckboxes().forEach(cb => cb.checked = e.target.checked);
+    updateButtons();
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('row-checkbox')) updateButtons();
+  });
+
+  function openDeleteModal() {
+    const ids = getSelectedIds();
+    document.getElementById('deleteMsg').textContent =
+      `Are you sure you want to delete ${ids.length} client(s)? This cannot be undone.`;
+    document.getElementById('deleteModal').classList.add('show');
+  }
+
+  function openMergeModal() {
+    document.getElementById('mergeModal').classList.add('show');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function quickDelete(id) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = cb.value == id);
+    updateButtons();
+    openDeleteModal();
+  }
+
+  async function confirmDelete() {
+    const ids = getSelectedIds();
+    const formData = new FormData();
+    ids.forEach(id => formData.append('ids[]', id));
+
+    const res = await fetch('{% url "client_delete" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: formData,
+    });
+    const data = await res.json();
+    closeModal('deleteModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  async function confirmMerge() {
+    const ids = getSelectedIds();
+    const formData = new FormData();
+    ids.forEach(id => formData.append('ids[]', id));
+
+    const res = await fetch('{% url "client_merge" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken },
+      body: formData,
+    });
+    const data = await res.json();
+    closeModal('mergeModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  // ===== ADD CLIENT WIZARD =====
+  const STATES_BY_COUNTRY = {
+    'Oman':         ['Muscat','Dhofar','Musandam','Al Buraymi','Al Dakhiliyah','North Al Batinah','South Al Batinah','Al Wusta','North Al Sharqiyah','South Al Sharqiyah','Al Dhahirah','Other'],
+    'Kuwait':       ['Al Asimah','Hawalli','Farwaniyah','Ahmadi','Al Jahra','Mubarak Al-Kabeer','Other'],
+    'Saudi Arabia': ['Riyadh','Makkah','Madinah','Eastern Province','Asir','Tabuk','Hail','Northern Borders','Jizan','Najran','Al Bahah','Al Jouf','Qassim','Other'],
+    'UAE':          ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah','Other'],
+    'United Arab Emirates': ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah','Other'],
+    'Australia':    ['New South Wales','Victoria','Queensland','Western Australia','South Australia','Tasmania','Australian Capital Territory','Northern Territory','Other'],
+    'Qatar':        ['Doha','Al Rayyan','Al Wakrah','Al Khor','Al Daayen','Umm Slal','Al Shamal','Al Shahaniya','Other'],
+    'Bahrain':      ['Capital','Muharraq','Northern','Southern','Other'],
+    'Jordan':       ['Amman','Zarqa','Irbid','Aqaba','Mafraq','Jerash','Ajloun','Karak','Tafilah','Madaba','Balqa',"Ma'an",'Other'],
+    'Lebanon':      ['Beirut','Mount Lebanon','North Lebanon','South Lebanon','Bekaa','Nabatieh','Akkar','Baalbek-Hermel','Other'],
+    'Egypt':        ['Cairo','Alexandria','Giza','Luxor','Aswan','Assiut','Beni Suef','Dakahlia','Damietta','Faiyum','Gharbia','Ismailia','Kafr El Sheikh','Matruh','Minya','Monufia','New Valley','North Sinai','Port Said','Qalyubia','Qena','Red Sea','Sharqia','Sohag','South Sinai','Suez','Other'],
+    'India':        ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Other'],
+    'Pakistan':     ['Punjab','Sindh','Khyber Pakhtunkhwa','Balochistan','Islamabad Capital Territory','Azad Kashmir','Gilgit-Baltistan','Other'],
+    'Afghanistan':  ['Kabul','Kandahar','Herat','Balkh','Nangarhar','Kunduz','Ghazni','Paktia','Badakhshan','Baghlan','Bamyan','Farah','Faryab','Ghor','Helmand','Jawzjan','Kapisa','Khost','Kunar','Logar','Nimroz','Nuristan','Paktika','Parwan','Samangan','Sar-e Pol','Takhar','Urozgan','Wardak','Zabul','Other'],
+    'United Kingdom': ['England','Scotland','Wales','Northern Ireland','Other'],
+    'United States': ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming','District of Columbia','Other'],
+    'Other':        ['Other'],
+  };
+
+  function updateStates(country) {
+    const sel = document.getElementById('w-state');
+    const states = STATES_BY_COUNTRY[country] || ['Other'];
+    sel.innerHTML = '<option value="">— Select State —</option>' +
+      states.map(s => `<option value="${s}">${s}</option>`).join('');
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const countryEl = document.getElementById('w-country');
+    if (countryEl) {
+      countryEl.addEventListener('change', function() { updateStates(this.value); });
+      updateStates(countryEl.value);
+    }
+  });
+
+  let wizardStep = 1;
+  const STEPS = 4;
+  const stepIcons = {
+    1: '<i class="fas fa-pen"></i>',
+    2: '<i class="fas fa-map-marker-alt"></i>',
+    3: '<i class="fas fa-pen"></i>',
+    4: '<i class="fas fa-pen"></i>',
+  };
+
+  function openAddModal() {
+    wizardStep = 1;
+    hideWizAlert();
+    ['w-name','w-alias-name','w-phone','w-mobile','w-email','w-contact-person',
+     'w-address','w-address2','w-city','w-notes','w-google-location'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+      el?.classList.remove('error');
+    });
+    const omanCode = document.querySelector('#w-phone-code option[value="+968"]') ? '+968' : '';
+    if (omanCode) { document.getElementById('w-phone-code').value = omanCode; document.getElementById('w-mobile-code').value = omanCode; }
+    document.getElementById('w-country').value = 'Oman';
+    updateStates('Oman');
+    document.getElementById('w-state').value = '';
+    document.getElementById('w-client-type').value = 'agency';
+    document.getElementById('w-contract-type').value = '';
+    document.getElementById('w-status').value = 'active';
+    // Reset contact rows to one empty row
+    document.getElementById('contactRows').innerHTML = `
+      <div class="contact-row" id="crow-0">
+        <div class="wiz-group">
+          <label>Contact Type</label>
+          <select name="contact_type[]" class="wiz-input">
+            <option value="accounts">Accounts</option>
+            <option value="sales_manager">Sales Manager</option>
+            <option value="chairman">Chairman</option>
+            <option value="assistant_manager">Assistant Manager</option>
+            <option value="managing_partner">Managing Partner</option>
+            <option value="owner">Owner</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="wiz-group"><label>Contact Name</label><input type="text" name="contact_name[]" class="wiz-input" placeholder="Enter Name"></div>
+        <div class="wiz-group"><label>Email</label><input type="email" name="contact_email[]" class="wiz-input" placeholder="eugene@kopyov.com"></div>
+        <div class="wiz-group"><label>Phone</label><input type="text" name="contact_phone[]" class="wiz-input" placeholder="+99-99-9999-9999"></div>
+        <div style="padding-bottom:2px;"><button type="button" class="btn-add-contact" onclick="addContactRow()" title="Add contact">+</button></div>
+      </div>`;
+    updateWizardUI();
+    document.getElementById('addClientModal').classList.add('show');
+  }
+
+  function closeAddModal() {
+    document.getElementById('addClientModal').classList.remove('show');
+  }
+
+  function updateWizardUI() {
+    for (let i = 1; i <= STEPS; i++) {
+      const circle = document.getElementById('wc' + i);
+      const label  = document.getElementById('wl' + i);
+      const body   = document.getElementById('wb' + i);
+      body.style.display = i === wizardStep ? 'block' : 'none';
+      circle.classList.remove('active', 'done');
+      label.classList.remove('active');
+      if (i < wizardStep) {
+        circle.innerHTML = '<i class="fas fa-check"></i>';
+        circle.classList.add('done');
+      } else if (i === wizardStep) {
+        circle.innerHTML = stepIcons[i];
+        circle.classList.add('active');
+        label.classList.add('active');
+      } else {
+        circle.textContent = String(i);
+      }
+      if (i < STEPS) document.getElementById('wcon' + i).classList.toggle('done', i < wizardStep);
+    }
+    document.getElementById('wiz-prev-btn').disabled = wizardStep === 1;
+    const nextBtn = document.getElementById('wiz-next-btn');
+    nextBtn.innerHTML = wizardStep === STEPS
+      ? 'SUBMIT FORM <i class="fas fa-arrow-right"></i>'
+      : 'NEXT <i class="fas fa-arrow-right"></i>';
+  }
+
+  function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+  function isValidPhoneNumber(v) { return /^[0-9]{6,14}$/.test(v.replace(/[\s-]/g, '')); }
+
+  function showWizAlert(msg) {
+    document.getElementById('wizAlertMsg').textContent = msg;
+    document.getElementById('wizAlert').style.display = 'flex';
+  }
+  function hideWizAlert() {
+    document.getElementById('wizAlert').style.display = 'none';
+  }
+
+  function wizardValidate() {
+    hideWizAlert();
+    if (wizardStep === 1) {
+      const nameEl = document.getElementById('w-name');
+      const phoneEl = document.getElementById('w-phone');
+      const mobileEl = document.getElementById('w-mobile');
+      const emailEl = document.getElementById('w-email');
+      [nameEl, phoneEl, mobileEl, emailEl].forEach(el => el.classList.remove('error'));
+
+      if (!nameEl.value.trim()) {
+        nameEl.classList.add('error'); nameEl.focus();
+        showWizAlert('Client name is required.');
+        return false;
+      }
+      if (!phoneEl.value.trim()) {
+        phoneEl.classList.add('error'); phoneEl.focus();
+        showWizAlert('Telephone is required.');
+        return false;
+      }
+      if (!isValidPhoneNumber(phoneEl.value)) {
+        phoneEl.classList.add('error'); phoneEl.focus();
+        showWizAlert('Enter a valid telephone number (digits only, 6-14 digits).');
+        return false;
+      }
+      if (mobileEl.value.trim() && !isValidPhoneNumber(mobileEl.value)) {
+        mobileEl.classList.add('error'); mobileEl.focus();
+        showWizAlert('Enter a valid mobile number (digits only, 6-14 digits).');
+        return false;
+      }
+      if (!emailEl.value.trim()) {
+        emailEl.classList.add('error'); emailEl.focus();
+        showWizAlert('Email is required.');
+        return false;
+      }
+      if (!isValidEmail(emailEl.value.trim())) {
+        emailEl.classList.add('error'); emailEl.focus();
+        showWizAlert('Enter a valid email address.');
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function wizardNext() {
+    if (!wizardValidate()) return;
+    if (wizardStep < STEPS) { wizardStep++; updateWizardUI(); }
+    else submitWizard();
+  }
+
+  function wizardPrev() {
+    if (wizardStep > 1) { wizardStep--; updateWizardUI(); }
+  }
+
+  let contactRowCount = 1;
+  function addContactRow() {
+    const idx = contactRowCount++;
+    const div = document.createElement('div');
+    div.className = 'contact-row';
+    div.id = 'crow-' + idx;
+    div.innerHTML = `
+      <div class="wiz-group">
+        <select name="contact_type[]" class="wiz-input">
+          <option value="accounts">Accounts</option>
+          <option value="sales_manager">Sales Manager</option>
+          <option value="chairman">Chairman</option>
+          <option value="assistant_manager">Assistant Manager</option>
+          <option value="managing_partner">Managing Partner</option>
+          <option value="owner">Owner</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="wiz-group"><input type="text" name="contact_name[]" class="wiz-input" placeholder="Enter Name"></div>
+      <div class="wiz-group"><input type="email" name="contact_email[]" class="wiz-input" placeholder="email@example.com"></div>
+      <div class="wiz-group"><input type="text" name="contact_phone[]" class="wiz-input" placeholder="+968 XXXXXXXX"></div>
+      <div><button type="button" class="btn-rm-contact" onclick="this.closest('.contact-row').remove()" title="Remove">&times;</button></div>`;
+    document.getElementById('contactRows').appendChild(div);
+  }
+
+  async function submitWizard() {
+    const btn = document.getElementById('wiz-next-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    const fd = new FormData();
+    fd.append('name', document.getElementById('w-name').value.trim());
+    fd.append('alias_name', document.getElementById('w-alias-name').value.trim());
+    const phoneNum = document.getElementById('w-phone').value.trim();
+    const mobileNum = document.getElementById('w-mobile').value.trim();
+    fd.append('phone', phoneNum ? `${document.getElementById('w-phone-code').value} ${phoneNum}` : '');
+    fd.append('mobile', mobileNum ? `${document.getElementById('w-mobile-code').value} ${mobileNum}` : '');
+    fd.append('email', document.getElementById('w-email').value.trim());
+    fd.append('contact_person', document.getElementById('w-contact-person').value.trim());
+    fd.append('address', document.getElementById('w-address').value.trim());
+    fd.append('address2', document.getElementById('w-address2').value.trim());
+    fd.append('city', document.getElementById('w-city').value.trim());
+    fd.append('country', document.getElementById('w-country').value);
+    fd.append('state', document.getElementById('w-state').value);
+    fd.append('client_type', document.getElementById('w-client-type').value);
+    fd.append('contract_type', document.getElementById('w-contract-type').value);
+    fd.append('google_location', document.getElementById('w-google-location').value.trim());
+    fd.append('notes', document.getElementById('w-notes').value.trim());
+    fd.append('status', document.getElementById('w-status').value);
+
+    document.querySelectorAll('#contactRows .contact-row').forEach(row => {
+      const nameEl = row.querySelector('[name="contact_name[]"]');
+      if (nameEl && nameEl.value.trim()) {
+        fd.append('contact_name[]', nameEl.value.trim());
+        fd.append('contact_type[]', row.querySelector('[name="contact_type[]"]').value);
+        fd.append('contact_email[]', (row.querySelector('[name="contact_email[]"]')?.value || '').trim());
+        fd.append('contact_phone[]', (row.querySelector('[name="contact_phone[]"]')?.value || '').trim());
+      }
+    });
+
+    try {
+      const res = await fetch('{% url "client_create_modal" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: fd,
+      });
+      const data = await res.json();
+      closeAddModal();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 900);
+    } catch {
+      showToast('An error occurred. Please try again.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = 'SUBMIT FORM <i class="fas fa-arrow-right"></i>';
+    }
+  }
+
+
+  function copyTable() {
+    const rows = document.querySelectorAll('#clientsTable tr');
+    const text = Array.from(rows).map(row =>
+      Array.from(row.querySelectorAll('th, td')).slice(1, -1).map(c => c.textContent.trim()).join('\t')
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ── Live search & col filters (narrow the current server-side page only) ──
+  let _globalQ = '{{ filter_q|escapejs }}';
+  let _cliSortCol = -1, _cliSortDir = 'asc';
+  let _searchTimer = null;
+  const _serverFilter = '{{ filter_q|escapejs }}';
+  const _serverTotalCases = {{ total_cases_sum }};
+
+  function liveSearch(q) {
+    _globalQ = q.trim().toLowerCase(); applyAllFilters();
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => {
+      if (q.trim() !== _serverFilter) {
+        const url = new URL(window.location.href);
+        if (q.trim()) url.searchParams.set('filter', q.trim());
+        else url.searchParams.delete('filter');
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+      }
+    }, 600);
+  }
+  function applyColFilters() { applyAllFilters(); }
+
+  function applyAllFilters() {
+    const inputs = Array.from(document.querySelectorAll('#cli-filter-row .col-fi'));
+    const colFilters = inputs.map(i => ({ col: parseInt(i.dataset.col), val: i.value.trim().toLowerCase() })).filter(f => f.val);
+    const tbody = document.querySelector('#clientsTable tbody');
+    if (!tbody) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    allRows.forEach(row => {
+      const rowText = Array.from(row.cells).slice(1, -1).map(c => c.textContent.trim().toLowerCase()).join(' ');
+      const globalMatch = !_globalQ || rowText.includes(_globalQ);
+      const colMatch = colFilters.every(f => { const cell = row.cells[f.col]; return cell && cell.textContent.trim().toLowerCase().includes(f.val); });
+      row._matches = globalMatch && colMatch;
+      row.style.display = row._matches ? '' : 'none';
+    });
+    const anyClientSideFilter = colFilters.length > 0 || !!_globalQ;
+    const cliTotalEl = document.getElementById('cliTotalCases');
+    if (cliTotalEl) {
+      cliTotalEl.textContent = anyClientSideFilter
+        ? allRows.filter(r => r._matches !== false).reduce((s, r) => s + (parseInt((r.cells[7] || {}).textContent) || 0), 0)
+        : _serverTotalCases;
+    }
+  }
+
+  function toggleColFilter() {
+    const row = document.getElementById('cli-filter-row');
+    const btn = document.getElementById('cliFilterBtn');
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : '';
+    btn.classList.toggle('active', !visible);
+    if (visible) { document.querySelectorAll('#cli-filter-row .col-fi').forEach(i => i.value = ''); applyAllFilters(); }
+  }
+
+  function toggleColPanel() { document.getElementById('cliColPanel').classList.toggle('open'); }
+  function toggleCol(col, cb) {
+    const tbl = document.getElementById('clientsTable');
+    const show = cb.checked;
+    tbl.querySelectorAll(`th[data-col="${col}"], td:nth-child(${col + 1})`).forEach(el => el.style.display = show ? '' : 'none');
+    const fr = document.getElementById('cli-filter-row');
+    if (fr && fr.cells[col]) fr.cells[col].style.display = show ? '' : 'none';
+  }
+  document.addEventListener('click', e => {
+    const wrap = document.querySelector('#clientsTable .col-toggle-wrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('cliColPanel')?.classList.remove('open');
+  });
+
+  // Created By is hidden by default — tick it in the Columns panel to show it.
+  toggleCol(9, document.getElementById('colCreatedBy'));
+
+  function sortCol(col) {
+    const tbl = document.getElementById('clientsTable');
+    const tbody = tbl.querySelector('tbody');
+    const ths = tbl.querySelectorAll('th.sortable');
+    let next = 'asc';
+    ths.forEach(th => {
+      const c = parseInt(th.getAttribute('onclick').match(/\d+/)[0]);
+      if (c === col) { next = th.classList.contains('asc') ? 'desc' : 'asc'; th.classList.toggle('asc', next === 'asc'); th.classList.toggle('desc', next === 'desc'); }
+      else { th.classList.remove('asc', 'desc'); }
+    });
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const va = (a.cells[col] || {}).textContent?.trim() || '';
+      const vb = (b.cells[col] || {}).textContent?.trim() || '';
+      const na = parseFloat(va.replace(/[^0-9.-]/g, '')), nb = parseFloat(vb.replace(/[^0-9.-]/g, ''));
+      const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+      return next === 'asc' ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    applyAllFilters();
+  }
+  applyAllFilters();
+  // ── End live search ──
+
+  // ── Unified row action menu ──
+  let _cliCtxId = null, _cliCtxStatus = null;
+  const _cliMenu = document.getElementById('clientCtxMenu');
+
+  function _cliMenuPos(menu, e) {
+    e.preventDefault(); e.stopPropagation();
+    let x, y;
+    if (e.type === 'contextmenu') { x = e.clientX + 2; y = e.clientY + 2; }
+    else { const r = e.currentTarget.getBoundingClientRect(); x = r.right - 185; y = r.bottom + 4; }
+    if (x + 190 > window.innerWidth  - 8) x = (e.clientX || x) - 190;
+    if (y + 145 > window.innerHeight - 8) y = (e.clientY || y) - 145;
+    if (x < 8) x = 8;
+    menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    menu.classList.add('open');
+  }
+
+  function openCliCtx(e, id, status) {
+    _cliCtxId = id; _cliCtxStatus = status;
+    const tog = document.getElementById('cliCtxToggle');
+    tog.innerHTML = `<i class="fas fa-${status === 'active' ? 'ban' : 'check-circle'}"></i> ${status === 'active' ? 'Disable' : 'Enable'}`;
+    tog.className = status === 'active' ? 'ctx-item warn' : 'ctx-item';
+    _cliMenuPos(_cliMenu, e);
+  }
+
+  function cliCtxView()   { _cliMenu.classList.remove('open'); if (_cliCtxId) openClientModal(_cliCtxId); }
+  function cliCtxToggle() { _cliMenu.classList.remove('open'); if (_cliCtxId) disableClient(_cliCtxId, _cliCtxStatus); }
+  function cliCtxDelete() { _cliMenu.classList.remove('open'); if (_cliCtxId) quickDelete(_cliCtxId); }
+
+  document.addEventListener('click',  e => { if (!_cliMenu.contains(e.target)) _cliMenu.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _cliMenu.classList.remove('open'); });
+  // ── End row action menu ──
+
+  async function disableClient(id, currentStatus) {
+    const fd = new FormData();
+    fd.append('id', id);
+    try {
+      const res = await fetch('{% url "client_toggle_status" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 800);
+    } catch {
+      showToast('Failed to update status.', 'error');
+    }
+    document.querySelectorAll('.action-dropdown.open').forEach(el => el.classList.remove('open'));
+  }
+</script>
+{% endblock %}

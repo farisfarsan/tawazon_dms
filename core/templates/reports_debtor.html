@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Debtor Report{% endblock %}
+
+{% block extra_styles %}
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--primary); text-decoration: none; }
+
+  /* Filter */
+  .filter-card { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-label { font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 8px; }
+  .filter-select { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; height: 44px; }
+  .filter-select:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-submit { background: var(--primary); color: white; border: none; padding: 9px 32px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-submit:hover { background: var(--primary-dark); }
+
+  /* Stat bars — 4-col grid, 5th card is 1/4 width */
+  .stat-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0; border-radius: 12px; overflow: hidden; margin-bottom: 0; }
+  .stat-grid-5th { display: grid; grid-template-columns: 1fr 3fr; gap: 0; margin-bottom: 20px; }
+  .stat-bar { padding: 22px 24px; color: white; display: flex; flex-direction: column; }
+  .stat-bar .val { font-size: 22px; font-weight: 800; line-height: 1.15; word-break: break-all; }
+  .stat-bar .lbl { font-size: 11px; font-weight: 500; margin-top: 5px; opacity: 0.9; }
+  .sb-teal   { background: #00897b; }
+  .sb-purple { background: #7b1fa2; }
+  .sb-pink   { background: #c2185b; }
+  .sb-empty  { background: transparent; }
+
+  /* Section */
+  .sec-card { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .sec-hdr { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .sec-title { font-size: 13.5px; font-weight: 700; color: var(--text-dark); }
+  .sec-toggle { color: var(--text-muted); font-size: 15px; cursor: pointer; }
+  .sec-body { padding: 16px 20px; }
+
+  /* Sub-section (collapsible inner card) */
+  .sub-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 8px; }
+  .sub-hdr { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; background: #fafafa; cursor: pointer; border-bottom: 1px solid var(--border); }
+  .sub-hdr-title { font-size: 12.5px; font-weight: 700; color: var(--text-dark); }
+  .sub-hdr-toggle { color: var(--text-muted); font-size: 13px; }
+
+  /* Repr radio */
+  .repr-row { display: flex; align-items: center; gap: 20px; margin-bottom: 16px; font-size: 13px; color: var(--text-dark); }
+  .repr-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .repr-row input[type=radio] { accent-color: var(--primary); width: 14px; height: 14px; }
+
+  /* Debtor table */
+  .deb-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .deb-table thead tr { background: #3d4db7; }
+  .deb-table thead th { padding: 11px 14px; font-size: 11px; font-weight: 600; color: white; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+  .deb-table thead th .si { margin-left: 3px; font-size: 9px; opacity: 0.7; }
+  .deb-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .deb-table tr:last-child td { border-bottom: none; }
+  .deb-table tr:hover td { background: #f8fafc; }
+  .amt-link { color: #3d4db7; font-weight: 500; text-decoration: none; }
+  .no-data { text-align: center; padding: 28px; color: var(--text-muted); font-size: 13px; }
+
+  /* DataTable toolbar */
+  .dt-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 12px; flex-wrap: wrap; gap: 8px; }
+  .dt-search { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px 6px 30px; font-size: 12.5px; outline: none; font-family: inherit; color: var(--text-dark); background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 8px center; width: 200px; box-sizing: border-box; }
+  .dt-search:focus { border-color: var(--primary); }
+  .dt-right { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dt-show-sel { border: 1.5px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; }
+  .dt-info { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .dt-pager { display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; }
+  .pg-btn { border: 1.5px solid var(--border); background: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; color: var(--text-dark); }
+  .pg-btn.active, .pg-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  @media (max-width: 900px) {
+    .stat-grid-4  { grid-template-columns: 1fr 1fr; border-radius: 12px; overflow: hidden; }
+    .stat-grid-5th { grid-template-columns: 1fr; }
+    .sb-empty { display: none; }
+  }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+  <a href="{% url 'dashboard' %}" style="color:var(--text-muted);font-size:18px;text-decoration:none;"><i class="fas fa-arrow-circle-left"></i></a>
+  <div class="breadcrumb"><a href="{% url 'dashboard' %}">Home</a> · Reports · Debtor</div>
+</div>
+
+<!-- Filter -->
+<div class="filter-card">
+  <form method="get">
+    <div>
+      <div class="filter-label">Debtor(s)</div>
+      <select name="debtors" class="filter-select" multiple size="1" style="height:44px;">
+        <option value="" {% if not selected_debtors %}selected{% endif %}>Select Debtor(s)</option>
+        {% for d in all_debtors %}
+        <option value="{{ d.pk }}" {% if d.pk|stringformat:"s" in selected_debtors %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button type="submit" name="submitted" value="1" class="btn-submit">SUBMIT</button>
+    </div>
+  </form>
+</div>
+
+<!-- Stat bars — row 1: 4 cards -->
+<div class="stat-grid-4" style="border-radius:12px 12px 0 0;">
+  <div class="stat-bar sb-teal">
+    <div class="val">{{ total_cases }}</div>
+    <div class="lbl">Total Cases</div>
+  </div>
+  <div class="stat-bar sb-purple">
+    <div class="val">{{ total_debtors }}</div>
+    <div class="lbl">Total Debtor</div>
+  </div>
+  <div class="stat-bar sb-pink">
+    <div class="val">{{ total_approved|omr }}</div>
+    <div class="lbl">Total Approved Amount (OMR)</div>
+  </div>
+  <div class="stat-bar sb-pink">
+    <div class="val">{{ total_received|omr }}</div>
+    <div class="lbl">Total Received Amount (OMR)</div>
+  </div>
+</div>
+
+<!-- Stat bars — row 2: 5th card (1/4) + empty space -->
+<div class="stat-grid-5th" style="margin-bottom:20px;">
+  <div class="stat-bar sb-pink" style="border-radius:0 0 0 12px;">
+    <div class="val">{{ total_remaining|omr }}</div>
+    <div class="lbl">Total Remaining Amount (OMR)</div>
+  </div>
+  <div class="sb-empty"></div>
+</div>
+
+<!-- Total - Debtor Report -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Total - Debtor Report</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-chevron-down"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr" value="num" checked> Numerical Representation</label>
+    </div>
+
+    <!-- Debtor Wise Outstanding sub-section -->
+    <div class="sub-card">
+      <div class="sub-hdr" onclick="toggleSubSec(this)">
+        <span class="sub-hdr-title">Debtor Wise Outstanding</span>
+        <span class="sub-hdr-toggle"><i class="fas fa-chevron-down"></i></span>
+      </div>
+      <div class="sub-body" style="padding:0 0 4px;">
+        <!-- Toolbar -->
+        <div class="dt-toolbar" style="padding:10px 16px 4px;">
+          <input type="text" id="debSearch" class="dt-search" placeholder="Type to filter...">
+          <div class="dt-right">
+            <span>Show:</span>
+            <select id="debPageSize" class="dt-show-sel">
+              <option value="10" selected>10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="deb-table" id="debTable">
+            <thead>
+              <tr>
+                <th data-col="0">Debtor Name <span class="si"><i class="fas fa-sort"></i></span></th>
+                <th data-col="1" style="text-align:right;">Case Count <span class="si"><i class="fas fa-sort"></i></span></th>
+                <th data-col="2" style="text-align:right;">Approved Amount <span class="si"><i class="fas fa-sort"></i></span></th>
+                <th data-col="3" style="text-align:right;">Approved Amt(OMR) <span class="si"><i class="fas fa-sort"></i></span></th>
+                <th data-col="4" style="text-align:right;">Received Amt(OMR) <span class="si"><i class="fas fa-sort"></i></span></th>
+                <th data-col="5" style="text-align:right;">Remaining Amt(OMR) <span class="si"><i class="fas fa-sort"></i></span></th>
+              </tr>
+            </thead>
+            <tbody id="debBody">
+              {% for row in debtor_rows %}
+              <tr>
+                <td>{{ row.name }}</td>
+                <td class="num">
+                  <a class="amt-link">{{ row.approved|omr }}</a>
+                </td>
+                <td class="num">{{ row.approved|omr }}</td>
+                <td class="num">{{ row.approved|omr }}</td>
+                <td class="num">{{ row.received|omr }}</td>
+                <td class="num">{{ row.remaining|omr }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="no-data">No data available</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:0 16px 12px;">
+          <div class="dt-info" id="debInfo">Showing 0 to 0 of 0 entries</div>
+          <div class="dt-pager" id="debPager"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  /* section collapse */
+  window.toggleSec = function (btn) {
+    var body = btn.closest('.sec-card').querySelector('.sec-body');
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+  };
+  window.toggleSubSec = function (hdr) {
+    var body = hdr.nextElementSibling;
+    if (body) body.style.display = body.style.display === 'none' ? '' : 'none';
+    var icon = hdr.querySelector('i');
+    if (icon) icon.className = body.style.display === 'none' ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+  };
+
+  /* DataTable */
+  var tbody   = document.getElementById('debBody');
+  var search  = document.getElementById('debSearch');
+  var pageSel = document.getElementById('debPageSize');
+  var infoEl  = document.getElementById('debInfo');
+  var pagerEl = document.getElementById('debPager');
+
+  var allRows  = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
+  var sortDir  = {};
+  var curPage  = 1;
+  var filtered = allRows.slice();
+
+  function getPS() { return parseInt(pageSel.value, 10); }
+
+  function render() {
+    var q = search.value.toLowerCase();
+    filtered = allRows.filter(function (tr) { return !q || tr.innerText.toLowerCase().includes(q); });
+    var total = filtered.length, ps = getPS(), pages = Math.max(1, Math.ceil(total / ps));
+    if (curPage > pages) curPage = pages;
+    var start = (curPage - 1) * ps, end = Math.min(start + ps, total);
+    allRows.forEach(function (tr) { tr.style.display = 'none'; });
+    filtered.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
+    var noRow = tbody.querySelector('.no-data-row');
+    if (total === 0) {
+      if (!noRow) tbody.insertAdjacentHTML('beforeend', '<tr class="no-data-row"><td colspan="6" class="no-data">No data available</td></tr>');
+    } else {
+      if (noRow) noRow.remove();
+    }
+    infoEl.textContent = total === 0 ? 'Showing 0 to 0 of 0 entries'
+      : 'Showing ' + (start + 1) + ' to ' + end + ' of ' + total + ' entries';
+    pagerEl.innerHTML = '';
+    function pgBtn(lbl, pg, active) {
+      var b = document.createElement('button');
+      b.className = 'pg-btn' + (active ? ' active' : '');
+      b.textContent = lbl;
+      b.addEventListener('click', function () { curPage = pg; render(); });
+      pagerEl.appendChild(b);
+    }
+    if (curPage > 1) pgBtn('‹', curPage - 1, false);
+    for (var i = 1; i <= pages; i++) pgBtn(i, i, i === curPage);
+    if (curPage < pages) pgBtn('›', curPage + 1, false);
+  }
+
+  search.addEventListener('input', function () { curPage = 1; render(); });
+  pageSel.addEventListener('change', function () { curPage = 1; render(); });
+
+  /* Sorting */
+  document.querySelectorAll('#debTable thead th').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = parseInt(th.dataset.col, 10);
+      var dir = sortDir[col] === 'asc' ? 'desc' : 'asc';
+      sortDir = {}; sortDir[col] = dir;
+      allRows.sort(function (a, b) {
+        var va = (a.cells[col] ? a.cells[col].innerText : '').trim();
+        var vb = (b.cells[col] ? b.cells[col].innerText : '').trim();
+        var na = parseFloat(va.replace(/[^0-9.-]/g, ''));
+        var nb = parseFloat(vb.replace(/[^0-9.-]/g, ''));
+        if (!isNaN(na) && !isNaN(nb)) return dir === 'asc' ? na - nb : nb - na;
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      allRows.forEach(function (tr) { tbody.appendChild(tr); });
+      curPage = 1; render();
+    });
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

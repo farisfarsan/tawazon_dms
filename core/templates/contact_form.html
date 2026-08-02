@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_styles %}
+  .form-card { background: white; border-radius: 16px; padding: 35px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid var(--border); max-width: 800px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  .form-group label.required::after { content: ' *'; color: #dc2626; }
+  .form-input { padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; background: white; }
+  .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(46,125,50,0.1); }
+  .errorlist { color: #dc2626; font-size: 12px; list-style: none; margin-top: 4px; }
+  .form-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .btn-secondary { background: white; color: var(--text-muted); border: 1px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 14px; }
+  .btn-secondary:hover { background: #f1f5f9; }
+  .checkbox-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+  .form-checkbox { width: 18px; height: 18px; cursor: pointer; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">{{ title }}</div>
+      <div class="breadcrumb-sub"><a href="{% url 'client_contacts' %}" style="color:var(--primary); text-decoration:none;">← Back to Contacts</a></div>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="required">Client</label>
+          {{ form.client }}
+          {{ form.client.errors }}
+        </div>
+        <div class="form-group">
+          <label class="required">Contact Name</label>
+          {{ form.name }}
+          {{ form.name.errors }}
+        </div>
+        <div class="form-group">
+          <label>Contact Type</label>
+          {{ form.contact_type }}
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          {{ form.email }}
+          {{ form.email.errors }}
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          {{ form.phone }}
+          {{ form.phone.errors }}
+        </div>
+        <div class="form-group full">
+          <div class="checkbox-row">
+            {{ form.enabled }}
+            <label for="{{ form.enabled.id_for_label }}">Enabled (contact is active)</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <a href="{% url 'client_contacts' %}" class="btn-secondary">Cancel</a>
+        <button type="submit" class="btn-primary"><i class="fas fa-check"></i> {{ submit_label }}</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

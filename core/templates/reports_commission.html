@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Commission Report{% endblock %}
+
+{% block extra_styles %}
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--primary); text-decoration: none; }
+  .breadcrumb span { color: var(--text-muted); }
+
+  /* Filter card */
+  .filter-card { background: white; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; }
+  .filter-row { display: grid; gap: 12px; margin-bottom: 12px; }
+  .filter-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .filter-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .filter-input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .filter-input:focus { border-color: var(--primary); }
+  .date-wrap { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 6px; background: white; }
+  .date-wrap i { padding: 0 10px; color: var(--text-muted); font-size: 13px; flex-shrink: 0; }
+  .date-wrap input { border: none; outline: none; padding: 8px 8px 8px 0; font-size: 13px; font-family: inherit; color: var(--text-dark); background: transparent; flex: 1; min-width: 0; }
+  .date-wrap:focus-within { border-color: var(--primary); }
+  .filter-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+  .btn-submit { background: var(--primary); color: white; border: none; padding: 9px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-submit:hover { background: var(--primary-dark); }
+  .btn-reset  { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+  .btn-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* Section cards */
+  .sec-card { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+  .sec-hdr { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .sec-title { font-size: 13.5px; font-weight: 700; color: var(--text-dark); }
+  .sec-toggle { color: var(--text-muted); font-size: 14px; cursor: pointer; }
+  .sec-body { padding: 20px 24px; }
+
+  /* Repr radio */
+  .repr-row { display: flex; align-items: center; gap: 20px; margin-bottom: 18px; font-size: 13px; color: var(--text-dark); justify-content: center; }
+  .repr-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .repr-row input[type=radio] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+
+  /* Stat bars */
+  .stat-bars { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0; margin-bottom: 24px; border-radius: 8px; overflow: hidden; }
+  .stat-bar { padding: 14px 20px; color: white; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+  .stat-bar .val { font-size: 22px; font-weight: 800; line-height: 1.1; }
+  .stat-bar .lbl { font-size: 11px; font-weight: 500; margin-top: 3px; opacity: 0.9; }
+  .sb-teal  { background: #00897b; }
+  .sb-purple { background: #7b1fa2; }
+  .sb-pink  { background: #c2185b; }
+  .sb-dpurple { background: #512da8; }
+
+  /* Chart layout */
+  .chart-area { display: flex; align-items: center; justify-content: center; gap: 36px; }
+  .chart-box  { width: 200px; height: 200px; position: relative; flex-shrink: 0; }
+  .chart-box canvas { width: 100% !important; height: 100% !important; }
+  .chart-legend { display: flex; flex-direction: column; gap: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dark); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .no-data-txt { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px 0; }
+
+  /* Lawyer table */
+  .lawyer-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .lawyer-table thead tr { background: #3d4db7; }
+  .lawyer-table thead th { padding: 11px 14px; font-size: 11.5px; font-weight: 600; color: white; text-align: left; }
+  .lawyer-table td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-muted); font-size: 12px; }
+  .lawyer-table tr:last-child td { border-bottom: none; }
+
+  /* Total commission table (DataTables style) */
+  .dt-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .dt-filter-wrap { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dt-search { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px 6px 30px; font-size: 12.5px; outline: none; font-family: inherit; color: var(--text-dark); background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 8px center; width: 180px; box-sizing: border-box; }
+  .dt-search:focus { border-color: var(--primary); }
+  .dt-right { display: flex; align-items: center; gap: 8px; }
+  .dt-show-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .dt-show-sel { border: 1.5px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; }
+  .dt-btn { border: 1.5px solid var(--border); background: white; padding: 5px 11px; border-radius: 5px; font-size: 12px; font-weight: 600; color: var(--text-dark); cursor: pointer; }
+  .dt-btn:hover { background: #f8fafc; }
+  .dt-btn-green { background: var(--primary); color: white; border-color: var(--primary); }
+  .dt-btn-green:hover { background: var(--primary-dark); }
+  .comm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .comm-table thead tr { background: #3d4db7; }
+  .comm-table thead th { padding: 11px 12px; font-size: 11px; font-weight: 600; color: white; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
+  .comm-table thead th .si { margin-left: 4px; font-size: 9px; opacity: 0.7; }
+  .comm-table td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .comm-table tr:last-child td { border-bottom: none; }
+  .comm-table tr:hover td { background: #f8fafc; }
+  .dt-info { font-size: 11.5px; color: var(--text-muted); margin-top: 10px; }
+  .dt-pager { display: flex; justify-content: flex-end; gap: 4px; margin-top: 10px; }
+  .pg-btn { border: 1.5px solid var(--border); background: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; color: var(--text-dark); }
+  .pg-btn.active, .pg-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  @media (max-width: 900px) {
+    .filter-row-3, .filter-row-4 { grid-template-columns: 1fr 1fr; }
+    .stat-bars { grid-template-columns: 1fr; }
+    .chart-area { flex-direction: column; }
+  }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;">
+  <div class="breadcrumb">
+    <a href="{% url 'dashboard' %}">Home</a> · Reports · Commision Report
+  </div>
+</div>
+
+<!-- Filter -->
+<div class="filter-card">
+  <div class="filter-title">Commision Report</div>
+  <form method="get">
+    <div class="filter-row filter-row-3">
+      <select name="collector" class="filter-input">
+        <option value="">Select Collector</option>
+        {% for u in all_collectors %}
+        <option value="{{ u.pk }}" {% if filter.collector == u.pk|stringformat:"s" %}selected{% endif %}>
+          {{ u.get_full_name|default:u.username }}
+        </option>
+        {% endfor %}
+      </select>
+      <select name="client" class="filter-input">
+        <option value="">Select Client</option>
+        {% for c in all_clients %}
+        <option value="{{ c.pk }}" {% if filter.client == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="debtor" class="filter-input">
+        <option value="">Select Debtor</option>
+        {% for d in all_debtors %}
+        <option value="{{ d.pk }}" {% if filter.debtor == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-row filter-row-4">
+      <div class="date-wrap">
+        <i class="fas fa-calendar-alt"></i>
+        <input type="text" id="date_range_disp" placeholder="Select Date Range" autocomplete="off">
+      </div>
+      <input type="hidden" name="date_from" id="date_from" value="{{ filter.date_from }}">
+      <input type="hidden" name="date_to"   id="date_to"   value="{{ filter.date_to }}">
+
+      <select name="agency" class="filter-input">
+        <option value="">Select Agency</option>
+        {% for a in all_agencies %}
+        <option value="{{ a.pk }}" {% if filter.agency == a.pk|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="lawyer" class="filter-input">
+        <option value="">Select Lawyer</option>
+        {% for l in all_lawyers %}
+        <option value="{{ l.pk }}" {% if filter.lawyer == l.pk|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="case_status" class="filter-input">
+        <option value="">Select Case Status</option>
+        {% for val, label in case_statuses %}
+        <option value="{{ val }}" {% if filter.case_status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button type="submit" name="submitted" value="1" class="btn-submit">SUBMIT</button>
+      <a href="{% url 'commission_report' %}" class="btn-reset">RESET</a>
+    </div>
+  </form>
+</div>
+
+<!-- 1. Client(s) - Commission Count -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Client(s) - Commision Count</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_client" value="graph" checked onchange="toggleRepr('client',this.value)"> Graphical Representation</label>
+      <label><input type="radio" name="repr_client" value="num" onchange="toggleRepr('client',this.value)"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">{{ client_unique }}</div><div class="lbl">Clients</div></div>
+      <div class="stat-bar sb-purple"><div class="val">{{ client_counts }}</div><div class="lbl">Total Collection Count</div></div>
+      <div class="stat-bar sb-pink"><div class="val">{{ client_sum|omr }}</div><div class="lbl">Total Commision(OMR)</div></div>
+    </div>
+    <div id="graph_client">
+      {% if client_unique > 0 %}
+      <div class="chart-area">
+        <div class="chart-box"><canvas id="chart_client"></canvas></div>
+        <div class="chart-legend" id="legend_client"></div>
+      </div>
+      {% else %}
+      <div class="no-data-txt">No data</div>
+      {% endif %}
+    </div>
+    <div id="num_client" style="display:none;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Client</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Count</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Total (OMR)</th></tr></thead>
+        <tbody id="num_client_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Client Type with Commission -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Client Type with Commision</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_ctype" value="graph" checked onchange="toggleRepr('ctype',this.value)"> Graphical Representation</label>
+      <label><input type="radio" name="repr_ctype" value="num" onchange="toggleRepr('ctype',this.value)"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">{{ ctype_unique }}</div><div class="lbl">Client Type</div></div>
+      <div class="stat-bar sb-purple"><div class="val">{{ ctype_counts }}</div><div class="lbl">Total Collection Count</div></div>
+      <div class="stat-bar sb-pink"><div class="val">{{ ctype_sum|omr }}</div><div class="lbl">Total Commision(OMR)</div></div>
+    </div>
+    <div id="graph_ctype">
+      {% if ctype_unique > 0 %}
+      <div class="chart-area">
+        <div class="chart-box"><canvas id="chart_ctype"></canvas></div>
+        <div class="chart-legend" id="legend_ctype"></div>
+      </div>
+      {% else %}<div class="no-data-txt">No data</div>{% endif %}
+    </div>
+    <div id="num_ctype" style="display:none;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Client Type</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Count</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Total (OMR)</th></tr></thead>
+        <tbody id="num_ctype_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Case Status with Commission -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Case Status with Commision</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_status" value="graph" checked onchange="toggleRepr('status',this.value)"> Graphical Representation</label>
+      <label><input type="radio" name="repr_status" value="num" onchange="toggleRepr('status',this.value)"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">{{ status_unique }}</div><div class="lbl">Case Status</div></div>
+      <div class="stat-bar sb-purple"><div class="val">{{ status_counts }}</div><div class="lbl">Total CommissionCount</div></div>
+      <div class="stat-bar sb-dpurple"><div class="val">{{ status_sum|omr }}</div><div class="lbl">Total Collection(OMR)</div></div>
+    </div>
+    <div id="graph_status">
+      {% if status_unique > 0 %}
+      <div class="chart-area">
+        <div class="chart-box"><canvas id="chart_status"></canvas></div>
+        <div class="chart-legend" id="legend_status"></div>
+      </div>
+      {% else %}<div class="no-data-txt">No data</div>{% endif %}
+    </div>
+    <div id="num_status" style="display:none;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Case Status</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Count</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Total (OMR)</th></tr></thead>
+        <tbody id="num_status_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Country with Commission -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Country with Commision</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_country" value="graph" checked onchange="toggleRepr('country',this.value)"> Graphical Representation</label>
+      <label><input type="radio" name="repr_country" value="num" onchange="toggleRepr('country',this.value)"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">{{ country_unique }}</div><div class="lbl">Country</div></div>
+      <div class="stat-bar sb-purple"><div class="val">{{ country_counts }}</div><div class="lbl">Total Commision Count</div></div>
+      <div class="stat-bar sb-pink"><div class="val">{{ country_sum|omr }}</div><div class="lbl">Total Commision OMR</div></div>
+    </div>
+    <div id="graph_country">
+      {% if country_unique > 0 %}
+      <div class="chart-area">
+        <div class="chart-box"><canvas id="chart_country"></canvas></div>
+        <div class="chart-legend" id="legend_country"></div>
+      </div>
+      {% else %}<div class="no-data-txt">No data</div>{% endif %}
+    </div>
+    <div id="num_country" style="display:none;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Country</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Count</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Total (OMR)</th></tr></thead>
+        <tbody id="num_country_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Agencies with Collection -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Agencies with Collection</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_agency" value="graph" checked> Graphical Representation</label>
+      <label><input type="radio" name="repr_agency" value="num"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">0</div><div class="lbl">Agency</div></div>
+      <div class="stat-bar sb-purple"><div class="val">0</div><div class="lbl">Total Collection Count</div></div>
+      <div class="stat-bar sb-pink"><div class="val" style="font-size:14px;">Total Commision(OMR)</div><div class="lbl"></div></div>
+    </div>
+    <div class="no-data-txt">No data</div>
+  </div>
+</div>
+
+<!-- 6. Collector Wise Commission -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Collector Wise Commision</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="repr-row">
+      <label><input type="radio" name="repr_collector" value="graph" checked onchange="toggleRepr('collector',this.value)"> Graphical Representation</label>
+      <label><input type="radio" name="repr_collector" value="num" onchange="toggleRepr('collector',this.value)"> Numerical Representation</label>
+    </div>
+    <div class="stat-bars">
+      <div class="stat-bar sb-teal"><div class="val">{{ collector_unique }}</div><div class="lbl">Total Collector</div></div>
+      <div class="stat-bar sb-purple"><div class="val">{{ collector_counts }}</div><div class="lbl">Total Collection Count</div></div>
+      <div class="stat-bar sb-dpurple"><div class="val">{{ collector_sum|omr }}</div><div class="lbl">Total Commision(OMR)</div></div>
+    </div>
+    <div id="graph_collector">
+      {% if collector_unique > 0 %}
+      <div class="chart-area">
+        <div class="chart-box"><canvas id="chart_collector"></canvas></div>
+        <div class="chart-legend" id="legend_collector"></div>
+      </div>
+      {% else %}<div class="no-data-txt">No data</div>{% endif %}
+    </div>
+    <div id="num_collector" style="display:none;">
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <thead><tr style="background:#f8fafc;"><th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Collector</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Count</th><th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);border-bottom:1px solid var(--border);">Total (OMR)</th></tr></thead>
+        <tbody id="num_collector_body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 7. Lawyer Wise Collection -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Lawyer Wise Collection</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body" style="padding:0;">
+    <div style="overflow-x:auto;">
+      <table class="lawyer-table">
+        <thead>
+          <tr>
+            <th>Lawyer</th>
+            <th>No Of collection</th>
+            <th>Total Collection</th>
+            <th>Total Commision(OMR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if lawyer_rows %}
+          {% for lr in lawyer_rows %}
+          <tr>
+            <td>{{ lr.lawyer_name|default:"—" }}</td>
+            <td>{{ lr.count }}</td>
+            <td class="num">{{ lr.total|omr }}</td>
+            <td class="num">0.000</td>
+          </tr>
+          {% endfor %}
+          {% else %}
+          <tr>
+            <td style="color:#e53935;font-size:12px;">Total CommissionCount - 0</td>
+            <td></td>
+            <td style="color:#e53935;font-size:12px;">Total CommissionAmount - 0</td>
+            <td></td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 8. Total Commission Report -->
+<div class="sec-card">
+  <div class="sec-hdr">
+    <span class="sec-title">Total Commision Report</span>
+    <span class="sec-toggle" onclick="toggleSec(this)"><i class="fas fa-sync-alt"></i></span>
+  </div>
+  <div class="sec-body">
+    <div class="dt-toolbar">
+      <div class="dt-filter-wrap">
+        <span>Filter:</span>
+        <input type="text" id="commSearch" class="dt-search" placeholder="Type to filter...">
+      </div>
+      <div class="dt-right">
+        <div class="dt-show-wrap">
+          <span>Show:</span>
+          <select id="commPageSize" class="dt-show-sel">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" id="commCopyBtn"><i class="fas fa-copy"></i> Copy</button>
+            <button class="exp-excel" id="commExcelBtn"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="exp-pdf" id="commPdfBtn"><i class="fas fa-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+        <button class="dt-btn dt-btn-green" id="commColBtn"><i class="fas fa-bars"></i> <i class="fas fa-chevron-down" style="font-size:9px;"></i></button>
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table class="comm-table" id="commTable">
+        <thead>
+          <tr>
+            <th data-col="0">Client <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="1">Debtor <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="2">Account Number <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="3">Case ID <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="4">Commision Amt(OMR) <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="5">Payment Date <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="6">Confirmed Date <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="7">Collector <span class="si"><i class="fas fa-sort"></i></span></th>
+            <th data-col="8">Status <span class="si"><i class="fas fa-sort"></i></span></th>
+          </tr>
+        </thead>
+        <tbody id="commBody">
+          {% for p in payments %}
+          <tr>
+            <td>{{ p.case.client.name }}</td>
+            <td>{{ p.case.debtor.name }}</td>
+            <td>{{ p.case.client.alias_name|default:"—" }}</td>
+            <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+            <td>0.000</td>
+            <td>{{ p.payment_date }}</td>
+            <td>{{ p.created_at|date:"Y-m-d" }}</td>
+            <td>{% if p.case.collector %}{{ p.case.collector.get_full_name|default:p.case.collector.username }}{% else %}—{% endif %}</td>
+            <td>{{ p.get_payment_method_display }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9" style="text-align:center;padding:28px 0;color:var(--text-muted);font-size:13px;">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;">
+      <div class="dt-info" id="commInfo">Showing 0 to 0 of 0 entries</div>
+      <div class="dt-pager" id="commPager"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_daterange_premium.html" %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  /* ---- section collapse ---- */
+  window.toggleSec = function (btn) {
+    var body = btn.closest('.sec-card').querySelector('.sec-body');
+    body.style.display = body.style.display === 'none' ? '' : 'none';
+  };
+
+  /* ---- repr toggle ---- */
+  window.toggleRepr = function (key, val) {
+    var g = document.getElementById('graph_' + key);
+    var n = document.getElementById('num_' + key);
+    if (g) g.style.display = val === 'graph' ? '' : 'none';
+    if (n) n.style.display = val === 'num'   ? '' : 'none';
+  };
+
+  /* ---- Chart.js helpers ---- */
+  var COLORS = {{ chart_colors|safe }};
+  function makeColors(n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(COLORS[i % COLORS.length]);
+    return out;
+  }
+
+  function buildLegend(legendEl, labels, colors) {
+    legendEl.innerHTML = '';
+    labels.forEach(function (l, i) {
+      var item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = '<div class="legend-dot" style="background:' + colors[i] + '"></div>' + l;
+      legendEl.appendChild(item);
+    });
+  }
+
+  function buildNumTable(tbodyId, labels, counts, totals) {
+    var tb = document.getElementById(tbodyId);
+    if (!tb) return;
+    tb.innerHTML = '';
+    labels.forEach(function (l, i) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">' + l +
+        '</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;">' + (counts[i] || 0) +
+        '</td><td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;">' + (totals[i] || 0).toFixed(3) + '</td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  function initChart(canvasId, legendId, labels, data) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas || !labels.length) return;
+    var colors = makeColors(labels.length);
+    if (legendId) buildLegend(document.getElementById(legendId), labels, colors);
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: colors, borderWidth: 1, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                var pct = total ? Math.round(ctx.parsed / total * 100) : 0;
+                return ctx.label + ': ' + pct + '%';
+              }
+            }
+          },
+          datalabels: { display: false }
+        },
+        cutout: '0%'
+      }
+    });
+  }
+
+  /* ---- Build all charts ---- */
+  var clientLabels  = {{ client_labels|safe }};
+  var clientTotals  = {{ client_totals|safe }};
+  var ctypeLabels   = {{ ctype_labels|safe }};
+  var ctypeTotals   = {{ ctype_totals|safe }};
+  var statusLabels  = {{ status_labels|safe }};
+  var statusTotals  = {{ status_totals|safe }};
+  var countryLabels = {{ country_labels|safe }};
+  var countryTotals = {{ country_totals|safe }};
+  var collectorLabels = {{ collector_labels|safe }};
+  var collectorTotals = {{ collector_totals|safe }};
+
+  initChart('chart_client',    'legend_client',    clientLabels,    clientTotals);
+  initChart('chart_ctype',     'legend_ctype',     ctypeLabels,     ctypeTotals);
+  initChart('chart_status',    'legend_status',    statusLabels,    statusTotals);
+  initChart('chart_country',   'legend_country',   countryLabels,   countryTotals);
+  initChart('chart_collector', 'legend_collector', collectorLabels, collectorTotals);
+
+  /* Build numerical tables */
+  buildNumTable('num_client_body',    clientLabels,    clientTotals.map(function(){return 1;}),    clientTotals);
+  buildNumTable('num_ctype_body',     ctypeLabels,     ctypeTotals.map(function(){return 1;}),     ctypeTotals);
+  buildNumTable('num_status_body',    statusLabels,    statusTotals.map(function(){return 1;}),    statusTotals);
+  buildNumTable('num_country_body',   countryLabels,   countryTotals.map(function(){return 1;}),   countryTotals);
+  buildNumTable('num_collector_body', collectorLabels, collectorTotals.map(function(){return 1;}), collectorTotals);
+
+  /* ---- Commission DataTable ---- */
+  var tbody   = document.getElementById('commBody');
+  var search  = document.getElementById('commSearch');
+  var pageSel = document.getElementById('commPageSize');
+  var infoEl  = document.getElementById('commInfo');
+  var pagerEl = document.getElementById('commPager');
+  var allRows = Array.from(tbody.querySelectorAll('tr:not(.no-data-row)'));
+  var sortDir = {};
+  var curPage = 1;
+  var filtered = allRows.slice();
+
+  function getPS() { return parseInt(pageSel.value, 10); }
+
+  function renderTable() {
+    var q = search.value.toLowerCase();
+    filtered = allRows.filter(function (tr) { return !q || tr.innerText.toLowerCase().includes(q); });
+    var total = filtered.length;
+    var ps    = getPS();
+    var pages = Math.max(1, Math.ceil(total / ps));
+    if (curPage > pages) curPage = pages;
+    var start = (curPage - 1) * ps;
+    var end   = Math.min(start + ps, total);
+    allRows.forEach(function (tr) { tr.style.display = 'none'; });
+    filtered.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
+    var noRow = tbody.querySelector('.empty-row');
+    if (total === 0) {
+      if (!noRow) tbody.insertAdjacentHTML('beforeend','<tr class="empty-row"><td colspan="9" style="text-align:center;padding:28px;color:var(--text-muted);">No data</td></tr>');
+    } else {
+      if (noRow) noRow.remove();
+    }
+    infoEl.textContent = total === 0 ? 'Showing 0 to 0 of 0 entries' : 'Showing ' + (start+1) + ' to ' + end + ' of ' + total + ' entries';
+    pagerEl.innerHTML = '';
+    function pgBtn(lbl, pg, active) {
+      var b = document.createElement('button');
+      b.className = 'pg-btn' + (active ? ' active' : '');
+      b.textContent = lbl;
+      b.addEventListener('click', function () { curPage = pg; renderTable(); });
+      pagerEl.appendChild(b);
+    }
+    if (curPage > 1) pgBtn('‹', curPage - 1, false);
+    for (var i = 1; i <= pages; i++) pgBtn(i, i, i === curPage);
+    if (curPage < pages) pgBtn('›', curPage + 1, false);
+  }
+
+  search.addEventListener('input', function () { curPage = 1; renderTable(); });
+  pageSel.addEventListener('change', function () { curPage = 1; renderTable(); });
+
+  document.querySelectorAll('#commTable thead th').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = parseInt(th.dataset.col, 10);
+      var dir = sortDir[col] === 'asc' ? 'desc' : 'asc';
+      sortDir = {}; sortDir[col] = dir;
+      allRows.sort(function (a, b) {
+        var va = (a.cells[col] ? a.cells[col].innerText : '').toLowerCase();
+        var vb = (b.cells[col] ? b.cells[col].innerText : '').toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      allRows.forEach(function (tr) { tbody.appendChild(tr); });
+      curPage = 1; renderTable();
+    });
+  });
+
+  document.getElementById('commCopyBtn').addEventListener('click', function () {
+    var text = filtered.map(function (tr) {
+      return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }).join('\t');
+    }).join('\n');
+    navigator.clipboard.writeText(text).catch(function () {});
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('commExcelBtn').addEventListener('click', function () {
+    var headers = Array.from(document.querySelectorAll('#commTable thead th')).map(function (th) { return th.innerText.trim(); });
+    var dataRows = filtered.map(function (tr) { return Array.from(tr.cells).map(function (td) { return td.innerText.trim(); }); });
+    var csv = [headers].concat(dataRows).map(function (r) { return r.map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'commission_report.csv'; a.click();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  document.getElementById('commPdfBtn').addEventListener('click', function () {
+    var table = document.getElementById('commTable');
+    var win = window.open('', '_blank');
+    win.document.write('<html><head><title>Commission Report</title><style>body{font-family:sans-serif;font-size:11px;margin:20px;}h2{color:#1a6b3a;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:5px 8px;text-align:left;}th{background:#1a6b3a;color:#fff;}tr:nth-child(even){background:#f8fafc;}</style></head><body><h2>Commission Report</h2>' + table.outerHTML + '</body></html>');
+    win.document.close(); win.print();
+    this.closest('.export-dropdown').classList.remove('open');
+  });
+
+  renderTable();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Merge Debtors{% endblock %}
+
+{% block extra_styles %}
+  .merge-card { background: white; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+  .merge-card-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+  .merge-card-header h3 { font-size: 17px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
+  .merge-card-header h3 i { color: var(--primary); }
+  .merge-table { width: 100%; border-collapse: collapse; }
+  .merge-table thead th { padding: 14px 20px; background: #f8fafc; font-size: 13px; font-weight: 700; color: var(--text-dark); border-bottom: 2px solid var(--border); text-align: left; }
+  .merge-table thead th:first-child { width: 220px; color: var(--text-muted); font-weight: 600; }
+  .merge-table tbody tr:not(:last-child) td { border-bottom: 1px solid #f1f5f9; }
+  .merge-table tbody tr:hover td { background: #fafbfc; }
+  .merge-table tbody td { padding: 11px 20px; font-size: 13px; color: var(--text-dark); vertical-align: middle; }
+  .merge-table tbody td:first-child { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .merge-radio-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .merge-radio-label input[type="radio"] { margin-top: 2px; accent-color: var(--primary); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+  .merge-radio-label .val-text { color: var(--text-dark); font-size: 13px; line-height: 1.4; }
+  .merge-radio-label .val-empty { color: #cbd5e1; font-style: italic; font-size: 12px; }
+  .merge-radio-label input[type="radio"]:checked ~ .val-text { color: var(--primary); font-weight: 600; }
+  .merge-check-label { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .merge-check-label input[type="checkbox"] { margin-top: 2px; accent-color: var(--primary); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+  .merge-check-label input[type="checkbox"]:checked ~ .val-text { color: var(--primary); font-weight: 600; }
+  .merge-hint { font-size: 11px; color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: normal; margin-top: 2px; }
+  .contact-list-item { font-size: 13px; color: var(--text-dark); margin-bottom: 6px; }
+  .contact-list-item .ctype { color: var(--text-muted); font-size: 12px; }
+  .master-label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .master-label input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer; }
+  .master-label .master-yes { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  .master-label input[type="radio"]:checked ~ .master-yes { color: var(--primary); }
+  .merge-col-header { display: flex; flex-direction: column; gap: 2px; }
+  .merge-col-header .col-id { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  .merge-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 20px 24px; border-top: 1px solid var(--border); }
+  .btn-back { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-back:hover { border-color: #94a3b8; color: var(--text-dark); }
+  .btn-update { background: var(--primary); color: white; border: none; padding: 10px 26px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-update:hover { background: var(--primary-dark); }
+  .master-row td { background: #eff6ff !important; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Debtors <span>— Debtor Merging</span></div>
+      <div class="breadcrumb-sub">Select the values to keep in the merged record</div>
+    </div>
+  </div>
+
+  <div class="merge-card">
+    <div class="merge-card-header">
+      <h3><i class="fas fa-clone"></i> Debtor Merging</h3>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="d1_id" value="{{ d1.id }}">
+      <input type="hidden" name="d2_id" value="{{ d2.id }}">
+
+      <table class="merge-table">
+        <thead>
+          <tr>
+            <th>Fields</th>
+            <th>
+              <div class="merge-col-header">
+                <span>{{ d1.name }}</span>
+                <span class="col-id">{{ d1.debtor_id }}</span>
+              </div>
+            </th>
+            <th>
+              <div class="merge-col-header">
+                <span>{{ d2.name }}</span>
+                <span class="col-id">{{ d2.debtor_id }}</span>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="master-row">
+            <td>Use As Master<div class="merge-hint">Choosing a master auto-fills every field below from that column — override individual fields afterward if needed.</div></td>
+            <td>
+              <label class="master-label">
+                <input type="radio" name="master_id" value="{{ d1.id }}" onchange="onMasterChange('d1')" checked>
+                <span class="master-yes">Yes</span>
+              </label>
+            </td>
+            <td>
+              <label class="master-label">
+                <input type="radio" name="master_id" value="{{ d2.id }}" onchange="onMasterChange('d2')">
+                <span class="master-yes">Yes</span>
+              </label>
+            </td>
+          </tr>
+          {% for label, fname, val1, val2 in fields %}
+          {% if fname == 'email2' %}
+          <tr>
+            <td>Email<div class="merge-hint">Check both to keep both (fills Email + Email 2)</div></td>
+            <td>
+              <label class="merge-check-label">
+                <input type="checkbox" name="email_use_d1" value="1" checked>
+                {% if d1.email %}
+                  <span class="val-text">{{ d1.email }}</span>
+                {% else %}
+                  <span class="val-empty">—</span>
+                {% endif %}
+              </label>
+            </td>
+            <td>
+              <label class="merge-check-label">
+                <input type="checkbox" name="email_use_d2" value="1">
+                {% if d2.email %}
+                  <span class="val-text">{{ d2.email }}</span>
+                {% else %}
+                  <span class="val-empty">—</span>
+                {% endif %}
+              </label>
+            </td>
+          </tr>
+          {% endif %}
+          <tr>
+            <td>{{ label }}</td>
+            <td>
+              <label class="merge-radio-label">
+                <input type="radio" class="merge-field-radio" name="field_{{ fname }}" value="d1" checked>
+                {% if val1 %}
+                  <span class="val-text">{{ val1 }}</span>
+                {% else %}
+                  <span class="val-empty">—</span>
+                {% endif %}
+              </label>
+            </td>
+            <td>
+              <label class="merge-radio-label">
+                <input type="radio" class="merge-field-radio" name="field_{{ fname }}" value="d2">
+                {% if val2 %}
+                  <span class="val-text">{{ val2 }}</span>
+                {% else %}
+                  <span class="val-empty">—</span>
+                {% endif %}
+              </label>
+            </td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td>Contacts<div class="merge-hint">Both are kept automatically on merge</div></td>
+            <td>
+              {% for c in d1.contacts.all %}
+                <div class="contact-list-item">{{ c.name }} <span class="ctype">({{ c.get_contact_type_display }})</span></div>
+              {% empty %}
+                <span class="val-empty">—</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% for c in d2.contacts.all %}
+                <div class="contact-list-item">{{ c.name }} <span class="ctype">({{ c.get_contact_type_display }})</span></div>
+              {% empty %}
+                <span class="val-empty">—</span>
+              {% endfor %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="merge-actions">
+        <a href="{% url 'debtors' %}" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+        <button type="submit" class="btn-update"><i class="fas fa-check"></i> Update</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Picking a master should re-point every field's default choice to that
+  // same column, so a field the user never manually touches keeps the
+  // master's own value instead of silently pulling from the other (deleted)
+  // debtor. Users can still override individual fields after this.
+  function onMasterChange(which) {
+    document.querySelectorAll('input.merge-field-radio[value="' + which + '"]').forEach(r => r.checked = true);
+  }
+</script>
+{% endblock %}

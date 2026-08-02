@@ -1,0 +1,802 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Tawazon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      background: #f1f5f9;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .left-inner  { animation: fadeUp 0.6s ease both; }
+    .right-inner { animation: fadeUp 0.6s ease 0.1s both; }
+
+    /* ── Left panel ── */
+    .left-panel {
+      flex: 1;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(46,125,50,0.55) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(15,74,41,0.6) 0%, transparent 50%),
+        linear-gradient(145deg, #0c3d22 0%, #155f35 48%, #2e7d32 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 50px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* faint grid texture */
+    .left-panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(circle at 50% 40%, black 0%, transparent 75%);
+      -webkit-mask-image: radial-gradient(circle at 50% 40%, black 0%, transparent 75%);
+    }
+    /* soft glowing orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(8px);
+      z-index: 0;
+    }
+    .orb.o1 { width: 420px; height: 420px; background: rgba(255,255,255,0.06); top: -130px; right: -120px; }
+    .orb.o2 { width: 320px; height: 320px; background: rgba(120,220,150,0.08); bottom: -100px; left: -90px; }
+    .orb.o3 { width: 180px; height: 180px; background: rgba(255,255,255,0.05); top: 40%; left: 8%; filter: blur(20px); }
+
+    .left-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 50px;
+    }
+    .brand-logo {
+      background: white;
+      border-radius: 20px;
+      padding: 18px 30px;
+      box-shadow: 0 18px 45px rgba(0,0,0,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .brand-logo:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 55px rgba(0,0,0,0.34);
+    }
+    .brand-logo img {
+      height: 52px;
+      width: auto;
+      display: block;
+    }
+
+    .hero-title {
+      font-size: 38px;
+      font-weight: 800;
+      color: white;
+      line-height: 1.2;
+      letter-spacing: -0.5px;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+    .hero-sub {
+      font-size: 15px;
+      color: rgba(255,255,255,0.72);
+      line-height: 1.7;
+      text-align: center;
+      max-width: 400px;
+    }
+
+    .features {
+      margin-top: 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+    }
+    .feature:hover {
+      transform: translateX(4px);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .feature-icon {
+      width: 42px; height: 42px;
+      background: rgba(255,255,255,0.16);
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 16px; flex-shrink: 0;
+    }
+    .feature-text .ft  { font-size: 13.5px; font-weight: 600; color: white; }
+    .feature-text .fs  { font-size: 11.5px; color: rgba(255,255,255,0.62); margin-top: 2px; }
+
+    /* ── Right panel ── */
+    .right-panel {
+      width: 500px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px 56px;
+      background: white;
+      box-shadow: -8px 0 40px rgba(0,0,0,0.08);
+    }
+    .right-inner { width: 100%; max-width: 360px; margin: 0 auto; }
+
+    .welcome-badge {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #e7f6ec, #d4eedd);
+      color: #e11d48;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin: 0 auto 20px;
+    }
+    .login-heading {
+      font-size: 28px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.4px;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .login-sub {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #dc2626;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      font-size: 14px;
+    }
+    .input-wrap input {
+      width: 100%;
+      padding: 13px 14px 13px 44px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 11px;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      color: #0f172a;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      background: #f8fafc;
+    }
+    .input-wrap input::placeholder { color: #aab4c2; }
+    .input-wrap input:focus {
+      border-color: #e11d48;
+      background: white;
+      box-shadow: 0 0 0 4px rgba(26,107,60,0.1);
+    }
+    .input-wrap:focus-within i { color: #e11d48; }
+    .toggle-pass {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 14px;
+      padding: 4px;
+    }
+    .toggle-pass:hover { color: #475569; }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #f43f5e, #be123c);
+      color: white;
+      border: none;
+      border-radius: 11px;
+      font-size: 14.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 8px;
+      transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+      box-shadow: 0 6px 18px rgba(26,107,60,0.32);
+      font-family: 'Inter', sans-serif;
+      position: relative;
+      overflow: hidden;
+    }
+    /* subtle sheen sweep on hover */
+    .btn-login::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -120%;
+      width: 60%; height: 100%;
+      background: linear-gradient(120deg, transparent, rgba(255,255,255,0.25), transparent);
+      transition: left 0.55s ease;
+    }
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(26,107,60,0.42);
+      filter: brightness(1.05);
+    }
+    .btn-login:hover::after { left: 130%; }
+    .btn-login:active { transform: translateY(0); }
+
+    .login-footer {
+      margin-top: 40px;
+      padding-top: 24px;
+      border-top: 1px solid #f1f5f9;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 5px;
+      border-radius: 12px;
+      margin-bottom: 28px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 9px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: all 0.18s;
+    }
+    .tab.active {
+      background: white;
+      color: #be123c;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    .info-box {
+      background: #fff1f2;
+      border: 1px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #15803d;
+    }
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: -10px;
+      margin-bottom: 18px;
+    }
+    .link-btn {
+      background: none;
+      border: none;
+      color: #e11d48;
+      font-weight: 600;
+      font-size: 12.5px;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      padding: 0;
+      margin-top: 14px;
+    }
+    .link-btn:hover { text-decoration: underline; }
+    .btn-login.loading { opacity: 0.7; pointer-events: none; }
+
+    .resend-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 16px;
+      min-height: 20px;
+    }
+    .resend-timer {
+      font-size: 12.5px;
+      color: #94a3b8;
+    }
+    .resend-row .link-btn { margin-top: 0; }
+
+    /* ── OTP boxes ── */
+    .otp-boxes {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .otp-box {
+      flex: 1;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 58px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+      font-family: 'Inter', sans-serif;
+      caret-color: #e11d48;
+    }
+    .otp-box:focus {
+      border-color: #e11d48;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(26,107,60,0.12);
+    }
+    .otp-box.filled {
+      border-color: #e11d48;
+      background: white;
+    }
+
+    @media (max-width: 860px) {
+      .left-panel { display: none; }
+      .right-panel { width: 100%; box-shadow: none; padding: 40px 32px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left: Branding -->
+  <div class="left-panel">
+    <div class="orb o1"></div>
+    <div class="orb o2"></div>
+    <div class="orb o3"></div>
+
+    <div class="left-inner">
+      <div class="brand">
+        <div class="brand-logo">
+          <img src="{% static 'logo.png' %}" alt="Tawazon">
+        </div>
+      </div>
+
+      <div class="hero-title">Manage Collections<br>with Confidence</div>
+      <div class="hero-sub">A powerful dashboard for tracking clients, debtors, cases, and payments — all in one place.</div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon"><i class="fas fa-folder-open"></i></div>
+          <div class="feature-text">
+            <div class="ft">Case Management</div>
+            <div class="fs">Track every case from creation to closure</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><i class="fas fa-coins"></i></div>
+          <div class="feature-text">
+            <div class="ft">Payment Tracking</div>
+            <div class="fs">Monitor payments, receipts & commissions</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><i class="fas fa-chart-bar"></i></div>
+          <div class="feature-text">
+            <div class="ft">Reports & Analytics</div>
+            <div class="fs">Generate detailed reports instantly</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Login Form -->
+  <div class="right-panel">
+    <div class="right-inner">
+    <div class="welcome-badge"><i class="fas fa-hand-sparkles"></i></div>
+    <div class="login-heading">Welcome back</div>
+    <div class="login-sub">Sign in to your account to continue</div>
+
+    {% csrf_token %}
+
+    <div class="tabs">
+      <button type="button" class="tab active" data-pane="staffPane" onclick="switchTab(this)">
+        <i class="fas fa-user-shield"></i> Staff
+      </button>
+      <button type="button" class="tab" data-pane="clientPane" onclick="switchTab(this)">
+        <i class="fas fa-building"></i> Client
+      </button>
+    </div>
+
+    <!-- ── Staff login ── -->
+    <div class="pane active" id="staffPane">
+      {% if error %}
+      <div class="error-box">
+        <i class="fas fa-circle-exclamation"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next }}{% endif %}">
+        {% csrf_token %}
+
+        <div class="field">
+          <label>Username</label>
+          <div class="input-wrap">
+            <i class="fas fa-user"></i>
+            <input type="text" name="username" placeholder="Enter your username" autocomplete="username">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <i class="fas fa-lock"></i>
+            <input type="password" name="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password">
+            <button type="button" class="toggle-pass" onclick="togglePassword()" id="toggleBtn">
+              <i class="fas fa-eye" id="toggleIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-login">
+          <i class="fas fa-right-to-bracket"></i> Sign In
+        </button>
+      </form>
+    </div>
+
+    <!-- ── Client login (email + OTP) ── -->
+    <div class="pane" id="clientPane">
+      <div id="clientMsg"></div>
+
+      <!-- Step 1: email -->
+      <div id="otpStepEmail">
+        <div class="field">
+          <label>Email Address</label>
+          <div class="input-wrap">
+            <i class="fas fa-envelope"></i>
+            <input type="email" id="clientEmail" placeholder="you@company.com" autocomplete="email">
+          </div>
+        </div>
+        <p class="hint">We'll email you a one-time code to sign in.</p>
+        <button type="button" class="btn-login" id="sendOtpBtn" onclick="requestOtp()">
+          <i class="fas fa-paper-plane"></i> Send Code
+        </button>
+      </div>
+
+      <!-- Step 2: code -->
+      <div id="otpStepCode" style="display:none;">
+        <div class="info-box">
+          <i class="fas fa-circle-check"></i>
+          <span>Enter the 6-character code sent to <strong id="otpEmailLabel"></strong>.</span>
+        </div>
+        <div class="field">
+          <label>Verification Code</label>
+          <div class="otp-boxes" id="otpBoxes">
+            <input class="otp-box" type="text" maxlength="1" autocomplete="one-time-code" style="text-transform:uppercase;" aria-label="Character 1">
+            <input class="otp-box" type="text" maxlength="1" style="text-transform:uppercase;" aria-label="Character 2">
+            <input class="otp-box" type="text" maxlength="1" style="text-transform:uppercase;" aria-label="Character 3">
+            <input class="otp-box" type="text" maxlength="1" style="text-transform:uppercase;" aria-label="Character 4">
+            <input class="otp-box" type="text" maxlength="1" style="text-transform:uppercase;" aria-label="Character 5">
+            <input class="otp-box" type="text" maxlength="1" style="text-transform:uppercase;" aria-label="Character 6">
+          </div>
+        </div>
+        <button type="button" class="btn-login" id="verifyOtpBtn" onclick="verifyOtp()">
+          <i class="fas fa-right-to-bracket"></i> Verify & Sign In
+        </button>
+
+        <div class="resend-row">
+          <span class="resend-timer" id="resendTimer"></span>
+          <button type="button" class="link-btn" id="resendBtn" onclick="resendOtp()" style="display:none;">
+            <i class="fas fa-rotate-right"></i> Resend code
+          </button>
+        </div>
+
+        <button type="button" class="link-btn" onclick="resetOtp()">
+          <i class="fas fa-arrow-left"></i> Use a different email
+        </button>
+      </div>
+    </div>
+
+    <div class="login-footer">
+      &copy; 2026 Tawazon Collection Management
+    </div>
+    </div>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const input = document.getElementById('passwordInput');
+      const icon  = document.getElementById('toggleIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+      } else {
+        input.type = 'password';
+        icon.className = 'fas fa-eye';
+      }
+    }
+
+    // ── Tabs ──
+    function switchTab(btn) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.pane).classList.add('active');
+      clearMsg();
+    }
+
+    // ── Client OTP flow ──
+    const CSRF = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+    function clearMsg() { document.getElementById('clientMsg').innerHTML = ''; }
+    function showMsg(text, ok) {
+      document.getElementById('clientMsg').innerHTML =
+        '<div class="' + (ok ? 'info-box' : 'error-box') + '">' +
+        '<i class="fas ' + (ok ? 'fa-circle-check' : 'fa-circle-exclamation') + '"></i>' +
+        '<span>' + text + '</span></div>';
+    }
+
+    async function post(url, data) {
+      const body = new URLSearchParams(data);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        credentials: 'same-origin',
+      });
+      let json = null;
+      try { json = await res.json(); } catch (e) { /* non-JSON response */ }
+      if (json) return json;
+      if (res.status === 403) return { success: false, error: 'Session expired or cookies blocked. Please refresh the page and try again.' };
+      return { success: false, error: 'Server error (' + res.status + '). Please try again.' };
+    }
+
+    function setLoading(btn, on, label) {
+      btn.classList.toggle('loading', on);
+      if (on) { btn.dataset.html = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + label; }
+      else if (btn.dataset.html) { btn.innerHTML = btn.dataset.html; }
+    }
+
+    async function requestOtp() {
+      clearMsg();
+      const email = document.getElementById('clientEmail').value.trim();
+      if (!email) { showMsg('Please enter your email address.', false); return; }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('Enter a valid email address.', false); return; }
+      const btn = document.getElementById('sendOtpBtn');
+      setLoading(btn, true, 'Sending…');
+      try {
+        const r = await post("{% url 'client_otp_request' %}", { email });
+        if (r.success) {
+          document.getElementById('otpStepEmail').style.display = 'none';
+          document.getElementById('otpStepCode').style.display = 'block';
+          document.getElementById('otpEmailLabel').textContent = email;
+          clearOtpBoxes();
+          otpBoxes[0].focus();
+          startResendCountdown();
+        } else {
+          showMsg(r.error || 'Something went wrong.', false);
+        }
+      } catch (e) {
+        showMsg('Network error. Please try again.', false);
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+
+    // ── Resend code with cooldown timer ──
+    const RESEND_SECONDS = 45;
+    let resendInterval = null;
+
+    function startResendCountdown() {
+      const timerEl  = document.getElementById('resendTimer');
+      const resendBtn = document.getElementById('resendBtn');
+      let remaining = RESEND_SECONDS;
+      clearInterval(resendInterval);
+      resendBtn.style.display = 'none';
+      timerEl.style.display = 'inline';
+
+      const render = () => {
+        const m = Math.floor(remaining / 60);
+        const s = String(remaining % 60).padStart(2, '0');
+        timerEl.textContent = `Resend code in ${m}:${s}`;
+      };
+      render();
+      resendInterval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(resendInterval);
+          timerEl.style.display = 'none';
+          resendBtn.style.display = 'inline-flex';
+        } else {
+          render();
+        }
+      }, 1000);
+    }
+
+    async function resendOtp() {
+      clearMsg();
+      const email = document.getElementById('clientEmail').value.trim();
+      if (!email) { resetOtp(); return; }
+      const btn = document.getElementById('resendBtn');
+      setLoading(btn, true, 'Sending…');
+      try {
+        const r = await post("{% url 'client_otp_request' %}", { email });
+        if (r.success) {
+          clearOtpBoxes();
+          otpBoxes[0].focus();
+          showMsg('A new code has been sent to your email.', true);
+          startResendCountdown();
+        } else {
+          showMsg(r.error || 'Could not resend the code.', false);
+        }
+      } catch (e) {
+        showMsg('Network error. Please try again.', false);
+      } finally {
+        setLoading(btn, false);
+        btn.innerHTML = '<i class="fas fa-rotate-right"></i> Resend code';
+      }
+    }
+
+    async function verifyOtp() {
+      clearMsg();
+      const email = document.getElementById('clientEmail').value.trim();
+      const otp   = getOtpValue();
+      if (otp.length < 6) { showMsg('Please enter the full 6-character code.', false); return; }
+      const btn = document.getElementById('verifyOtpBtn');
+      setLoading(btn, true, 'Verifying…');
+      try {
+        const r = await post("{% url 'client_otp_verify' %}", { email, otp });
+        if (r.success) {
+          window.location.href = r.redirect || '/portal/';
+        } else {
+          showMsg(r.error || 'Invalid or expired code.', false);
+          setLoading(btn, false);
+        }
+      } catch (e) {
+        showMsg('Network error. Please try again.', false);
+        setLoading(btn, false);
+      }
+    }
+
+    function resetOtp() {
+      clearMsg();
+      clearInterval(resendInterval);
+      document.getElementById('otpStepCode').style.display = 'none';
+      document.getElementById('otpStepEmail').style.display = 'block';
+      clearOtpBoxes();
+      document.getElementById('clientEmail').focus();
+    }
+
+    // ── OTP box behaviour: auto-advance, backspace, paste ──
+    const otpBoxes = Array.from(document.querySelectorAll('#otpBoxes .otp-box'));
+
+    function getOtpValue() { return otpBoxes.map(b => b.value).join('').trim(); }
+    function clearOtpBoxes() { otpBoxes.forEach(b => { b.value = ''; b.classList.remove('filled'); }); }
+
+    otpBoxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        box.value = box.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 1).toUpperCase();
+        box.classList.toggle('filled', box.value !== '');
+        if (box.value && i < otpBoxes.length - 1) otpBoxes[i + 1].focus();
+        if (getOtpValue().length === 6) verifyOtp();
+      });
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !box.value && i > 0) {
+          otpBoxes[i - 1].focus();
+          otpBoxes[i - 1].value = '';
+          otpBoxes[i - 1].classList.remove('filled');
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft' && i > 0) {
+          otpBoxes[i - 1].focus(); e.preventDefault();
+        } else if (e.key === 'ArrowRight' && i < otpBoxes.length - 1) {
+          otpBoxes[i + 1].focus(); e.preventDefault();
+        }
+      });
+      box.addEventListener('paste', e => {
+        e.preventDefault();
+        const chars = (e.clipboardData.getData('text') || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
+        if (!chars) return;
+        chars.split('').forEach((ch, k) => {
+          if (otpBoxes[k]) { otpBoxes[k].value = ch; otpBoxes[k].classList.add('filled'); }
+        });
+        const next = Math.min(chars.length, otpBoxes.length - 1);
+        otpBoxes[next].focus();
+        if (chars.length === 6) verifyOtp();
+      });
+    });
+
+    // Submit on Enter within the client inputs
+    document.getElementById('clientEmail').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); requestOtp(); } });
+
+    // ── Deep-link support ──
+    // External sites can link straight to the client login with:
+    //   /login/?tab=client        → opens the Client tab
+    //   /login/#client            → also opens the Client tab
+    (function initTabFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const wantClient = params.get('tab') === 'client'
+                      || params.get('client') === '1'
+                      || window.location.hash === '#client';
+      if (wantClient) {
+        const btn = document.querySelector('.tab[data-pane="clientPane"]');
+        if (btn) switchTab(btn);
+      }
+    })();
+  </script>
+</body>
+</html>

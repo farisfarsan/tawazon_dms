@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Receipt Report{% endblock %}
+
+{% block extra_styles %}
+  /* Filter panel */
+  .filter-card { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-card-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 18px; }
+  .filter-row { display: grid; gap: 14px; }
+  .filter-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .filter-row-2 { grid-template-columns: 1fr 1fr; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .filter-input:focus { border-color: var(--primary); }
+  .date-wrap { display: flex; align-items: center; border: 1.5px solid var(--border); border-radius: 8px; background: white; overflow: hidden; }
+  .date-wrap i { padding: 0 10px; color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
+  .date-wrap input { border: none; outline: none; padding: 8px 10px 8px 0; font-size: 13px; font-family: inherit; color: var(--text-dark); background: transparent; flex: 1; width: 100%; }
+  .date-wrap:focus-within { border-color: var(--primary); }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dark); padding-top: 18px; }
+  .check-row input { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  .filter-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-submit { background: var(--primary); color: white; border: none; padding: 9px 28px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.5px; }
+  .btn-submit:hover { background: var(--primary-dark); }
+  .btn-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+  .btn-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* Receipt table card */
+  .rpt-card { background: white; border-radius: 12px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .rpt-card-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .rpt-card-title { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+  .rpt-icons { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 13px; }
+  .rpt-icons i { cursor: pointer; }
+  .rpt-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .rpt-table thead th { background: #f8fafc; padding: 9px 10px; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .rpt-table td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .rpt-table tr:last-child td { border-bottom: none; }
+  .rpt-table tr:hover td { background: #f8fafc; }
+  .no-data { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
+
+  @media (max-width: 900px) {
+    .filter-row-3 { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .filter-row-3, .filter-row-2 { grid-template-columns: 1fr; }
+  }
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;">
+  <div class="breadcrumb">Reports <span>· Receipt Report</span></div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-card">
+  <div class="filter-card-title">Filter Results</div>
+  <form method="get">
+    <!-- Row 1: Date Range | Receipt Number From | Receipt Number To -->
+    <div class="filter-row filter-row-3" style="margin-bottom:14px;">
+      <div class="filter-group">
+        <label>Date Range</label>
+        <div class="date-wrap">
+          <i class="fas fa-calendar-alt"></i>
+          <input type="text" id="date_range_input" name="date_range" value="{{ filter.date_range }}" placeholder="" autocomplete="off">
+        </div>
+        <input type="hidden" name="date_from" id="date_from" value="{{ filter.date_from }}">
+        <input type="hidden" name="date_to"   id="date_to"   value="{{ filter.date_to }}">
+      </div>
+
+      <div class="filter-group">
+        <label>Receipt Number Range From</label>
+        <select name="rcpt_from" class="filter-input">
+          <option value="">Receipt Number Range</option>
+          {% for pid in all_payment_ids %}
+          <option value="{{ pid.value }}" {% if filter.rcpt_from == pid.value %}selected{% endif %}>{{ pid.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label>Receipt Number Range To</label>
+        <select name="rcpt_to" class="filter-input">
+          <option value="">Receipt Number Range</option>
+          {% for pid in all_payment_ids %}
+          <option value="{{ pid.value }}" {% if filter.rcpt_to == pid.value %}selected{% endif %}>{{ pid.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Row 2: Mode Of Payment | Collector -->
+    <div class="filter-row filter-row-2" style="margin-bottom:14px;">
+      <div class="filter-group">
+        <label>Mode Of Payment</label>
+        <select name="mode" class="filter-input">
+          <option value="">All Modes</option>
+          {% for pm in payment_modes %}
+          <option value="{{ pm.pk }}" {% if filter.mode == pm.pk|stringformat:"s" %}selected{% endif %}>{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+{% if request.user.is_superuser %}
+      <div class="filter-group">
+        <label>Collector</label>
+        <select name="collector" class="filter-input">
+          <option value="">Select Collector</option>
+          {% for c in all_collectors %}
+          <option value="{{ c.pk }}" {% if filter.collector == c.pk|stringformat:"s" %}selected{% endif %}>
+            {{ c.get_full_name|default:c.username }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+{% endif %}
+    </div>
+
+    <!-- Row 3: Canceled Receipt -->
+    <div>
+      <label style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;">Canceled Receipt</label>
+      <label class="check-row" style="padding-top:8px;">
+        <input type="checkbox" name="cancelled" value="1" {% if filter.cancelled %}checked{% endif %}>
+      </label>
+    </div>
+
+    <div class="filter-actions">
+      <button type="submit" name="submitted" value="1" class="btn-submit">SUBMIT</button>
+      <a href="{% url 'receipt_report' %}" class="btn-reset">RESET</a>
+    </div>
+  </form>
+</div>
+
+<!-- Receipt Report Table -->
+<div class="rpt-card">
+  <div class="rpt-card-hdr">
+    <span class="rpt-card-title">Receipt Report</span>
+    <div class="rpt-icons">
+      <i class="fas fa-chevron-down"></i>
+      <i class="fas fa-sync-alt"></i>
+    </div>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th>SI No</th>
+          <th>Payment Date</th>
+          <th>Receipt Voucher No</th>
+          <th>CaseID / A/c Number</th>
+          <th>Mode Of Payment</th>
+          <th>Debtor</th>
+          <th>Client</th>
+          <th>Payment</th>
+          <th>Collector</th>
+          <th>Receipt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in receipts %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ p.payment_date }}</td>
+          <td>{{ p.receipt_no }}</td>
+          <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+          <td>{{ p.payment_mode.name|default:"—" }}</td>
+          <td>{{ p.case.debtor.name }}</td>
+          <td>{{ p.case.client.name }}</td>
+          <td class="num" style="font-weight:600;">{{ p.amount|omr }}</td>
+          <td>
+            {% if p.case.collector %}
+              {{ p.case.collector.get_full_name|default:p.case.collector.username }}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if p.can_download_receipt %}
+            <a href="{% url 'payment_receipt' p.pk %}" target="_blank" title="Download receipt"
+               style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:#d1fae5;color:#059669;text-decoration:none;font-size:12px;">
+              <i class="fas fa-file-download"></i>
+            </a>
+            {% else %}
+            <span style="color:var(--text-muted);font-size:11px;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="10" class="no-data">No Receipt History</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if filter.submitted and receipts %}
+  <div style="font-size:12px;color:var(--text-muted);margin-top:12px;">
+    {{ receipts|length }} receipt(s) found
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{% include "_daterange_premium.html" %}
+{% endblock %}

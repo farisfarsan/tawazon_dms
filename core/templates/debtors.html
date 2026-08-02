@@ -1,0 +1,1506 @@
+{% extends "base.html" %}
+
+{% block title %}All Debtors{% endblock %}
+
+{% block extra_styles %}
+  /* filter-bar replaced by shared filter-controls */
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+  .table-toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .table-toolbar-right { display: flex; align-items: center; gap: 8px; }
+  .show-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .show-select select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; }
+
+  /* Column sort */
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: #1a56db; }
+  th.sortable .sort-ic { margin-left: 5px; opacity: 0.5; font-size: 10px; }
+  th.sortable.asc .sort-ic, th.sortable.desc .sort-ic { opacity: 1; }
+
+  /* Per-column filter row */
+  #col-filter-row td { padding: 4px 6px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; }
+  .col-fi { width: 100%; padding: 4px 8px; border: 1.5px solid #e2e8f0; border-radius: 5px; font-size: 12px; outline: none; font-family: inherit; color: var(--text-dark); background: white; }
+  .col-fi:focus { border-color: var(--primary); }
+
+  /* Column toggle panel */
+  .col-toggle-wrap { position: relative; }
+  .btn-col-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-col-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-col-toggle i { font-size: 12px; }
+  .col-panel { display: none; position: absolute; right: 0; top: calc(100% + 6px); background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; min-width: 180px; }
+  .col-panel.open { display: block; }
+  .col-panel-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 14px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .col-panel label { display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text-dark); transition: background 0.12s; }
+  .col-panel label:hover { background: #f8fafc; }
+  .col-panel label input { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+
+  /* Filter toggle button */
+  .btn-filter-cols { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-filter-cols:hover, .btn-filter-cols.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+  .btn-filter-cols i { font-size: 12px; }
+
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+  .cases-link { color: #2563eb; font-weight: 600; text-decoration: none; font-size: 13px; }
+  .cases-link:hover { text-decoration: underline; }
+  .cases-none { color: var(--text-muted); font-size: 13px; }
+
+  .btn-group { display: flex; gap: 10px; }
+  .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); padding: 9px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; }
+  .btn-outline:hover { background: var(--primary-light); }
+  .btn-outline:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-danger { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .panel-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .panel-title-bar h3 { font-size: 17px; font-weight: 700; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 480px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  @keyframes modalIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .modal h3 i { font-size: 22px; }
+  .modal p { color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal.danger h3 i { color: #dc2626; }
+  .modal.info h3 i { color: #2563eb; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  /* ===== ADD DEBTOR WIZARD ===== */
+  .wizard-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.52); z-index: 1000; align-items: center; justify-content: center; overflow-y: auto; padding: 20px 0; }
+  .wizard-overlay.show { display: flex; }
+  .wizard-modal { background: white; border-radius: 16px; padding: 32px 36px; max-width: 660px; width: 95%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalIn 0.2s; max-height: 90vh; overflow-y: auto; }
+  .wiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+  .wiz-title { font-size: 20px; font-weight: 700; }
+  .wiz-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 2px 8px; border-radius: 6px; }
+  .wiz-close:hover { background: #f1f5f9; color: var(--text-dark); }
+
+  .wiz-steps { display: flex; align-items: flex-start; margin-bottom: 30px; }
+  .wiz-step { display: flex; flex-direction: column; align-items: center; gap: 7px; flex-shrink: 0; }
+  .wiz-connector { flex: 1; height: 2px; background: #e5e7eb; margin-top: 21px; min-width: 24px; transition: background 0.3s; }
+  .wiz-connector.done { background: var(--primary); }
+  .wiz-circle { width: 42px; height: 42px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #9ca3af; background: white; transition: all 0.3s; }
+  .wiz-circle.active { border-color: var(--primary); background: var(--primary); color: white; }
+  .wiz-circle.done { border-color: var(--primary); background: var(--primary); color: white; }
+  .wiz-label { font-size: 11px; color: #9ca3af; font-weight: 500; text-align: center; max-width: 90px; line-height: 1.3; }
+  .wiz-label.active { color: var(--text-dark); font-weight: 700; }
+
+  .wiz-body { min-height: 180px; }
+  .wiz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .wiz-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .wiz-row-full { margin-bottom: 16px; }
+  .individual-only.hidden-for-org { display: none !important; }
+  .org-only.show-for-org { display: grid !important; }
+  .org-only.show-for-org.wiz-row-full { display: block !important; }
+  .org-only.show-for-org[id] { display: block !important; }
+  .related-company-row { display: grid; grid-template-columns: 1fr 180px 36px; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .contact-phone-row { display: grid; grid-template-columns: 84px 1fr 34px; gap: 8px; align-items: center; margin-bottom: 8px; }
+  /* Each additional contact number is its own card: relation + name on one
+     line, phone code + number on the next, remove button pinned top-right. */
+  .contact-phone-type-row { position: relative; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 10px 40px 10px 10px; margin-bottom: 10px; background: #fafbfc; }
+  .contact-phone-type-row .cpr-line { display: flex; gap: 8px; }
+  .contact-phone-type-row .cpr-line + .cpr-line { margin-top: 8px; }
+  .contact-phone-type-row .cpr-type { flex: 0 0 140px; }
+  .contact-phone-type-row .cpr-name { flex: 1; }
+  .contact-phone-type-row .cpr-code { flex: 0 0 84px; }
+  .contact-phone-type-row .cpr-number { flex: 1; }
+  .contact-phone-type-row .cpr-remove { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #dc2626; border: none; border-radius: 7px; width: 26px; height: 26px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+  .contact-phone-type-row .cpr-remove:hover { background: #fecaca; }
+  .wiz-add-row-btn { background: none; border: 1.5px dashed var(--primary); color: var(--primary); padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; }
+  .wiz-add-row-btn:hover { background: #eff6ff; }
+  .wiz-add-row-btn.small { padding: 5px 12px; font-size: 12px; margin-top: 0; }
+  .rc-remove-btn { background: #fee2e2; color: #dc2626; border: none; border-radius: 7px; width: 34px; height: 38px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .wiz-group { display: flex; flex-direction: column; gap: 5px; }
+  .wiz-group label { font-size: 12px; font-weight: 600; color: #374151; }
+  .wiz-group label .req-star { color: #dc2626; }
+  .wiz-input { padding: 9px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.2s; font-family: inherit; color: var(--text-dark); width: 100%; box-sizing: border-box; background: white; }
+  .wiz-input:focus { border-color: var(--primary); }
+  .wiz-input.error { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1); }
+  .wiz-checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 13px; color: var(--text-dark); cursor: pointer; }
+  .wiz-checkbox-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+
+  .name-suggest-dropdown { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: white; border: 1.5px solid #fbbf24; border-radius: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); z-index: 50; max-height: 220px; overflow-y: auto; }
+  .name-suggest-title { padding: 8px 12px 4px; font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.4px; display: flex; align-items: center; gap: 6px; }
+  .name-suggest-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: 13px; color: var(--text-dark); cursor: pointer; border-top: 1px solid #f1f5f9; }
+  .name-suggest-item:hover { background: #fffbeb; }
+  .name-suggest-item .nsi-id { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+  .wiz-nav { display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .btn-wiz-prev { background: white; color: #6b7280; border: 1.5px solid #e5e7eb; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; transition: all 0.2s; }
+  .btn-wiz-prev:not(:disabled):hover { border-color: #94a3b8; color: var(--text-dark); }
+  .btn-wiz-prev:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-wiz-next { background: var(--primary); color: white; border: none; padding: 10px 26px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; transition: background 0.2s; }
+  .btn-wiz-next:hover { filter: brightness(1.08); }
+  .btn-wiz-next:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Search bar width */
+  .filter-controls .filter-search-box { max-width: 340px; flex: 0 0 340px; }
+
+  /* Table column widths */
+  .debtors-table-wrap { overflow-x: auto; }
+  #debtorsTable { table-layout: fixed; width: 100%; }
+  #debtorsTable th[data-col="0"] { width: 40px; }
+  /* table-layout is fixed: only `width` counts, and cells clip overflow.
+     Tighter padding than the base 18px so headers fit their columns. */
+  #debtorsTable th, #debtorsTable td { padding-left: 10px; padding-right: 10px; }
+  #debtorsTable th[data-col="0"] { width: 40px; }
+  #debtorsTable th[data-col="1"] { width: 42px; }
+  #debtorsTable th[data-col="2"] { width: 150px; }
+  #debtorsTable th[data-col="3"] { width: 185px; }
+  #debtorsTable th[data-col="4"] { width: 138px; }
+  #debtorsTable th[data-col="5"] { width: 95px; }
+  #debtorsTable th[data-col="6"] { width: 150px; }
+  #debtorsTable th[data-col="7"] { width: 115px; }
+  #debtorsTable th[data-col="8"] { width: 85px; }
+  #debtorsTable th[data-col="9"] { width: 110px; }
+  #debtorsTable th[data-col="10"] { width: 95px; }
+  #debtorsTable th[data-col="11"] { width: 85px; }
+  #debtorsTable td { white-space: nowrap; }
+  #debtorsTable thead th { overflow: hidden; text-overflow: ellipsis; }
+  #debtorsTable td:nth-child(3),
+  #debtorsTable td:nth-child(4),
+  #debtorsTable td:nth-child(5),
+  #debtorsTable td:nth-child(6),
+  #debtorsTable td:nth-child(7),
+  #debtorsTable td:nth-child(8),
+  #debtorsTable td:nth-child(10) { overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Debtors <span>— All Debtors</span></div>
+      <div class="breadcrumb-sub"><span id="selectedCount">0</span> of {{ total_count }} selected</div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="openAddModal()">
+        <i class="fas fa-plus"></i> Add Debtor
+      </button>
+      {% if request.user.is_superuser %}
+      <button id="mergeBtn" class="btn-outline" disabled onclick="openMergeModal()">
+        <i class="fas fa-clone"></i> Merge Duplicate
+      </button>
+      <button id="deleteBtn" class="btn-danger" disabled onclick="openDeleteModal()">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="data-card">
+    <div class="panel-title-bar">
+      <h3>Debtors Details</h3>
+    </div>
+
+    <form method="get" class="filter-controls" id="debtorFilterForm">
+      <div class="filter-search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" name="filter" id="debtorSearch" value="{{ filter_q }}" placeholder="Search by name, ID, email..." autocomplete="off" oninput="liveSearch(this.value)">
+      </div>
+      <button type="submit" class="filter-apply-btn"><i class="fas fa-search"></i> Search</button>
+      {% if filter_q %}<a href="{% url 'debtors' %}" class="filter-clear-link">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-toolbar">
+      <div class="table-toolbar-left">
+        <div class="show-select">
+          Show:
+          <select name="show" form="debtorFilterForm" onchange="this.form.submit()">
+            {% for opt in page_size_options %}
+            <option value="{{ opt }}" {% if opt|stringformat:"s" == page_size %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn-filter-cols" id="colFilterBtn" onclick="toggleColFilter()" title="Toggle column filters">
+          <i class="fas fa-filter"></i> Filter
+        </button>
+        <div class="col-toggle-wrap">
+          <button class="btn-col-toggle" onclick="toggleColPanel()" title="Show/hide columns">
+            <i class="fas fa-table-columns"></i> Columns
+          </button>
+          <div class="col-panel" id="colPanel">
+            <div class="col-panel-title">Toggle Columns</div>
+            <label><input type="checkbox" checked onchange="toggleCol(2,this)"> Debtor ID</label>
+            <label><input type="checkbox" checked onchange="toggleCol(3,this)"> Name</label>
+            <label><input type="checkbox" checked onchange="toggleCol(4,this)"> PP/CR Number</label>
+            <label><input type="checkbox" checked onchange="toggleCol(5,this)"> ID Number</label>
+            <label><input type="checkbox" checked onchange="toggleCol(6,this)"> Email</label>
+            <label><input type="checkbox" checked onchange="toggleCol(7,this)"> Email2</label>
+            <label><input type="checkbox" checked onchange="toggleCol(8,this)"> Cases</label>
+            <label><input type="checkbox" onchange="toggleCol(9,this)"> Created By</label>
+            <label><input type="checkbox" checked onchange="toggleCol(10,this)"> Status</label>
+          </div>
+        </div>
+      </div>
+      <div class="table-toolbar-right">
+        {% if request.user.is_superuser %}
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" onclick="copyTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+            <a class="exp-excel" href="{% url 'debtor_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
+            <a class="exp-pdf" href="{% url 'debtor_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if debtors %}
+    <div class="debtors-table-wrap">
+    <table class="data-table" id="debtorsTable">
+      <thead>
+        <tr id="col-headers">
+          <th data-col="0"><input type="checkbox" id="selectAll"></th>
+          <th data-col="1">#</th>
+          <th data-col="2" class="sortable" onclick="sortCol(2)">Debtor ID <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="3" class="sortable" onclick="sortCol(3)">Name <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="4" class="sortable" onclick="sortCol(4)">PP/CR Number <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="5" class="sortable" onclick="sortCol(5)">ID No. <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="6" class="sortable" onclick="sortCol(6)">Email <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="7" class="sortable" onclick="sortCol(7)">Email2 <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="8" class="sortable" onclick="sortCol(8)">Cases <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="9" class="sortable" onclick="sortCol(9)">Created By <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="10" class="sortable" onclick="sortCol(10)">Status <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="11">Actions</th>
+        </tr>
+        <tr id="col-filter-row" style="display:none;">
+          <td></td>
+          <td></td>
+          <td><input class="col-fi" data-col="2" placeholder="Debtor ID…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="3" placeholder="Name…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="4" placeholder="Passport/CR…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="5" placeholder="ID Number…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="6" placeholder="Email…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="7" placeholder="Email2…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="8" placeholder="Cases…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="9" placeholder="Created By…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="10" placeholder="Status…" oninput="applyColFilters()"></td>
+          <td></td>
+        </tr>
+      </thead>
+      <tbody>
+        {% load core_filters %}
+        {% for debtor in debtors %}
+        <tr data-id="{{ debtor.id }}"
+            oncontextmenu="openDebCtx(event,{{ debtor.id }},'{% url 'debtor_detail' debtor.pk %}')"
+            style="cursor:context-menu;">
+          <td><input type="checkbox" class="row-checkbox" value="{{ debtor.id }}"></td>
+          <td style="color:var(--text-muted);">{{ forloop.counter0|add:page_obj.start_index }}</td>
+          <td style="font-size:12px; font-weight:600; color:var(--primary); white-space:nowrap;">{{ debtor.debtor_id }}</td>
+          <td><a href="{% url 'debtor_detail' debtor.pk %}" class="clickable">{{ debtor.name }}</a></td>
+          <td>{{ debtor.passport_cr_number|default:"—" }}</td>
+          <td>{{ debtor.id_number|default:"—" }}</td>
+          <td>{{ debtor.email|default:"—" }}</td>
+          <td>{{ debtor.email2|default:"—" }}</td>
+          <td data-sort="{{ debtor.total_cases }}">
+            {% if debtor.total_cases > 0 %}
+              <a href="{% url 'cases' %}?debtor={{ debtor.id }}" class="cases-link">{{ debtor.total_cases }}</a>
+            {% else %}
+              <span class="cases-none">—</span>
+            {% endif %}
+          </td>
+          <td>{% if debtor.created_by %}{{ debtor.created_by.get_full_name|default:debtor.created_by.username }}{% else %}—{% endif %}</td>
+          <td><span class="badge {{ debtor.status }}">{{ debtor.status }}</span></td>
+          <td class="actions">
+            <button class="row-action-btn" title="Actions"
+              onclick="openDebCtx(event,{{ debtor.id }},'{% url 'debtor_detail' debtor.pk %}')">
+              <i class="fas fa-ellipsis-v"></i>
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="tbl-total-row">
+          <td colspan="8">Total</td>
+          <td class="num" id="debTotalCases">{{ total_cases_sum }}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+    <div class="table-footer">
+      <span class="page-info">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</span>
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="srv-pagination">
+      {% if page_obj.has_previous %}
+        <a class="srv-pg-btn" href="?page=1{% if query_string %}&{{ query_string }}{% endif %}">«</a>
+        <a class="srv-pg-btn" href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">‹ Prev</a>
+      {% endif %}
+      <span class="srv-pg-info">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} &nbsp;·&nbsp; {{ total_count }} record{{ total_count|pluralize }}</span>
+      {% if page_obj.has_next %}
+        <a class="srv-pg-btn" href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Next ›</a>
+        <a class="srv-pg-btn" href="?page={{ page_obj.paginator.num_pages }}{% if query_string %}&{{ query_string }}{% endif %}">»</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-user-tag"></i>
+        <p>No debtors{% if filter_q %} matching "{{ filter_q }}"{% else %} yet. Click "Add Debtor" to create one{% endif %}.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Unified floating action menu -->
+  <div class="row-ctx-menu" id="debtorCtxMenu">
+    <a  class="ctx-item" id="debCtxView" href="#"><i class="fas fa-eye"></i> View Details</a>
+    {% if request.user.is_superuser %}
+    <button class="ctx-item" id="debCtxEdit" onclick="debCtxEdit()"><i class="fas fa-pen"></i> Edit</button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item danger" onclick="debCtxDelete()"><i class="fas fa-trash-alt"></i> Delete</button>
+    {% endif %}
+  </div>
+
+  <!-- Delete Modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal danger">
+      <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+      <p id="deleteMsg">Are you sure? This will permanently delete the selected debtor(s) and all their cases.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('deleteModal')" style="background:white; color:var(--text-muted); border:1px solid var(--border); padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button class="btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Merge Modal -->
+  <div class="modal-overlay" id="mergeModal">
+    <div class="modal info">
+      <h3><i class="fas fa-clone"></i> Merge Debtors</h3>
+      <p>This will merge the selected debtors into one. Cases from all selected debtors will be moved to the oldest one, and the others will be deleted.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('mergeModal')" style="background:white; color:var(--text-muted); border:1px solid var(--border); padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Cancel</button>
+        <button class="btn-primary" onclick="confirmMerge()">Yes, Merge</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Debtor Wizard Modal -->
+  <div class="wizard-overlay" id="addDebtorModal">
+    <div class="wizard-modal">
+      <div class="wiz-header">
+        <span class="wiz-title" id="wizTitle">Add Debtor</span>
+        <button class="wiz-close" onclick="closeAddModal()">&times;</button>
+      </div>
+
+      <div class="wiz-steps">
+        <div class="wiz-step">
+          <div class="wiz-circle active" id="wc1"><i class="fas fa-pen"></i></div>
+          <div class="wiz-label active" id="wl1">Profile</div>
+        </div>
+        <div class="wiz-connector" id="wcon1"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc2">2</div>
+          <div class="wiz-label" id="wl2">Employers Info</div>
+        </div>
+        <div class="wiz-connector" id="wcon2"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc3">3</div>
+          <div class="wiz-label" id="wl3">Debtor Contact data</div>
+        </div>
+      </div>
+
+      <!-- Step 1: Profile -->
+      <div class="wiz-body" id="wb1">
+        <label class="wiz-checkbox-row">
+          <input type="checkbox" id="w-is-org" onchange="onOrgChange()"> Is Organization/Company?
+        </label>
+        <div class="wiz-row-3" id="name-row">
+          <div class="wiz-group" style="position:relative;">
+            <label id="first-name-label">First Name <span class="req-star">*</span></label>
+            <input type="text" id="w-first-name" class="wiz-input" placeholder="First Name" autocomplete="off" oninput="onNameInput()">
+            <div id="nameSuggest" class="name-suggest-dropdown" style="display:none;"></div>
+          </div>
+          <div class="wiz-group individual-only">
+            <label>Middle Name</label>
+            <input type="text" id="w-middle-name" class="wiz-input" placeholder="Middle Name">
+          </div>
+          <div class="wiz-group individual-only">
+            <label>Last Name</label>
+            <input type="text" id="w-last-name" class="wiz-input" placeholder="Last Name">
+          </div>
+        </div>
+        <div class="wiz-row org-only" style="display:none">
+          <div class="wiz-group">
+            <label>CR No</label>
+            <input type="text" id="w-cr-no" class="wiz-input" placeholder="Commercial Registration No.">
+          </div>
+          <div class="wiz-group">
+            <label>OCCI No</label>
+            <input type="text" id="w-occi-no" class="wiz-input" placeholder="OCCI No.">
+          </div>
+        </div>
+        <div class="wiz-row-full org-only" style="display:none">
+          <div class="wiz-group">
+            <label>VATIN No</label>
+            <input type="text" id="w-vatin-no" class="wiz-input" placeholder="VAT Identification No.">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Phone (Primary)</label>
+            <div style="display:flex; gap:6px;">
+              <select id="w-phone-code" class="wiz-input" style="flex:0 0 90px;">
+                {% for c in all_countries %}
+                <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+                {% endfor %}
+              </select>
+              <input type="tel" id="w-phone" class="wiz-input" placeholder="Phone number" style="flex:1;">
+            </div>
+          </div>
+          <div class="wiz-group">
+            <label>Telephone</label>
+            <div style="display:flex; gap:6px;">
+              <select id="w-telephone-code" class="wiz-input" style="flex:0 0 90px;">
+                {% for c in all_countries %}
+                <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+                {% endfor %}
+              </select>
+              <input type="tel" id="w-telephone" class="wiz-input" placeholder="Telephone number" style="flex:1;">
+            </div>
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Email (Primary)</label>
+            <input type="email" id="w-email" class="wiz-input" placeholder="email@example.com">
+          </div>
+          <div class="wiz-group">
+            <label>Email 2</label>
+            <input type="email" id="w-email2" class="wiz-input" placeholder="email@example.com">
+          </div>
+        </div>
+        <div class="wiz-row individual-only">
+          <div class="wiz-group">
+            <label>Gender</label>
+            <select id="w-gender" class="wiz-input">
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="wiz-group">
+            <label>Date Of Birth</label>
+            <input type="date" id="w-dob" class="wiz-input">
+          </div>
+        </div>
+        <div class="wiz-row-full individual-only">
+          <div class="wiz-group">
+            <label>Nationality</label>
+            <input type="text" id="w-nationality" class="wiz-input" placeholder="e.g. Omani">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Address line 1</label>
+            <input type="text" id="w-addr1" class="wiz-input" placeholder="Street address">
+          </div>
+          <div class="wiz-group">
+            <label>Address line 2</label>
+            <input type="text" id="w-addr2" class="wiz-input" placeholder="Apt, suite, building...">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>City</label>
+            <input type="text" id="w-city" class="wiz-input" placeholder="City">
+          </div>
+          <div class="wiz-group">
+            <label>Country</label>
+            <select id="w-country" class="wiz-input" onchange="updateDebtorStates(this.value)">
+              <option value="">— Select Country —</option>
+              <option value="Oman">Oman</option>
+              <option value="Afghanistan">Afghanistan</option>
+              <option value="Bahrain">Bahrain</option>
+              <option value="Egypt">Egypt</option>
+              <option value="India">India</option>
+              <option value="Jordan">Jordan</option>
+              <option value="Kuwait">Kuwait</option>
+              <option value="Lebanon">Lebanon</option>
+              <option value="Pakistan">Pakistan</option>
+              <option value="Qatar">Qatar</option>
+              <option value="Saudi Arabia">Saudi Arabia</option>
+              <option value="UAE">United Arab Emirates</option>
+              <option value="United Kingdom">United Kingdom</option>
+              <option value="United States">United States</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="wiz-row-full">
+          <div class="wiz-group">
+            <label>State / Governorate</label>
+            <select id="w-state" class="wiz-input">
+              <option value="">— Select State —</option>
+            </select>
+          </div>
+        </div>
+        <div class="wiz-row individual-only">
+          <div class="wiz-group">
+            <label>Passport Number</label>
+            <input type="text" id="w-passport" class="wiz-input" placeholder="Passport Number">
+          </div>
+          <div class="wiz-group">
+            <label>ID No</label>
+            <input type="text" id="w-id-number" class="wiz-input" placeholder="ID No">
+          </div>
+        </div>
+        <div class="wiz-row-full">
+          <div class="wiz-group">
+            <label>Notes</label>
+            <textarea id="w-notes" class="wiz-input" rows="3" placeholder="Notes"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Employers Info (individual) / Related Companies (org) -->
+      <div class="wiz-body" id="wb2" style="display:none">
+
+        <!-- Individual: employer info -->
+        <div class="individual-only">
+          <div class="wiz-row">
+            <div class="wiz-group">
+              <label>Employer / Company Name</label>
+              <input type="text" id="w-emp-name" class="wiz-input" placeholder="Employer name">
+            </div>
+            <div class="wiz-group">
+              <label>Job Title</label>
+              <input type="text" id="w-job-title" class="wiz-input" placeholder="Position / Job title">
+            </div>
+          </div>
+          <div class="wiz-row">
+            <div class="wiz-group">
+              <label>Employer Phone</label>
+              <div id="empPhoneRows"></div>
+              <button type="button" class="wiz-add-row-btn small" onclick="addEmpPhoneRow()">
+                <i class="fas fa-plus"></i> Add Number
+              </button>
+            </div>
+            <div class="wiz-group">
+              <label>Employer Email</label>
+              <input type="email" id="w-emp-email" class="wiz-input" placeholder="employer@example.com">
+            </div>
+          </div>
+          <div class="wiz-row-full">
+            <div class="wiz-group">
+              <label>Employer Address</label>
+              <textarea id="w-emp-address" class="wiz-input" rows="3" placeholder="Full employer address"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Org: related companies -->
+        <div class="org-only" style="display:none">
+          <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Add parent, sister, or subsidiary companies related to this organisation.</p>
+          <div id="relatedCompanyRows"></div>
+          <button type="button" class="wiz-add-row-btn" onclick="addRelatedCompanyRow()">
+            <i class="fas fa-plus"></i> Add Another Company
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Step 3: Debtor Contact data -->
+      <div class="wiz-body" id="wb3" style="display:none">
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:18px;">Optionally add a contact person for this debtor, then set status.</p>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Contact Name</label>
+            <input type="text" id="w-contact-name" class="wiz-input" placeholder="Contact person name">
+          </div>
+          <div class="wiz-group">
+            <label>Contact Email</label>
+            <input type="email" id="w-contact-email" class="wiz-input" placeholder="contact@example.com">
+          </div>
+        </div>
+        <div class="wiz-row-full">
+          <div class="wiz-group">
+            <label>Contact Phone &amp; Type</label>
+            <div id="contactPhoneRows"></div>
+            <button type="button" class="wiz-add-row-btn small" onclick="addContactPhoneRow()">
+              <i class="fas fa-plus"></i> Add Number
+            </button>
+          </div>
+        </div>
+        <div class="wiz-row-full" style="margin-top:8px; padding-top:16px; border-top:1px solid var(--border);">
+          <div class="wiz-group">
+            <label>Status</label>
+            <select id="w-status" class="wiz-input">
+              <!-- populated by updateStatusOptions() -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="wiz-nav">
+        <button class="btn-wiz-prev" id="wiz-prev-btn" onclick="wizardPrev()" disabled>
+          <i class="fas fa-arrow-left"></i> PREVIOUS
+        </button>
+        <button class="btn-wiz-next" id="wiz-next-btn" onclick="wizardNext()">
+          NEXT <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* ── Column Sort ── */
+  const sortState = {}; // col -> 'asc'|'desc'|null
+  function sortCol(col) {
+    const tbl = document.getElementById('debtorsTable');
+    const tbody = tbl.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const th = tbl.querySelector(`th[data-col="${col}"]`);
+    const prev = sortState[col] || null;
+    const next = prev === null ? 'asc' : prev === 'asc' ? 'desc' : null;
+
+    // Reset all headers
+    tbl.querySelectorAll('th.sortable').forEach(h => {
+      h.classList.remove('asc', 'desc');
+      h.querySelector('.sort-ic').className = 'fas fa-sort sort-ic';
+    });
+    Object.keys(sortState).forEach(k => delete sortState[k]);
+
+    if (next === null) { return; }
+    sortState[col] = next;
+    th.classList.add(next);
+    th.querySelector('.sort-ic').className = `fas fa-sort-${next === 'asc' ? 'up' : 'down'} sort-ic`;
+
+    rows.sort((a, b) => {
+      const ca = a.cells[col], cb = b.cells[col];
+      if (!ca || !cb) return 0;
+      const va = (ca.dataset.sort !== undefined ? ca.dataset.sort : ca.textContent).trim().toLowerCase();
+      const vb = (cb.dataset.sort !== undefined ? cb.dataset.sort : cb.textContent).trim().toLowerCase();
+      const na = parseFloat(va), nb = parseFloat(vb);
+      const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+      return next === 'asc' ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    applyColFilters();
+  }
+
+  /* ── Per-column Filter ── */
+  function toggleColFilter() {
+    const row = document.getElementById('col-filter-row');
+    const btn = document.getElementById('colFilterBtn');
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : '';
+    btn.classList.toggle('active', !visible);
+    if (visible) {
+      document.querySelectorAll('.col-fi').forEach(i => { i.value = ''; });
+      applyColFilters();
+    }
+  }
+
+  function applyColFilters() { applyAllFilters(); }
+
+  /* ── Column Visibility ── */
+  function toggleColPanel() {
+    document.getElementById('colPanel').classList.toggle('open');
+  }
+  function toggleCol(col, cb) {
+    const tbl = document.getElementById('debtorsTable');
+    const show = cb.checked;
+    tbl.querySelectorAll(`th[data-col="${col}"], td:nth-child(${col + 1})`).forEach(el => {
+      el.style.display = show ? '' : 'none';
+    });
+    // also hide filter row cell
+    const filterRow = document.getElementById('col-filter-row');
+    if (filterRow) {
+      const fc = filterRow.cells[col];
+      if (fc) fc.style.display = show ? '' : 'none';
+    }
+  }
+  // Close col panel when clicking outside
+  document.addEventListener('click', e => {
+    const wrap = document.querySelector('.col-toggle-wrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('colPanel').classList.remove('open');
+  });
+  // Created By is hidden by default (re-enable via the Columns panel)
+  toggleCol(9, { checked: false });
+
+  const csrfToken = '{{ csrf_token }}';
+
+  // ── Unified row action menu ──
+  let _debCtxId = null, _debCtxDetailUrl = null;
+  const _debMenu = document.getElementById('debtorCtxMenu');
+
+  function _debMenuPos(e) {
+    e.preventDefault(); e.stopPropagation();
+    let x, y;
+    if (e.type === 'contextmenu') { x = e.clientX + 2; y = e.clientY + 2; }
+    else { const r = e.currentTarget.getBoundingClientRect(); x = r.right - 185; y = r.bottom + 4; }
+    if (x + 190 > window.innerWidth  - 8) x = (e.clientX || x) - 190;
+    if (y + 135 > window.innerHeight - 8) y = (e.clientY || y) - 135;
+    if (x < 8) x = 8;
+    _debMenu.style.left = x + 'px'; _debMenu.style.top = y + 'px';
+    _debMenu.classList.add('open');
+  }
+
+  function openDebCtx(e, id, detailUrl) {
+    _debCtxId = id; _debCtxDetailUrl = detailUrl;
+    document.getElementById('debCtxView').href = detailUrl;
+    _debMenuPos(e);
+  }
+
+  function debCtxEdit()   { _debMenu.classList.remove('open'); if (_debCtxId) openEditModal(_debCtxId); }
+  function debCtxDelete() { _debMenu.classList.remove('open'); if (_debCtxId) quickDelete(_debCtxId); }
+
+  document.addEventListener('click',  e => { if (!_debMenu.contains(e.target)) _debMenu.classList.remove('open'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') _debMenu.classList.remove('open'); });
+  // ── End row action menu ──
+  const INDIVIDUAL_STATUSES = {{ individual_statuses|safe }};
+  const ORG_STATUSES = {{ org_statuses|safe }};
+
+  function updateStatusOptions() {
+    const isOrg = document.getElementById('w-is-org').checked;
+    const opts = isOrg ? ORG_STATUSES : INDIVIDUAL_STATUSES;
+    const sel = document.getElementById('w-status');
+    const current = sel.value;
+    sel.innerHTML = opts.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+    if (opts.some(s => s.name === current)) sel.value = current;
+  }
+  const selectAll = document.getElementById('selectAll');
+  const selectedCount = document.getElementById('selectedCount');
+  const mergeBtn = document.getElementById('mergeBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+
+  function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  }
+
+  function updateButtons() {
+    const ids = getSelectedIds();
+    selectedCount.textContent = ids.length;
+    if (deleteBtn) deleteBtn.disabled = ids.length === 0;
+    if (mergeBtn) mergeBtn.disabled = ids.length < 2;
+  }
+
+  selectAll?.addEventListener('change', e => {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+    updateButtons();
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('row-checkbox')) updateButtons();
+  });
+
+  function openDeleteModal() {
+    const ids = getSelectedIds();
+    document.getElementById('deleteMsg').textContent =
+      `Are you sure you want to delete ${ids.length} debtor(s)? This cannot be undone.`;
+    document.getElementById('deleteModal').classList.add('show');
+  }
+
+  function openMergeModal() {
+    const ids = getSelectedIds();
+    if (ids.length < 2) return;
+    const params = ids.slice(0, 2).map(id => `ids[]=${id}`).join('&');
+    window.location.href = `{% url "debtor_merge_compare" %}?${params}`;
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  function quickDelete(id) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = cb.value == id);
+    updateButtons();
+    openDeleteModal();
+  }
+
+  async function confirmDelete() {
+    const ids = getSelectedIds();
+    const fd = new FormData();
+    ids.forEach(id => fd.append('ids[]', id));
+    const res = await fetch('{% url "debtor_delete" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+    const data = await res.json();
+    closeModal('deleteModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  async function confirmMerge() {
+    const ids = getSelectedIds();
+    const fd = new FormData();
+    ids.forEach(id => fd.append('ids[]', id));
+    const res = await fetch('{% url "debtor_merge" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+    const data = await res.json();
+    closeModal('mergeModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  function copyTable() {
+    const rows = document.querySelectorAll('#debtorsTable tr');
+    const text = Array.from(rows).map(row =>
+      Array.from(row.querySelectorAll('th, td')).slice(1, -1).map(c => c.textContent.trim()).join('\t')
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ===== ADD DEBTOR WIZARD (3-step) =====
+  const DEBTOR_STATES = {
+    'Oman':         ['Muscat','Dhofar','Musandam','Al Buraymi','Al Dakhiliyah','North Al Batinah','South Al Batinah','Al Wusta','North Al Sharqiyah','South Al Sharqiyah','Al Dhahirah','Other'],
+    'Kuwait':       ['Al Asimah','Hawalli','Farwaniyah','Ahmadi','Al Jahra','Mubarak Al-Kabeer','Other'],
+    'Saudi Arabia': ['Riyadh','Makkah','Madinah','Eastern Province','Asir','Tabuk','Hail','Northern Borders','Jizan','Najran','Al Bahah','Al Jouf','Qassim','Other'],
+    'UAE':          ['Abu Dhabi','Dubai','Sharjah','Ajman','Umm Al Quwain','Ras Al Khaimah','Fujairah','Other'],
+    'Qatar':        ['Doha','Al Rayyan','Al Wakrah','Al Khor','Al Daayen','Umm Slal','Al Shamal','Al Shahaniya','Other'],
+    'Bahrain':      ['Capital','Muharraq','Northern','Southern','Other'],
+    'Jordan':       ['Amman','Zarqa','Irbid','Aqaba','Mafraq','Jerash','Ajloun','Karak','Tafilah','Madaba','Balqa',"Ma'an",'Other'],
+    'Lebanon':      ['Beirut','Mount Lebanon','North Lebanon','South Lebanon','Bekaa','Nabatieh','Akkar','Baalbek-Hermel','Other'],
+    'Egypt':        ['Cairo','Alexandria','Giza','Luxor','Aswan','Assiut','Beni Suef','Dakahlia','Damietta','Faiyum','Gharbia','Ismailia','Kafr El Sheikh','Matruh','Minya','Monufia','New Valley','North Sinai','Port Said','Qalyubia','Qena','Red Sea','Sharqia','Sohag','South Sinai','Suez','Other'],
+    'India':        ['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Delhi','Jammu and Kashmir','Ladakh','Other'],
+    'Pakistan':     ['Punjab','Sindh','Khyber Pakhtunkhwa','Balochistan','Islamabad Capital Territory','Azad Kashmir','Gilgit-Baltistan','Other'],
+    'Afghanistan':  ['Kabul','Kandahar','Herat','Balkh','Nangarhar','Kunduz','Ghazni','Paktia','Badakhshan','Baghlan','Bamyan','Farah','Faryab','Ghor','Helmand','Jawzjan','Kapisa','Khost','Kunar','Logar','Nimroz','Nuristan','Paktika','Parwan','Samangan','Sar-e Pol','Takhar','Urozgan','Wardak','Zabul','Other'],
+    'United Kingdom': ['England','Scotland','Wales','Northern Ireland','Other'],
+    'United States': ['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming','District of Columbia','Other'],
+    'Other':        ['Other'],
+  };
+
+  function updateDebtorStates(country) {
+    const sel = document.getElementById('w-state');
+    const states = DEBTOR_STATES[country] || [];
+    sel.innerHTML = '<option value="">— Select State —</option>' +
+      states.map(s => `<option value="${s}">${s}</option>`).join('');
+  }
+
+  // Contact-type options depend on whether the debtor is a company (org roles)
+  // or an individual (family/personal relations).
+  const CONTACT_TYPES_ORG = [
+    ['self', 'Self'], ['ceo', 'CEO'], ['chairman', 'Chairman'], ['managing_partner', 'Managing Partner'],
+    ['owner', 'Owner'], ['sales_manager', 'Sales Manager'], ['assistant_manager', 'Assistant Manager'],
+    ['accounts', 'Accounts'], ['guarantor', 'Guarantor'], ['other', 'Other'],
+  ];
+  const CONTACT_TYPES_INDIVIDUAL = [
+    ['self', 'Self'], ['guarantor', 'Guarantor'], ['father', 'Father'], ['mother', 'Mother'], ['spouse', 'Spouse'],
+    ['son', 'Son'], ['daughter', 'Daughter'], ['sibling', 'Sibling'], ['guardian', 'Guardian'],
+    ['friend', 'Friend'], ['colleague', 'Colleague'], ['other', 'Other'],
+  ];
+  function updateContactTypeOptions(isOrg) {
+    document.querySelectorAll('#contactPhoneRows .cpr-type').forEach(sel => {
+      sel.innerHTML = contactTypeOptionsHtml(isOrg, sel.value);
+    });
+  }
+
+  function onOrgChange() {
+    const isOrg = document.getElementById('w-is-org').checked;
+    document.querySelectorAll('.individual-only').forEach(el => el.classList.toggle('hidden-for-org', isOrg));
+    document.querySelectorAll('.org-only').forEach(el => el.classList.toggle('show-for-org', isOrg));
+    const nameRow = document.getElementById('name-row');
+    nameRow.style.gridTemplateColumns = isOrg ? '1fr' : '';
+    document.getElementById('first-name-label').innerHTML = isOrg
+      ? 'Company Name <span class="req-star">*</span>'
+      : 'First Name <span class="req-star">*</span>';
+    document.getElementById('w-first-name').placeholder = isOrg ? 'Company / Organization name' : 'First Name';
+    document.getElementById('wl2').textContent = isOrg ? 'Related Companies' : 'Employers Info';
+    if (isOrg && document.getElementById('relatedCompanyRows').children.length === 0) {
+      addRelatedCompanyRow();
+    }
+    updateContactTypeOptions(isOrg);
+    updateStatusOptions();
+  }
+
+  // ── Live duplicate-name suggestions (First Name / Company Name) ──
+  let _nameSuggestTimer = null;
+  function onNameInput() {
+    const q = document.getElementById('w-first-name').value.trim();
+    clearTimeout(_nameSuggestTimer);
+    if (q.length < 2) { hideNameSuggest(); return; }
+    _nameSuggestTimer = setTimeout(() => fetchNameSuggest(q), 300);
+  }
+
+  async function fetchNameSuggest(q) {
+    try {
+      const res = await fetch(`{% url 'debtor_name_suggest' %}?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderNameSuggest(data.results || []);
+    } catch {
+      hideNameSuggest();
+    }
+  }
+
+  function renderNameSuggest(results) {
+    const box = document.getElementById('nameSuggest');
+    if (!results.length) { hideNameSuggest(); return; }
+    box.innerHTML = `<div class="name-suggest-title"><i class="fas fa-triangle-exclamation"></i> Possible duplicate — already exists</div>` +
+      results.map(r => `
+        <div class="name-suggest-item" onclick="window.open('/debtors/${r.id}/', '_blank')">
+          <span>${r.is_organization ? '<i class="fas fa-building" style="color:var(--text-muted);margin-right:6px;"></i>' : '<i class="fas fa-user" style="color:var(--text-muted);margin-right:6px;"></i>'}${r.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>
+          <span class="nsi-id">${r.debtor_id}</span>
+        </div>`).join('');
+    box.style.display = 'block';
+  }
+
+  function hideNameSuggest() {
+    const box = document.getElementById('nameSuggest');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#name-row')) hideNameSuggest();
+  });
+
+  function contactTypeOptionsHtml(isOrg, selected) {
+    const list = isOrg ? CONTACT_TYPES_ORG : CONTACT_TYPES_INDIVIDUAL;
+    const sel = list.some(([v]) => v === selected) ? selected : 'self';
+    return list.map(([v, l]) => `<option value="${v}" ${v === sel ? 'selected' : ''}>${l}</option>`).join('');
+  }
+
+  let cpRowCount = 0;
+  function addContactPhoneRow(value, code, type, name) {
+    const container = document.getElementById('contactPhoneRows');
+    const idx = cpRowCount++;
+    const row = document.createElement('div');
+    row.className = 'contact-phone-type-row';
+    row.id = 'cp-row-' + idx;
+    const isOrg = document.getElementById('w-is-org').checked;
+
+    const line1 = document.createElement('div');
+    line1.className = 'cpr-line';
+    const typeSel = document.createElement('select');
+    typeSel.className = 'wiz-input cpr-type';
+    typeSel.innerHTML = contactTypeOptionsHtml(isOrg, type);
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className = 'wiz-input cpr-name';
+    nameInput.placeholder = 'Contact name';
+    if (name) nameInput.value = name;
+    line1.appendChild(typeSel);
+    line1.appendChild(nameInput);
+
+    const line2 = document.createElement('div');
+    line2.className = 'cpr-line';
+    const codeSel = document.createElement('select');
+    codeSel.className = 'wiz-input cpr-code';
+    codeSel.innerHTML = document.getElementById('w-phone-code').innerHTML;
+    if (code) codeSel.value = code;
+    const input = document.createElement('input');
+    input.type = 'tel';
+    input.className = 'wiz-input cpr-number';
+    input.placeholder = 'Phone number';
+    if (value) input.value = value;
+    line2.appendChild(codeSel);
+    line2.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'cpr-remove';
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.onclick = () => removeContactPhoneRow(row.id);
+
+    row.appendChild(removeBtn);
+    row.appendChild(line1);
+    row.appendChild(line2);
+    container.appendChild(row);
+  }
+
+  function removeContactPhoneRow(id) {
+    const container = document.getElementById('contactPhoneRows');
+    const row = document.getElementById(id);
+    if (!row) return;
+    if (container.children.length <= 1) {
+      row.querySelector('.cpr-number').value = '';
+      row.querySelector('.cpr-name').value = '';
+      return;
+    }
+    row.remove();
+  }
+
+  function resetContactPhoneRows(values) {
+    document.getElementById('contactPhoneRows').innerHTML = '';
+    cpRowCount = 0;
+    const vals = (values && values.length) ? values : [''];
+    vals.forEach(v => addContactPhoneRow(v));
+  }
+
+  let epRowCount = 0;
+  function addEmpPhoneRow(value, code) {
+    const container = document.getElementById('empPhoneRows');
+    const idx = epRowCount++;
+    const row = document.createElement('div');
+    row.className = 'contact-phone-row';
+    row.id = 'ep-row-' + idx;
+    const codeSel = document.createElement('select');
+    codeSel.className = 'wiz-input epr-code';
+    codeSel.innerHTML = document.getElementById('w-phone-code').innerHTML;
+    if (code) codeSel.value = code;
+    const input = document.createElement('input');
+    input.type = 'tel';
+    input.name = 'employer_phone[]';
+    input.className = 'wiz-input epr-number';
+    input.placeholder = 'Phone number';
+    if (value) input.value = value;
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'rc-remove-btn';
+    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    removeBtn.onclick = () => removeEmpPhoneRow(row.id);
+    row.appendChild(codeSel);
+    row.appendChild(input);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+  }
+
+  function removeEmpPhoneRow(id) {
+    const container = document.getElementById('empPhoneRows');
+    const row = document.getElementById(id);
+    if (!row) return;
+    if (container.children.length <= 1) {
+      row.querySelector('input').value = '';
+      return;
+    }
+    row.remove();
+  }
+
+  function resetEmpPhoneRows(entries) {
+    document.getElementById('empPhoneRows').innerHTML = '';
+    epRowCount = 0;
+    const list = (entries && entries.length) ? entries : [['', '']];
+    list.forEach(([v, c]) => addEmpPhoneRow(v, c));
+  }
+
+  // Splits a stored "+968 12345678"-style value into [number, code] using the
+  // country-code select's own options, so re-opening an existing record for
+  // edit doesn't double up the country code on save.
+  function splitPhoneParts(fullValue, codeSelId) {
+    const v = (fullValue || '').trim();
+    if (!v) return ['', ''];
+    const codeSel = document.getElementById(codeSelId);
+    if (codeSel) {
+      for (const opt of codeSel.options) {
+        if (opt.value && v.startsWith(opt.value)) return [v.slice(opt.value.length).trim(), opt.value];
+      }
+    }
+    return [v, ''];
+  }
+
+  let rcRowCount = 0;
+  function addRelatedCompanyRow() {
+    const container = document.getElementById('relatedCompanyRows');
+    const idx = rcRowCount++;
+    const row = document.createElement('div');
+    row.className = 'related-company-row';
+    row.id = 'rc-row-' + idx;
+    row.innerHTML = `
+      <input type="text" name="related_company_name[]" class="wiz-input" placeholder="Company name">
+      <select name="related_company_type[]" class="wiz-input">
+        <option value="parent">Parent Company</option>
+        <option value="sister">Sister Company</option>
+        <option value="subsidiary">Subsidiary</option>
+        <option value="other">Other</option>
+      </select>
+      <button type="button" class="rc-remove-btn" onclick="this.closest('.related-company-row').remove()"><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(row);
+  }
+
+  let wizardStep = 1;
+  let wizardMode = 'add';
+  let wizardPk = null;
+  const TOTAL_STEPS = 3;
+  const stepIcons = {
+    1: '<i class="fas fa-pen"></i>',
+    2: '<i class="fas fa-building"></i>',
+    3: '<i class="fas fa-address-book"></i>',
+  };
+
+  const wizardFieldIds = [
+    'w-first-name','w-middle-name','w-last-name','w-phone','w-telephone',
+    'w-email','w-email2','w-nationality','w-addr1','w-addr2','w-city',
+    'w-country','w-state','w-passport','w-id-number','w-notes',
+    'w-cr-no','w-occi-no','w-vatin-no',
+    'w-emp-name','w-job-title','w-emp-email','w-emp-address',
+    'w-contact-name','w-contact-email',
+  ];
+
+  function openAddModal() {
+    wizardMode = 'add';
+    wizardPk = null;
+    wizardStep = 1;
+    hideNameSuggest();
+    wizardFieldIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('w-is-org').checked = false;
+    document.getElementById('w-gender').value = '';
+    document.getElementById('w-dob').value = '';
+    document.getElementById('w-country').value = '';
+    ['w-phone-code', 'w-telephone-code'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.querySelector('option[value="+968"]')) el.value = '+968';
+    });
+    updateDebtorStates('');
+    document.getElementById('relatedCompanyRows').innerHTML = '';
+    rcRowCount = 0;
+    resetContactPhoneRows();
+    resetEmpPhoneRows();
+    onOrgChange();
+    document.getElementById('wizTitle').textContent = 'Add Debtor';
+    updateWizardUI();
+    document.getElementById('addDebtorModal').classList.add('show');
+  }
+
+  async function openEditModal(pk) {
+    wizardMode = 'edit';
+    wizardPk = pk;
+    wizardStep = 1;
+    hideNameSuggest();
+    document.getElementById('wizTitle').textContent = 'Edit Debtor';
+    document.getElementById('addDebtorModal').classList.add('show');
+    // clear first then fill after fetch
+    wizardFieldIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.getElementById('relatedCompanyRows').innerHTML = '';
+    rcRowCount = 0;
+    resetContactPhoneRows();
+    resetEmpPhoneRows();
+    try {
+      const res = await fetch(`/debtors/${pk}/json/`);
+      const d = await res.json();
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      set('w-first-name',   d.first_name);
+      set('w-middle-name',  d.middle_name);
+      set('w-last-name',    d.last_name);
+      setPhoneField('w-phone', 'w-phone-code', d.phone);
+      setPhoneField('w-telephone', 'w-telephone-code', d.telephone);
+      set('w-email',        d.email);
+      set('w-email2',       d.email2);
+      set('w-nationality',  d.nationality);
+      set('w-addr1',        d.address_line1);
+      set('w-addr2',        d.address_line2);
+      set('w-city',         d.city);
+      set('w-country',      d.country);
+      set('w-state',        d.state);
+      set('w-passport',     d.passport_cr_number);
+      set('w-id-number',    d.id_number);
+      set('w-notes',        d.notes);
+      set('w-cr-no',        d.cr_no);
+      set('w-occi-no',      d.occi_no);
+      set('w-vatin-no',     d.vatin_no);
+      set('w-emp-name',     d.employer_name);
+      set('w-job-title',    d.job_title);
+      resetEmpPhoneRows(
+        (d.employer_phone || '').split(',').map(s => s.trim()).filter(Boolean)
+          .map(v => splitPhoneParts(v, 'w-phone-code'))
+      );
+      set('w-emp-email',    d.employer_email);
+      set('w-emp-address',  d.employer_address);
+      document.getElementById('w-is-org').checked = d.is_organization;
+      document.getElementById('w-gender').value  = d.gender || '';
+      document.getElementById('w-dob').value     = d.date_of_birth || '';
+      updateDebtorStates(d.country);
+      document.getElementById('w-state').value  = d.state || '';
+      onOrgChange(); // rebuilds status options
+      document.getElementById('w-status').value = d.status || 'active';
+    } catch {
+      showToast('Failed to load debtor data.', 'error');
+    }
+    updateWizardUI();
+  }
+
+  function closeAddModal() {
+    document.getElementById('addDebtorModal').classList.remove('show');
+  }
+
+  function updateWizardUI() {
+    for (let i = 1; i <= TOTAL_STEPS; i++) {
+      const circle = document.getElementById('wc' + i);
+      const label  = document.getElementById('wl' + i);
+      const body   = document.getElementById('wb' + i);
+      body.style.display = i === wizardStep ? 'block' : 'none';
+      circle.classList.remove('active', 'done');
+      label.classList.remove('active');
+      if (i < wizardStep) {
+        circle.innerHTML = '<i class="fas fa-check"></i>';
+        circle.classList.add('done');
+      } else if (i === wizardStep) {
+        circle.innerHTML = stepIcons[i];
+        circle.classList.add('active');
+        label.classList.add('active');
+      } else {
+        circle.textContent = String(i);
+      }
+      if (i < TOTAL_STEPS) document.getElementById('wcon' + i).classList.toggle('done', i < wizardStep);
+    }
+    document.getElementById('wiz-prev-btn').disabled = wizardStep === 1;
+    const nextBtn = document.getElementById('wiz-next-btn');
+    if (wizardStep === TOTAL_STEPS) {
+      nextBtn.innerHTML = '<i class="fas fa-paper-plane"></i> SUBMIT';
+    } else {
+      nextBtn.innerHTML = 'NEXT <i class="fas fa-arrow-right"></i>';
+    }
+  }
+
+  function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+  function isValidPhoneNumber(v) { return /^[0-9]{6,14}$/.test(v.replace(/[\s-]/g, '')); }
+
+  function validateOptionalPhone(id) {
+    const el = document.getElementById(id);
+    const v = el.value.trim();
+    el.classList.remove('error');
+    if (v && !isValidPhoneNumber(v)) {
+      el.classList.add('error'); el.focus();
+      showToast('Enter a valid phone number (digits only, 6-14 digits).', 'error');
+      return false;
+    }
+    return true;
+  }
+
+  function validateOptionalEmail(id) {
+    const el = document.getElementById(id);
+    const v = el.value.trim();
+    el.classList.remove('error');
+    if (v && !isValidEmail(v)) {
+      el.classList.add('error'); el.focus();
+      showToast('Enter a valid email address.', 'error');
+      return false;
+    }
+    return true;
+  }
+
+  function wizardValidate() {
+    if (wizardStep === 1) {
+      const fnEl = document.getElementById('w-first-name');
+      const isOrg = document.getElementById('w-is-org').checked;
+      if (!fnEl.value.trim()) {
+        fnEl.classList.add('error');
+        fnEl.focus();
+        showToast(isOrg ? 'Company name is required.' : 'First name is required.', 'error');
+        return false;
+      }
+      fnEl.classList.remove('error');
+      if (!validateOptionalPhone('w-phone')) return false;
+      if (!validateOptionalPhone('w-telephone')) return false;
+      if (!validateOptionalEmail('w-email')) return false;
+      if (!validateOptionalEmail('w-email2')) return false;
+    }
+    if (wizardStep === 2 && !document.getElementById('w-is-org').checked) {
+      for (const row of document.querySelectorAll('#empPhoneRows .contact-phone-row')) {
+        const numEl = row.querySelector('.epr-number');
+        const v = numEl.value.trim();
+        numEl.classList.remove('error');
+        if (v && !isValidPhoneNumber(v)) {
+          numEl.classList.add('error'); numEl.focus();
+          showToast('Enter a valid phone number (digits only, 6-14 digits).', 'error');
+          return false;
+        }
+      }
+      if (!validateOptionalEmail('w-emp-email')) return false;
+    }
+    if (wizardStep === 3) {
+      if (!validateOptionalEmail('w-contact-email')) return false;
+      for (const row of document.querySelectorAll('#contactPhoneRows .contact-phone-type-row')) {
+        const numEl = row.querySelector('.cpr-number');
+        const v = numEl.value.trim();
+        numEl.classList.remove('error');
+        if (v && !isValidPhoneNumber(v)) {
+          numEl.classList.add('error'); numEl.focus();
+          showToast('Enter a valid phone number (digits only, 6-14 digits).', 'error');
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function wizardNext() {
+    if (!wizardValidate()) return;
+    if (wizardStep < TOTAL_STEPS) {
+      wizardStep++;
+      updateWizardUI();
+    } else {
+      submitWizard();
+    }
+  }
+
+  function wizardPrev() {
+    if (wizardStep > 1) {
+      wizardStep--;
+      updateWizardUI();
+    }
+  }
+
+  function combinePhone(numId, codeId) {
+    const num = document.getElementById(numId).value.trim();
+    if (!num) return '';
+    const codeEl = document.getElementById(codeId);
+    return codeEl ? `${codeEl.value} ${num}` : num;
+  }
+
+  // Splits a stored "+968 12345678"-style value back into its code select + plain number input,
+  // so re-opening an existing record for edit doesn't double up the country code on save.
+  function setPhoneField(numId, codeId, fullValue) {
+    const numEl = document.getElementById(numId);
+    const codeSel = document.getElementById(codeId);
+    if (!fullValue) { numEl.value = ''; return; }
+    const v = fullValue.trim();
+    let matched = null;
+    if (codeSel) {
+      for (const opt of codeSel.options) {
+        if (opt.value && v.startsWith(opt.value)) { matched = opt.value; break; }
+      }
+    }
+    if (matched) {
+      codeSel.value = matched;
+      numEl.value = v.slice(matched.length).trim();
+    } else {
+      numEl.value = v;
+    }
+  }
+
+  async function submitWizard() {
+    const btn = document.getElementById('wiz-next-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const fd = new FormData();
+    fd.append('first_name', document.getElementById('w-first-name').value.trim());
+    fd.append('middle_name', document.getElementById('w-middle-name').value.trim());
+    fd.append('last_name', document.getElementById('w-last-name').value.trim());
+    fd.append('is_organization', document.getElementById('w-is-org').checked ? '1' : '0');
+    fd.append('phone', combinePhone('w-phone', 'w-phone-code'));
+    fd.append('telephone', combinePhone('w-telephone', 'w-telephone-code'));
+    fd.append('email', document.getElementById('w-email').value.trim());
+    fd.append('email2', document.getElementById('w-email2').value.trim());
+    fd.append('gender', document.getElementById('w-gender').value);
+    fd.append('date_of_birth', document.getElementById('w-dob').value);
+    fd.append('nationality', document.getElementById('w-nationality').value.trim());
+    fd.append('address_line1', document.getElementById('w-addr1').value.trim());
+    fd.append('address_line2', document.getElementById('w-addr2').value.trim());
+    fd.append('city', document.getElementById('w-city').value.trim());
+    fd.append('country', document.getElementById('w-country').value);
+    fd.append('state', document.getElementById('w-state').value);
+    fd.append('passport_cr_number', document.getElementById('w-passport').value.trim());
+    fd.append('id_number', document.getElementById('w-id-number').value.trim());
+    fd.append('cr_no', document.getElementById('w-cr-no').value.trim());
+    fd.append('occi_no', document.getElementById('w-occi-no').value.trim());
+    fd.append('vatin_no', document.getElementById('w-vatin-no').value.trim());
+    fd.append('notes', document.getElementById('w-notes').value.trim());
+    document.querySelectorAll('#relatedCompanyRows .related-company-row').forEach(row => {
+      const n = row.querySelector('[name="related_company_name[]"]').value.trim();
+      const t = row.querySelector('[name="related_company_type[]"]').value;
+      if (n) { fd.append('related_company_name[]', n); fd.append('related_company_type[]', t); }
+    });
+    fd.append('employer_name', document.getElementById('w-emp-name').value.trim());
+    fd.append('job_title', document.getElementById('w-job-title').value.trim());
+    document.querySelectorAll('#empPhoneRows .contact-phone-row').forEach(row => {
+      const v = row.querySelector('.epr-number').value.trim();
+      if (v) fd.append('employer_phone[]', `${row.querySelector('.epr-code').value} ${v}`);
+    });
+    fd.append('employer_email', document.getElementById('w-emp-email').value.trim());
+    fd.append('employer_address', document.getElementById('w-emp-address').value.trim());
+    const primaryContactName = document.getElementById('w-contact-name').value.trim();
+    fd.append('contact_name', primaryContactName);
+    document.querySelectorAll('#contactPhoneRows .contact-phone-type-row').forEach(row => {
+      const v = row.querySelector('.cpr-number').value.trim();
+      if (v) {
+        const rowName = row.querySelector('.cpr-name').value.trim();
+        fd.append('contact_phone[]', `${row.querySelector('.cpr-code').value} ${v}`);
+        fd.append('contact_type[]', row.querySelector('.cpr-type').value);
+        // Falls back to the primary Contact Name above when this number's
+        // own name is left blank, so a single-contact debtor still works
+        // without filling the same name twice.
+        fd.append('contact_phone_name[]', rowName || primaryContactName);
+      }
+    });
+    fd.append('contact_email', document.getElementById('w-contact-email').value.trim());
+    fd.append('status', document.getElementById('w-status').value);
+    try {
+      const url = wizardMode === 'edit'
+        ? `/debtors/${wizardPk}/update/`
+        : '{% url "debtor_create_modal" %}';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: fd,
+      });
+      const data = await res.json();
+      closeAddModal();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) {
+        const nextUrl = new URLSearchParams(window.location.search).get('next');
+        setTimeout(() => { window.location.href = nextUrl || window.location.pathname; }, 800);
+      }
+    } catch {
+      showToast('An error occurred. Please try again.', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> SUBMIT';
+    }
+  }
+
+  // Auto-open add modal if navigated here with ?add=1
+  if (new URLSearchParams(window.location.search).get('add') === '1') openAddModal();
+
+  // spin animation for saving button
+  const spinStyle = document.createElement('style');
+  spinStyle.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(spinStyle);
+
+  // Live search & col filters (narrow the current server-side page only)
+  let _globalQ = '{{ filter_q|escapejs }}';
+  let _searchTimer = null;
+  const _serverFilter = '{{ filter_q|escapejs }}';
+  const _serverTotalCases = {{ total_cases_sum }};
+
+  function liveSearch(q) {
+    _globalQ = q.trim().toLowerCase();
+    applyAllFilters();
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => {
+      if (q.trim() !== _serverFilter) {
+        const url = new URL(window.location.href);
+        if (q.trim()) url.searchParams.set('filter', q.trim());
+        else url.searchParams.delete('filter');
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+      }
+    }, 600);
+  }
+
+  function applyAllFilters() {
+    const inputs = Array.from(document.querySelectorAll('#col-filter-row .col-fi'));
+    const colFilters = inputs.map(i => ({ col: parseInt(i.dataset.col), val: i.value.trim().toLowerCase() })).filter(f => f.val);
+    const tbody = document.querySelector('#debtorsTable tbody');
+    if (!tbody) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    allRows.forEach(row => {
+      const rowText = Array.from(row.cells).slice(1, -1).map(c => c.textContent.trim().toLowerCase()).join(' ');
+      const globalMatch = !_globalQ || rowText.includes(_globalQ);
+      const colMatch = colFilters.every(f => { const cell = row.cells[f.col]; return cell && cell.textContent.trim().toLowerCase().includes(f.val); });
+      row._matches = globalMatch && colMatch;
+      row.style.display = row._matches ? '' : 'none';
+    });
+    const anyClientSideFilter = colFilters.length > 0 || !!_globalQ;
+    const debTotalEl = document.getElementById('debTotalCases');
+    if (debTotalEl) {
+      debTotalEl.textContent = anyClientSideFilter
+        ? allRows.filter(r => r._matches !== false).reduce((s, r) => { const c = r.cells[8]; return s + (c ? (parseInt(c.getAttribute('data-sort')) || parseInt(c.textContent) || 0) : 0); }, 0)
+        : _serverTotalCases;
+    }
+  }
+
+  applyAllFilters();
+</script>
+{% endblock %}

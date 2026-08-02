@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% block title %}Client Login Access{% endblock %}
+
+{% block extra_styles %}
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .page-header-left { display: flex; align-items: center; gap: 10px; }
+  .page-header-left a { color: var(--text-muted); font-size: 18px; text-decoration: none; }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--primary); text-decoration: none; }
+  .btn-add { background: var(--primary); color: white; border: none; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+  .btn-add:hover { background: var(--primary-dark); }
+
+  /* Table card */
+  .tbl-card { background: white; border-radius: 12px; padding: 20px 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .tbl-card-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; }
+
+  /* DataTable toolbar */
+  .dt-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .dt-left { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dt-search { border: 1.5px solid var(--border); border-radius: 6px; padding: 6px 10px 6px 30px; font-size: 12.5px; outline: none; font-family: inherit; color: var(--text-dark); background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 8px center; width: 200px; box-sizing: border-box; }
+  .dt-search:focus { border-color: var(--primary); }
+  .dt-search:focus { outline: 2px solid var(--primary); outline-offset: -2px; border-color: var(--primary); }
+  .dt-right { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .dt-show-sel { border: 1.5px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; }
+
+  /* Main table */
+  .acc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .acc-table thead th { background: white; padding: 10px 14px; font-size: 11.5px; font-weight: 600; color: var(--text-dark); border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
+  .acc-table thead th .si { margin-left: 4px; font-size: 9px; color: var(--text-muted); }
+  .acc-table td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; color: var(--text-dark); vertical-align: middle; }
+  .acc-table tr:last-child td { border-bottom: none; }
+  .acc-table tr:hover td { background: #f8fafc; }
+  .no-data { text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px; }
+
+  /* Logins badge */
+  .login-badge { display: inline-block; background: #00bcd4; color: white; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-top: 4px; }
+
+  /* Status */
+  .status-enabled  { color: var(--primary); font-weight: 600; font-size: 12px; }
+  .status-disabled { color: #dc2626; font-weight: 600; font-size: 12px; }
+  .status-chk { width: 15px; height: 15px; accent-color: #00bcd4; cursor: pointer; vertical-align: middle; margin-right: 6px; }
+
+  /* Inline action buttons */
+  .row-actions { display: inline-flex; gap: 8px; }
+  .btn-icon { border: 1.5px solid var(--border); background: white; padding: 6px 12px; border-radius: 7px; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; transition: all 0.15s; text-decoration: none; }
+  .btn-edit { color: var(--primary); border-color: #bbf7d0; }
+  .btn-edit:hover { background: #f0fdf4; border-color: var(--primary); }
+  .btn-logs { color: #0369a1; border-color: #bae6fd; }
+  .btn-logs:hover { background: #f0f9ff; border-color: #0369a1; }
+  .btn-del { color: #dc2626; border-color: #fecaca; }
+  .btn-del:hover { background: #fef2f2; border-color: #dc2626; }
+
+  /* Pagination */
+  .dt-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 8px; }
+  .dt-info { font-size: 11.5px; color: var(--text-muted); }
+  .dt-pager { display: flex; gap: 4px; }
+  .pg-btn { border: 1.5px solid var(--border); background: white; padding: 4px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; color: var(--text-dark); }
+  .pg-btn.active, .pg-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: white; border-radius: 14px; padding: 28px 28px 24px; width: 480px; max-width: 95vw; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .modal-title { font-size: 15px; font-weight: 700; color: var(--text-dark); }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; border-radius: 6px; display: flex; font-size: 16px; line-height: 1; }
+  .modal-close:hover { background: #f1f5f9; color: var(--text-dark); }
+  .modal-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .modal-field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .modal-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .modal-input:focus { border-color: var(--primary); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-save { background: var(--primary); color: white; border: none; padding: 9px 24px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-dark); }
+  .toggle-row input { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  .err-msg { color: #dc2626; font-size: 12px; margin-top: 8px; display: none; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="{% url 'dashboard' %}"><i class="fas fa-arrow-circle-left"></i></a>
+    <div class="breadcrumb"><a href="{% url 'dashboard' %}">Home</a> · Client Login List</div>
+  </div>
+  <button class="btn-add" onclick="openModal()">
+    <i class="fas fa-plus"></i> ADD CLIENT LOGIN ACCESS
+  </button>
+</div>
+
+<div class="tbl-card">
+  <div class="tbl-card-title">Client Login Access</div>
+
+  <div class="dt-toolbar">
+    <div class="dt-left">
+      <span>Filter:</span>
+      <input type="text" id="tableSearch" class="dt-search" placeholder="Type to filter...">
+    </div>
+    <div class="dt-right">
+      <span>Show:</span>
+      <select id="pageSize" class="dt-show-sel">
+        <option value="10" selected>10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="acc-table" id="accTable">
+      <thead>
+        <tr>
+          <th data-col="0">SI No <span class="si"><i class="fas fa-sort-up"></i></span></th>
+          <th data-col="1">Client Name <span class="si"><i class="fas fa-sort"></i></span></th>
+          <th data-col="2">Email <span class="si"><i class="fas fa-sort"></i></span></th>
+          <th data-col="3">Visibile Date From <span class="si"><i class="fas fa-sort"></i></span></th>
+          <th data-col="4">Last Login Details <span class="si"><i class="fas fa-sort"></i></span></th>
+          <th data-col="5">Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="accBody">
+        {% for acc in accesses %}
+        <tr data-id="{{ acc.pk }}"
+            data-enabled="{{ acc.is_enabled|yesno:'1,0' }}"
+            data-client="{{ acc.client.pk }}"
+            data-email="{{ acc.email }}"
+            data-visdate="{{ acc.visible_date_from|date:'Y-m-d' }}">
+          <td>{{ forloop.counter }}</td>
+          <td>
+            {{ acc.client.name }}
+            <br>
+            <a href="{% url 'client_login_access_logs' acc.pk %}" class="login-badge" style="text-decoration:none;" title="View login logs">{{ acc.login_count }} Logins</a>
+          </td>
+          <td>{{ acc.email }}</td>
+          <td>{{ acc.visible_date_from|default:"—" }}</td>
+          <td>{{ acc.last_login|date:"Y-m-d"|default:"—" }}</td>
+          <td>
+            <input type="checkbox" class="status-chk"
+              {% if acc.is_enabled %}checked{% endif %}
+              onchange="toggleAccess({{ acc.pk }}, this)">
+            <span class="{% if acc.is_enabled %}status-enabled{% else %}status-disabled{% endif %}" id="status-label-{{ acc.pk }}">
+              {% if acc.is_enabled %}Enabled{% else %}Disabled{% endif %}
+            </span>
+            {% if acc.expires_on %}
+            <br><span style="font-size:10.5px;color:{% if acc.is_expired %}#dc2626{% else %}#b45309{% endif %};">
+              <i class="fas fa-clock"></i> {% if acc.is_expired %}Expired {% else %}Auto-disables {% endif %}{{ acc.expires_on|date:"d M Y" }}
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-actions">
+              <a class="btn-icon btn-logs" href="{% url 'client_login_access_logs' acc.pk %}" title="Login logs">
+                <i class="fas fa-clock-rotate-left"></i> Logs
+              </a>
+              <a class="btn-icon btn-edit" href="{% url 'client_login_access_edit' acc.pk %}" title="Edit access & case permissions">
+                <i class="fas fa-pen"></i> Edit
+              </a>
+              <button class="btn-icon btn-del" onclick="deleteAccess({{ acc.pk }}, this)" title="Delete">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr class="empty-row"><td colspan="7" class="no-data">No client login access records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="dt-footer">
+    <div class="dt-info" id="dtInfo">Showing 0 to 0 of 0 entries</div>
+    <div class="dt-pager" id="dtPager"></div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Add Client Login Access</div>
+      <button type="button" class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="m_id" value="">
+    <div class="modal-field">
+      <label>Client *</label>
+      <select id="m_client" class="modal-input">
+        <option value="">Select Client</option>
+        {% for c in all_clients %}
+        <option value="{{ c.pk }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>Email *</label>
+      <input type="email" id="m_email" class="modal-input" placeholder="login@example.com">
+      <span style="font-size:11px;color:var(--text-muted);">The client signs in with this email and a one-time code (OTP) sent to it.</span>
+    </div>
+    <div class="modal-field">
+      <label>Visible Date From</label>
+      <input type="date" id="m_vis_date" class="modal-input">
+    </div>
+    <div class="modal-field">
+      <label>Auto-disable access</label>
+      <select id="m_expiry_mode" class="modal-input" onchange="onExpiryModeChange()">
+        <option value="never">Never (disable manually)</option>
+        <option value="date">On a specific date</option>
+        <option value="days">After a number of days</option>
+      </select>
+    </div>
+    <div class="modal-field" id="m_expiry_date_wrap" style="display:none;">
+      <label>Disable on date</label>
+      <input type="date" id="m_expiry_date" class="modal-input">
+    </div>
+    <div class="modal-field" id="m_expiry_days_wrap" style="display:none;">
+      <label>Disable after (days from today)</label>
+      <input type="number" id="m_expiry_days" class="modal-input" min="1" placeholder="e.g. 30">
+    </div>
+    <div class="modal-field">
+      <label class="toggle-row">
+        <input type="checkbox" id="m_enabled"> Enable access immediately
+      </label>
+    </div>
+    <div class="err-msg" id="modalErr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveAccess()">Save</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  /* ---- DataTable ---- */
+  var tbody   = document.getElementById('accBody');
+  var search  = document.getElementById('tableSearch');
+  var pageSel = document.getElementById('pageSize');
+  var infoEl  = document.getElementById('dtInfo');
+  var pagerEl = document.getElementById('dtPager');
+  var allRows = Array.from(tbody.querySelectorAll('tr:not(.empty-row)'));
+  var sortDir = { 0: 'asc' };
+  var curPage = 1;
+  var filtered = allRows.slice();
+
+  function getPS() { return parseInt(pageSel.value, 10); }
+
+  function render() {
+    var q = search.value.toLowerCase();
+    filtered = allRows.filter(function (tr) { return !q || tr.innerText.toLowerCase().includes(q); });
+    var total = filtered.length, ps = getPS(), pages = Math.max(1, Math.ceil(total / ps));
+    if (curPage > pages) curPage = pages;
+    var start = (curPage - 1) * ps, end = Math.min(start + ps, total);
+    allRows.forEach(function (tr) { tr.style.display = 'none'; });
+    filtered.slice(start, end).forEach(function (tr) { tr.style.display = ''; });
+    var noRow = tbody.querySelector('.empty-row');
+    if (total === 0) {
+      if (!noRow) tbody.insertAdjacentHTML('beforeend', '<tr class="empty-row"><td colspan="7" class="no-data">No records found.</td></tr>');
+    } else { if (noRow) noRow.remove(); }
+    infoEl.textContent = total === 0 ? 'Showing 0 to 0 of 0 entries'
+      : 'Showing ' + (start + 1) + ' to ' + end + ' of ' + total + ' entries';
+    pagerEl.innerHTML = '';
+    function pgBtn(lbl, pg, active) {
+      var b = document.createElement('button');
+      b.className = 'pg-btn' + (active ? ' active' : '');
+      b.textContent = lbl;
+      b.addEventListener('click', function () { curPage = pg; render(); });
+      pagerEl.appendChild(b);
+    }
+    if (curPage > 1) pgBtn('‹', curPage - 1, false);
+    for (var i = 1; i <= pages; i++) pgBtn(i, i, i === curPage);
+    if (curPage < pages) pgBtn('›', curPage + 1, false);
+  }
+
+  search.addEventListener('input', function () { curPage = 1; render(); });
+  pageSel.addEventListener('change', function () { curPage = 1; render(); });
+
+  document.querySelectorAll('#accTable thead th[data-col]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = parseInt(th.dataset.col, 10);
+      var dir = sortDir[col] === 'asc' ? 'desc' : 'asc';
+      sortDir = {}; sortDir[col] = dir;
+      document.querySelectorAll('#accTable thead .si i').forEach(function (i) { i.className = 'fas fa-sort'; });
+      th.querySelector('.si i').className = 'fas fa-sort-' + (dir === 'asc' ? 'up' : 'down');
+      allRows.sort(function (a, b) {
+        var va = (a.cells[col] ? a.cells[col].innerText : '').toLowerCase();
+        var vb = (b.cells[col] ? b.cells[col].innerText : '').toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+      allRows.forEach(function (tr) { tbody.appendChild(tr); });
+      curPage = 1; render();
+    });
+  });
+
+  render();
+
+  /* ---- Actions dropdown ---- */
+  window.toggleMenu = function (btn) {
+    document.querySelectorAll('.actions-menu.open').forEach(function (m) {
+      if (m !== btn.nextElementSibling) m.classList.remove('open');
+    });
+    btn.nextElementSibling.classList.toggle('open');
+  };
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.actions-wrap')) {
+      document.querySelectorAll('.actions-menu.open').forEach(function (m) { m.classList.remove('open'); });
+    }
+  });
+
+  /* ---- Toggle enable/disable ---- */
+  window.toggleAccess = function (id, cb) {
+    fetch('{% url "client_login_access_toggle" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'id=' + id
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        var lbl = document.getElementById('status-label-' + id);
+        if (lbl) {
+          lbl.textContent = data.is_enabled ? 'Enabled' : 'Disabled';
+          lbl.className   = data.is_enabled ? 'status-enabled' : 'status-disabled';
+        }
+        cb.checked = data.is_enabled;
+      } else { cb.checked = !cb.checked; }
+    });
+  };
+
+  /* ---- Delete ---- */
+  window.deleteAccess = function (id, btn) {
+    if (!confirm('Delete this client login access?')) return;
+    fetch('{% url "client_login_access_delete" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'id=' + id
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        var row = btn.closest('tr');
+        var idx = allRows.indexOf(row);
+        if (idx !== -1) allRows.splice(idx, 1);
+        row.remove();
+        render();
+      }
+    });
+  };
+
+  /* ---- Modal (Add / Edit) ---- */
+  var CREATE_URL = '{% url "client_login_access_create" %}';
+  var UPDATE_URL = '{% url "client_login_access_update" %}';
+
+  function resetModalFields() {
+    document.getElementById('m_id').value       = '';
+    document.getElementById('m_client').value   = '';
+    document.getElementById('m_email').value    = '';
+    document.getElementById('m_vis_date').value = '';
+    document.getElementById('m_expiry_mode').value = 'never';
+    document.getElementById('m_expiry_date').value = '';
+    document.getElementById('m_expiry_days').value = '';
+    document.getElementById('m_enabled').checked = false;
+    onExpiryModeChange();
+    document.getElementById('modalErr').style.display = 'none';
+  }
+
+  window.onExpiryModeChange = function () {
+    var mode = document.getElementById('m_expiry_mode').value;
+    document.getElementById('m_expiry_date_wrap').style.display = (mode === 'date') ? '' : 'none';
+    document.getElementById('m_expiry_days_wrap').style.display = (mode === 'days') ? '' : 'none';
+  };
+
+  window.openModal = function () {
+    resetModalFields();
+    document.getElementById('modalTitle').textContent = 'Add Client Login Access';
+    document.getElementById('addModal').classList.add('open');
+  };
+
+  window.openEditModal = function (btn) {
+    resetModalFields();
+    var tr = btn.closest('tr');
+    document.getElementById('m_id').value       = tr.dataset.id;
+    document.getElementById('m_client').value   = tr.dataset.client || '';
+    document.getElementById('m_email').value    = tr.dataset.email || '';
+    document.getElementById('m_vis_date').value = tr.dataset.visdate || '';
+    document.getElementById('m_enabled').checked = tr.dataset.enabled === '1';
+    document.getElementById('modalTitle').textContent = 'Edit Client Login Access';
+    document.getElementById('addModal').classList.add('open');
+  };
+
+  window.closeModal = function () {
+    document.getElementById('addModal').classList.remove('open');
+    resetModalFields();
+  };
+
+  window.saveAccess = function () {
+    var id       = document.getElementById('m_id').value;
+    var isEdit   = !!id;
+    var client   = document.getElementById('m_client').value;
+    var email    = document.getElementById('m_email').value.trim();
+    var visDate  = document.getElementById('m_vis_date').value;
+    var expMode  = document.getElementById('m_expiry_mode').value;
+    var expDate  = document.getElementById('m_expiry_date').value;
+    var expDays  = document.getElementById('m_expiry_days').value;
+    var enabled  = document.getElementById('m_enabled').checked ? '1' : '0';
+    var errEl    = document.getElementById('modalErr');
+
+    if (!client || !email) {
+      errEl.textContent = 'Client and email are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errEl.textContent = 'Enter a valid email address.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (expMode === 'date' && !expDate) { errEl.textContent = 'Please pick a disable date.'; errEl.style.display='block'; return; }
+    if (expMode === 'days' && !(parseInt(expDays,10) > 0)) { errEl.textContent = 'Please enter a number of days.'; errEl.style.display='block'; return; }
+    errEl.style.display = 'none';
+
+    var body = 'client=' + encodeURIComponent(client) +
+               '&email='    + encodeURIComponent(email) +
+               '&visible_date_from=' + encodeURIComponent(visDate) +
+               '&expiry_mode=' + encodeURIComponent(expMode) +
+               '&expiry_date=' + encodeURIComponent(expDate) +
+               '&expiry_days=' + encodeURIComponent(expDays) +
+               '&is_enabled=' + enabled +
+               (isEdit ? '&id=' + encodeURIComponent(id) : '');
+
+    fetch(isEdit ? UPDATE_URL : CREATE_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) { closeModal(); location.reload(); }
+      else {
+        errEl.textContent = data.error || 'Error saving.';
+        errEl.style.display = 'block';
+      }
+    });
+  };
+
+  // Modal closes only via the × icon or Cancel — no backdrop click.
+})();
+</script>
+{% endblock %}

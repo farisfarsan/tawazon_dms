@@ -1,0 +1,2203 @@
+{% extends "base.html" %}
+{% load core_filters %}
+
+{% block title %}{{ case.case_id }} — Case Detail{% endblock %}
+
+{% block extra_styles %}
+  /* ── Layout ── */
+  .cd-layout { display: flex; gap: 0; background: white; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; min-height: 600px; }
+  .cd-sidebar { width: 210px; flex-shrink: 0; background: #f8fafc; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .cd-sidebar-header { padding: 16px 16px 14px; border-bottom: 1px solid var(--border); }
+  .cd-sidebar-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; }
+  .cd-sidebar-caseid { font-family: monospace; font-size: 12px; font-weight: 700; color: var(--primary); background: #eff6ff; border: 1px solid #bfdbfe; padding: 6px 10px; border-radius: 6px; word-break: break-all; line-height: 1.4; display: block; }
+  .cd-nav { list-style: none; padding: 8px 0; flex: 1; }
+  .cd-nav li a { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 13px; color: var(--text-muted); font-weight: 500; cursor: pointer; transition: all 0.12s; text-decoration: none; border-left: 3px solid transparent; }
+  .cd-nav li a i { width: 16px; text-align: center; font-size: 13px; }
+  .cd-nav li a:hover { background: #f1f5f9; color: var(--text-dark); }
+  .cd-nav li a.active { background: #eff6ff; color: var(--primary); font-weight: 700; border-left-color: var(--primary); }
+  /* Legal tab in red so it stands out at a glance */
+  .cd-nav li a.legal-tab { color: #dc2626; font-weight: 700; }
+  .cd-nav li a.legal-tab i { color: #dc2626; }
+  .cd-nav li a.legal-tab:hover { background: #fef2f2; color: #b91c1c; }
+  .cd-nav li a.legal-tab.active { background: #fef2f2; color: #b91c1c; border-left-color: #dc2626; }
+  .legal-dot { width: 7px; height: 7px; border-radius: 50%; background: #dc2626; margin-left: auto; }
+
+  /* ── Content area ── */
+  .cd-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .cd-topbar { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .cd-topbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cd-topbar-right { margin-left: auto; display: flex; gap: 8px; }
+  .cd-action-btn { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: none; text-decoration: none; transition: all 0.15s; white-space: nowrap; }
+  .cd-action-btn.purple { background: #7c3aed; color: white; }
+  .cd-action-btn.purple:hover { background: #6d28d9; }
+  .cd-action-btn.red { background: #dc2626; color: white; }
+  .cd-action-btn.red:hover { background: #b91c1c; }
+  .cd-action-btn.blue { background: #2563eb; color: white; }
+  .cd-action-btn.blue:hover { background: #1d4ed8; }
+  .cd-action-btn.teal { background: #0d9488; color: white; }
+  .cd-action-btn.teal:hover { background: #0f766e; }
+  .cd-action-btn.green { background: #15803d; color: white; }
+  .cd-action-btn.green:hover { background: #166534; }
+  .cd-action-btn.outline { background: white; color: var(--text-dark); border: 1.5px solid var(--border); }
+  .cd-action-btn.outline:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Panel ── */
+  .cd-panel { padding: 22px 24px; overflow-y: auto; flex: 1; }
+  .cd-panel.hidden { display: none; }
+  .cd-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .cd-panel-title { font-size: 16px; font-weight: 700; color: var(--text-dark); display: flex; align-items: center; gap: 8px; }
+  .cd-panel-title i { color: var(--primary); }
+
+  /* ── Form ── */
+  .cd-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+  .cd-form-grid.single { grid-template-columns: 1fr; }
+  .cd-field { display: flex; flex-direction: column; gap: 5px; }
+  .cd-field.full { grid-column: 1 / -1; }
+  .cd-field label { font-size: 11px; font-weight: 700; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.04em; }
+  .cd-field label .req { color: #dc2626; }
+  .cd-field .cd-view-val { font-size: 13px; color: var(--text-dark); padding: 9px 12px; background: #f8fafc; border-radius: 8px; border: 1.5px solid transparent; min-height: 38px; display: flex; align-items: center; word-break: break-word; }
+  .cd-field .cd-view-val.empty { color: #cbd5e1; font-style: italic; }
+  .cd-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; display: none; }
+  .cd-input:focus { border-color: var(--primary); }
+  .cd-select { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; display: none; }
+  .cd-select:focus { border-color: var(--primary); }
+  .cd-textarea { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; min-height: 100px; resize: vertical; display: none; }
+  .cd-textarea:focus { border-color: var(--primary); }
+  .cd-checkbox-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .cd-checkbox-row input { width: 15px; height: 15px; accent-color: var(--primary); cursor: pointer; }
+  .cd-checkbox-row label { font-size: 13px; color: var(--text-dark); font-weight: 500; cursor: pointer; text-transform: none; letter-spacing: 0; }
+
+  /* editing state */
+  .cd-layout.editing .cd-view-val { display: none; }
+  .cd-layout.editing .cd-input { display: block; }
+  .cd-layout.editing .cd-select { display: block; }
+  .cd-layout.editing .cd-textarea { display: block; }
+
+  /* Legal Info form — its own edit toggle, independent of the General tab. */
+  .li-edit { display: none; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .li-edit:focus { border-color: var(--primary); }
+  #legalInfoForm.editing .li-view { display: none; }
+  #legalInfoForm.editing .li-edit { display: block; }
+  #legalInfoForm.editing textarea.li-edit { min-height: 80px; }
+
+  .cd-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .cd-footer.hidden { display: none; }
+  .btn-cd-edit { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-cd-edit:hover { background: var(--primary-dark); }
+  .btn-cd-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .btn-cd-cancel:hover { border-color: #94a3b8; color: var(--text-dark); }
+  .btn-cd-save { background: #059669; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-cd-save:hover { background: #047857; }
+
+  /* ── Status badge ── */
+  .case-status-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; gap: 5px; }
+  .case-status-badge.active { background: #dcfce7; color: #15803d; }
+  .case-status-badge.closed { background: #fee2e2; color: #991b1b; }
+  .case-status-badge.closed_by_client { background: #fef3c7; color: #92400e; }
+  .case-status-badge.contactable { background: #eff6ff; color: #1d4ed8; }
+  .case-status-badge.broken_promise { background: #fce7f3; color: #9d174d; }
+  .case-status-badge.promise_to_pay { background: #ccfbf1; color: #0d9488; }
+
+  /* ── Tabs sub-panels ── */
+  .sub-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sub-table th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .sub-table td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .sub-table tr:last-child td { border-bottom: none; }
+  .sub-table tbody tr:hover td { background: #fafbfc; }
+  .empty-tab { text-align: center; padding: 50px 20px; color: var(--text-muted); font-size: 14px; }
+  .empty-tab i { font-size: 36px; margin-bottom: 12px; display: block; opacity: 0.3; }
+  .pay-del-btn { background: none; border: 1.5px solid #fecaca; color: #dc2626; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; transition: all 0.15s; }
+  .pay-del-btn:hover { background: #fee2e2; border-color: #dc2626; }
+  .pay-edit-btn { background: none; border: 1.5px solid #bfdbfe; color: #2563eb; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; transition: all 0.15s; margin-right: 6px; }
+  .pay-edit-btn:hover { background: #eff6ff; border-color: #2563eb; }
+  .pay-receipt-btn { display: inline-block; background: none; border: 1.5px solid #bbf7d0; color: #15803d; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 11px; transition: all 0.15s; margin-right: 6px; text-decoration: none; }
+  .pay-receipt-btn:hover { background: #f0fdf4; border-color: #15803d; }
+  .pay-receipt-btn.disabled { color: #cbd5e1; border-color: #e2e8f0; cursor: not-allowed; }
+  .pay-receipt-btn.disabled:hover { background: none; border-color: #e2e8f0; }
+  /* Create Installment modal */
+  .inst-modal-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+  .inst-modal-icon { flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .inst-modal-sub { margin: 3px 0 0; font-size: 12px; color: var(--text-muted); }
+  .inst-grid-head { display: grid; grid-template-columns: 1fr 1.15fr 0.9fr 1fr 38px; gap: 12px; padding: 0 2px 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .installment-row { display: grid; grid-template-columns: 1fr 1.15fr 0.9fr 1fr 38px; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .installment-row .mo-input { min-width: 0; }
+  .inst-row-del { background: none; border: 1.5px solid #fecaca; color: #dc2626; border-radius: 8px; height: 38px; cursor: pointer; font-size: 13px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .inst-row-del:hover { background: #fee2e2; border-color: #dc2626; }
+  .inst-add-btn { width: 100%; margin-top: 4px; background: #f8fafc; border: 1.5px dashed #cbd5e1; color: #2563eb; border-radius: 10px; padding: 11px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.15s; }
+  .inst-add-btn:hover { background: #eff6ff; border-color: #2563eb; }
+  .inst-add-btn:disabled { background: #f1f5f9; border-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+  .inst-add-btn:disabled:hover { background: #f1f5f9; border-color: #e2e8f0; }
+  .inst-move-btn { background: #2563eb; color: #fff; border: none; border-radius: 7px; padding: 6px 11px; cursor: pointer; font-size: 11px; font-weight: 600; white-space: nowrap; transition: background 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .inst-move-btn:hover { background: #1d4ed8; }
+  /* Remaining-amount summary above installments table */
+  .inst-remaining-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 16px; }
+  .inst-rem-item { display: flex; flex-direction: column; gap: 4px; }
+  .inst-rem-item span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .inst-rem-item strong { font-size: 16px; font-weight: 800; color: var(--text-dark); }
+  .inst-rem-item strong em { font-size: 11px; font-weight: 500; font-style: normal; color: var(--text-muted); }
+  /* Live allocation tracker inside the Create Installment modal */
+  .inst-alloc { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+  .inst-alloc-cell { display: flex; flex-direction: column; gap: 3px; text-align: center; }
+  .inst-alloc-cell span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+  .inst-alloc-cell strong { font-size: 15px; font-weight: 800; }
+  .sub-table tfoot td { padding: 11px 14px; border-top: 2px solid var(--border); background: #f8fafc; font-size: 13px; }
+  .att-type-tag { background: #ede9fe; color: #6d28d9; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+  /* ── Financials card ── */
+  .fin-card-wrap { background: white; border: 1.5px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .fin-card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: white; border-bottom: 1px solid var(--border); }
+  .fin-card-title { font-size: 15px; font-weight: 700; color: var(--text-dark); }
+  .fin-card-actions { display: flex; gap: 6px; align-items: center; }
+  .fin-card-btn { background: none; border: 1px solid #e2e8f0; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 12px; transition: all 0.15s; }
+  .fin-card-btn:hover { background: #f8fafc; color: var(--text-dark); }
+  .fin-card-body { padding: 22px 20px; }
+  .fin-form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px 20px; }
+  .fin-ff { display: flex; flex-direction: column; gap: 6px; }
+  .fin-fl { font-size: 11px; font-weight: 600; color: #64748b; text-transform: none; letter-spacing: 0; }
+  .fin-fl.req-lbl { color: #dc2626; }
+  .fin-fl .req { color: #dc2626; }
+  .fin-fv { font-size: 13px; color: var(--text-dark); padding: 9px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 38px; display: flex; align-items: center; word-break: break-word; }
+  .fin-fv.empty { color: #cbd5e1; font-style: italic; }
+  .fin-fi { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .fin-fi:focus { border-color: var(--primary); outline: none; }
+  .fin-fi.fin-readonly { background: #f8fafc; cursor: default; }
+  .fin-fi.fin-readonly:focus { border-color: var(--border); }
+  /* OMR (base currency) fields — teal tint to distinguish from case currency */
+  .fin-ff.fin-omr .fin-fl { color: #0d9488; }
+  .fin-ff.fin-omr .fin-fl.req-lbl { color: #0d9488; }
+  .fin-ff.fin-omr .fin-fv { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; font-weight: 600; }
+  .fin-ff.fin-omr .fin-fi { background: #f0fdfa; border-color: #99f6e4; color: #0f766e; }
+  .fin-ff.fin-omr .fin-fi.fin-readonly:focus { border-color: #99f6e4; }
+  select.fin-fi { padding-right: 8px; }
+  .fin-btn-edit { background: #059669; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .fin-btn-edit:hover { background: #047857; }
+  .fin-btn-save { background: #059669; color: white; border: none; padding: 8px 20px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .fin-btn-save:hover { background: #047857; }
+  .fin-btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 7px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .fin-btn-cancel:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* ── Modal ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-sm { background: white; border-radius: 14px; padding: 28px; width: 380px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); animation: cdModalIn 0.18s; }
+  @keyframes cdModalIn { from { transform: scale(0.93); opacity:0; } to { transform: scale(1); opacity:1; } }
+  .modal-sm h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .modal-sm .mo-field { margin-bottom: 14px; }
+  .modal-sm .mo-field label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+  .modal-sm .mo-select, .modal-sm .mo-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; box-sizing: border-box; }
+  .modal-sm .mo-select:focus, .modal-sm .mo-input:focus { border-color: var(--primary); }
+  .modal-sm .mo-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  /* ── Add Payment Modal ── */
+  .pay-modal { background: white; border-radius: 16px; width: 520px; max-width: 95vw; box-shadow: 0 24px 60px rgba(0,0,0,0.22); animation: cdModalIn 0.18s; overflow: hidden; }
+  .pay-modal-header { display: flex; align-items: center; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--border); cursor: move; user-select: none; }
+  .pay-modal-header .pay-modal-close { cursor: pointer; }
+  .pay-modal-icon { width: 40px; height: 40px; background: #eff6ff; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #2563eb; font-size: 17px; flex-shrink: 0; }
+  .pay-modal-title { font-size: 16px; font-weight: 700; color: var(--text-dark); line-height: 1.2; }
+  .pay-modal-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .pay-modal-close { margin-left: auto; background: none; border: none; color: var(--text-muted); font-size: 15px; cursor: pointer; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.15s; }
+  .pay-modal-close:hover { background: #f1f5f9; color: var(--text-dark); }
+  .pay-modal-body { padding: 20px 24px; max-height: 65vh; overflow-y: auto; }
+  .pay-modal-footer { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; background: #f8fafc; }
+  .pay-section-lbl { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #f1f5f9; }
+  .pay-section-lbl:first-child { margin-top: 0; }
+  .pay-field { margin-bottom: 12px; }
+  .pay-label { font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 5px; }
+  .pay-req { color: #dc2626; }
+  .pay-input { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; box-sizing: border-box; transition: border-color 0.15s; }
+  .pay-input:focus { border-color: var(--primary); }
+  .pay-g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .pay-g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+  <a href="{% url 'cases' %}" style="display:inline-flex;align-items:center;gap:6px;color:var(--primary);font-weight:600;font-size:13px;text-decoration:none;">
+    <i class="fas fa-arrow-left"></i> Back to Cases
+  </a>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="cd-action-btn" style="background:#059669;color:white;" onclick="openModal('addReminderModal')">
+      <i class="fas fa-bell"></i> Add Reminder
+    </button>
+    <button class="cd-action-btn" style="background:#2563eb;color:white;" onclick="openAddPayment()">
+      <i class="fas fa-plus"></i> Add Payment
+    </button>
+    <button class="cd-action-btn" style="background:#0d9488;color:white;" onclick="openModal('addFollowUpModal')">
+      <i class="fas fa-phone-alt"></i> Add Follow Up
+    </button>
+    <button class="cd-action-btn" style="background:#7c3aed;color:white;" onclick="openModal('addFilesModal')">
+      <i class="fas fa-paperclip"></i> Add Files
+    </button>
+  </div>
+</div>
+
+<div class="cd-layout" id="cdLayout">
+
+  <!-- Sidebar -->
+  <div class="cd-sidebar">
+    <div class="cd-sidebar-header">
+      <div class="cd-sidebar-title">CASE</div>
+      <span class="cd-sidebar-caseid">{{ case.case_id }}</span>
+    </div>
+    <ul class="cd-nav">
+      <li><a href="#" class="active" onclick="switchTab('general',this)"><i class="fas fa-file-alt"></i> General</a></li>
+      <li><a href="#" onclick="switchTab('financials',this)"><i class="fas fa-chart-bar"></i> Financials</a></li>
+      <li><a href="#" onclick="switchTab('installments',this)"><i class="fas fa-list-ol"></i> Installments</a></li>
+      <li><a href="#" onclick="switchTab('followups',this)"><i class="fas fa-phone-alt"></i> Follow Ups</a></li>
+      <li><a href="#" onclick="switchTab('reminders',this)"><i class="fas fa-bell"></i> Reminders</a></li>
+      {% if legal_case %}
+      <li><a href="#" class="legal-tab" onclick="switchTab('legal',this)"><i class="fas fa-gavel"></i> Legal <span class="legal-dot"></span></a></li>
+      {% endif %}
+      <li><a href="#" onclick="switchTab('history',this)"><i class="fas fa-history"></i> Case History</a></li>
+      <li><a href="#" onclick="switchTab('attachments',this)"><i class="fas fa-paperclip"></i> Case Attachments</a></li>
+    </ul>
+  </div>
+
+  <!-- Main content -->
+  <div class="cd-content">
+
+    <!-- Top action bar -->
+    <div class="cd-topbar">
+      <div class="cd-topbar-left">
+        {% if legal_case %}
+        <button class="cd-action-btn purple" onclick="openModal('legalStatusModal'); toggleLegalHearingDateField();">
+          <i class="fas fa-gavel"></i> Change Legal Status
+        </button>
+        {% else %}
+        <button class="cd-action-btn purple" onclick="openStatusModal()">
+          <i class="fas fa-exchange-alt"></i> Change Status
+        </button>
+        {% endif %}
+        <button class="cd-action-btn red" onclick="openCollectorModal()">
+          <i class="fas fa-user-edit"></i> Change Collector
+        </button>
+      </div>
+      <div class="cd-topbar-right">
+        <a href="{% url 'clients' %}?search={{ case.client.name|urlencode }}" class="cd-action-btn blue">
+          <i class="fas fa-external-link-alt"></i> View Client
+        </a>
+        <a href="{% url 'debtor_detail' case.debtor.pk %}" class="cd-action-btn teal">
+          <i class="fas fa-external-link-alt"></i> View Debtor
+        </a>
+      </div>
+    </div>
+
+    <!-- ═══ GENERAL TAB ═══ -->
+    <div class="cd-panel" id="tab-general">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-file-alt"></i> Case</div>
+        <span class="case-status-badge {{ case.status }}">{{ case.get_status_display }}</span>
+      </div>
+      <form id="cdGeneralForm">
+        {% csrf_token %}
+        <div class="cd-form-grid">
+
+          <!-- Client -->
+          <div class="cd-field">
+            <label>Select Client <span class="req">*</span></label>
+            <div class="cd-view-val">{{ case.client.name }}</div>
+            <select name="client_id" class="cd-select">
+              {% for c in clients %}<option value="{{ c.pk }}" {% if c.pk == case.client.pk %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Debtor -->
+          <div class="cd-field">
+            <label>Select Debtor <span class="req">*</span></label>
+            <div class="cd-view-val">{{ case.debtor.name }}</div>
+            <select name="debtor_id" class="cd-select">
+              {% for d in debtors %}<option value="{{ d.pk }}" {% if d.pk == case.debtor.pk %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Creditor Name -->
+          <div class="cd-field">
+            <label>Creditor Name <span class="req">*</span></label>
+            {% if case.creditor_name %}
+            <div class="cd-view-val">{{ case.creditor_name }}</div>
+            <input type="text" name="creditor_name" class="cd-input" value="{{ case.creditor_name }}">
+            {% elif case.client.client_type != 'agency' %}
+            <div class="cd-view-val">{{ case.client.name }}</div>
+            <input type="text" name="creditor_name" class="cd-input" value="{{ case.client.name }}">
+            {% else %}
+            <div class="cd-view-val empty">—</div>
+            <input type="text" name="creditor_name" class="cd-input" value="">
+            {% endif %}
+          </div>
+
+          <!-- Received On -->
+          <div class="cd-field">
+            <label>Received On <span class="req">*</span></label>
+            <div class="cd-view-val {% if not case.received_date %}empty{% endif %}">{{ case.received_date|date:"d/m/Y"|default:"—" }}</div>
+            <input type="date" name="received_date" class="cd-input" value="{{ case.received_date|date:'Y-m-d'|default:'' }}">
+          </div>
+
+          <!-- Case Type -->
+          <div class="cd-field">
+            <label>Case Type <span class="req">*</span></label>
+            <div class="cd-view-val {% if not case.case_type %}empty{% endif %}">{{ case.case_type.name|default:"—" }}</div>
+            <select name="case_type_id" class="cd-select">
+              <option value="">— Select Case Type —</option>
+              {% for ct in case_types %}<option value="{{ ct.pk }}" {% if case.case_type and case.case_type.pk == ct.pk %}selected{% endif %}>{{ ct.name }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Account No -->
+          <div class="cd-field">
+            <label>Account No <span class="req">*</span></label>
+            <div class="cd-view-val {% if not case.account_no %}empty{% endif %}">{{ case.account_no|default:"—" }}</div>
+            <input type="text" name="account_no" class="cd-input" value="{{ case.account_no }}">
+          </div>
+
+          <!-- Case Status -->
+          <div class="cd-field">
+            <label>Case Status <span class="req">*</span></label>
+            <div class="cd-view-val">
+              {{ case.get_status_display }}
+              {% if case.status == 'promise_to_pay' %}<span style="color:#0d9488;font-weight:600;font-size:12px;"> — {% if case.promise_to_pay_date %}{{ case.promise_to_pay_date|date:"d-M-Y" }}{% else %}no date set{% endif %}</span>{% endif %}
+            </div>
+            <select name="status" class="cd-select" onchange="toggleGeneralPromiseDate(this.value)">
+              {% for val, label in case.all_status_choices %}<option value="{{ val }}" {% if case.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Promise Date (only when status is Promise to Pay) -->
+          <div class="cd-field" id="generalPromiseDate" {% if case.status != 'promise_to_pay' %}style="display:none;"{% endif %}>
+            <label>Promise Date <span class="req">*</span></label>
+            <div class="cd-view-val {% if not case.promise_to_pay_date %}empty{% endif %}">{{ case.promise_to_pay_date|date:"d-M-Y"|default:"—" }}</div>
+            <input type="date" name="promise_to_pay_date" class="cd-input" value="{{ case.promise_to_pay_date|date:'Y-m-d' }}">
+          </div>
+
+          <!-- Collector -->
+          <div class="cd-field">
+            <label>Collector</label>
+            <div class="cd-view-val {% if not case.collector %}empty{% endif %}">{% if case.collector %}{{ case.collector.get_full_name|default:case.collector.username }}{% else %}—{% endif %}</div>
+            <select name="collector_id" class="cd-select">
+              <option value="">— No Collector —</option>
+              {% for u in collectors %}<option value="{{ u.pk }}" {% if case.collector and case.collector.pk == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Case Country -->
+          <div class="cd-field">
+            <label>Case Country <span class="req">*</span></label>
+            <div class="cd-view-val {% if not case.case_country %}empty{% endif %}">{{ case.case_country|default:"—" }}</div>
+            <select name="case_country" class="cd-select">
+              <option value="">— Select Country —</option>
+              {% for c in countries %}<option value="{{ c.name }}" {% if case.case_country == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Is Agency -->
+          <div class="cd-field full">
+            <div class="cd-checkbox-row">
+              <input type="checkbox" id="cdIsAgency" name="is_agency" value="1" {% if case.is_agency %}checked{% endif %} disabled onchange="toggleAgencyField()">
+              <label for="cdIsAgency">Is Agency?</label>
+            </div>
+          </div>
+
+          <!-- Select Agency (shown only when Is Agency is on) -->
+          <div class="cd-field" id="cdAgencyField" {% if not case.is_agency %}style="display:none;"{% endif %}>
+            <label>Select Agency</label>
+            <div class="cd-view-val {% if not case.agency %}empty{% endif %}">{{ case.agency.name|default:"—" }}</div>
+            <select name="agency_id" id="cdAgencySelect" class="cd-select">
+              <option value="">— None —</option>
+              {% for a in agencies %}<option value="{{ a.id }}" {% if case.agency_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+          </div>
+
+          <!-- Notes -->
+          <div class="cd-field full">
+            <label>Notes</label>
+            <div class="cd-view-val {% if not case.notes %}empty{% endif %}" style="white-space:pre-wrap;min-height:60px;align-items:flex-start;">{{ case.notes|default:"—" }}</div>
+            <textarea name="notes" class="cd-textarea">{{ case.notes }}</textarea>
+          </div>
+
+        </div>
+      </form>
+    </div>
+
+    <!-- ═══ FINANCIALS TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-financials">
+
+      <div class="fin-card-wrap">
+        <!-- Card header -->
+        <div class="fin-card-header">
+          <span class="fin-card-title">Financials</span>
+          <div class="fin-card-actions">
+            <button class="fin-card-btn" onclick="toggleFinBody()" id="finCollapseBtn" title="Collapse / Expand">
+              <i class="fas fa-chevron-down" id="finCollapseIcon"></i>
+            </button>
+            <button class="fin-card-btn" onclick="document.querySelector('.cd-nav a[onclick*=general]').click()" title="Close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card body -->
+        <div class="fin-card-body" id="finCardBody">
+          <div class="fin-form-grid">
+
+            <!-- Row 1: Select Currency | Outstanding Amount | Outstanding Amount * -->
+            <div class="fin-ff">
+              <label class="fin-fl req-lbl">Select Currency <span class="req">*</span></label>
+              <div class="fin-fv {% if not case.currency %}empty{% endif %}" id="finv-currency">
+                {% if case.currency %}{{ case.currency.code }}{% else %}—{% endif %}
+              </div>
+              <select class="fin-fi" id="fini-currency" style="display:none;" onchange="finConvert()">
+                <option value="">— Select Currency —</option>
+                {% for c in currencies %}
+                <option value="{{ c.pk }}" data-rate="{{ c.value }}" data-code="{{ c.code }}"
+                  {% if case.currency_id == c.pk %}selected{% endif %}>{{ c.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="fin-ff">
+              <label class="fin-fl">Outstanding Amount</label>
+              <div class="fin-fv" id="finv-outstanding">{{ case.approved_amount|floatformat:3 }}</div>
+              <input class="fin-fi" id="fini-outstanding" style="display:none;" type="number" step="0.001" min="0"
+                value="{{ case.approved_amount }}" oninput="finConvert()" placeholder="0.000">
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl req-lbl">Outstanding Amount (OMR) <span class="req">*</span></label>
+              <div class="fin-fv" id="finv-outstanding-omr">{{ fin_approved_omr|floatformat:3 }}</div>
+              <input class="fin-fi fin-readonly" id="fini-outstanding-omr" style="display:none;" type="number" step="0.001"
+                readonly placeholder="Auto-calculated" tabindex="-1">
+            </div>
+
+            <!-- Row 1b: Discount Amount | Discount Note (basis) | Discount Amount (OMR) -->
+            <div class="fin-ff">
+              <label class="fin-fl">Discount Amount</label>
+              <div class="fin-fv {% if not case.discount_amount %}empty{% endif %}" id="finv-discount">{{ case.discount_amount|floatformat:3 }}</div>
+              <input class="fin-fi" id="fini-discount" style="display:none;" type="number" step="0.001" min="0"
+                value="{{ case.discount_amount }}" oninput="finConvert()" placeholder="0.000">
+            </div>
+
+            <div class="fin-ff">
+              <label class="fin-fl">Discount Note</label>
+              <div class="fin-fv {% if not case.discount_note %}empty{% endif %}" id="finv-discount-note">{% if case.discount_note %}{{ case.discount_note }}{% else %}—{% endif %}</div>
+              <input class="fin-fi" id="fini-discount-note" style="display:none;" type="text" maxlength="255"
+                value="{{ case.discount_note }}" placeholder="Basis for the discount...">
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl">Discount Amount (OMR)</label>
+              <div class="fin-fv" id="finv-discount-omr">{{ fin_discount_omr|floatformat:3 }}</div>
+              <input class="fin-fi fin-readonly" id="fini-discount-omr" style="display:none;" type="number" step="0.001"
+                readonly placeholder="Auto-calculated" tabindex="-1">
+            </div>
+
+            <!-- Row 2: Principal Amount | Total Approved Amount * | Total Approved Amount (OMR) * -->
+            <div class="fin-ff">
+              <label class="fin-fl">Principal Amount</label>
+              <div class="fin-fv {% if not case.principal_amount %}empty{% endif %}" id="finv-principal">
+                {{ case.principal_amount|floatformat:3 }}
+              </div>
+              <input class="fin-fi" id="fini-principal" style="display:none;" type="number" step="0.001" min="0"
+                value="{{ case.principal_amount }}" placeholder="0.000">
+            </div>
+
+            <div class="fin-ff">
+              <label class="fin-fl req-lbl">Total Approved Amount <span class="req">*</span></label>
+              <div class="fin-fv" id="finv-approved">{{ case.approved_amount|floatformat:3 }}</div>
+              <input class="fin-fi" id="fini-approved" style="display:none;" type="number" step="0.001" min="0"
+                value="{{ case.approved_amount }}" oninput="finConvert()" placeholder="0.000" required>
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl req-lbl">Total Approved Amount (OMR) <span class="req">*</span></label>
+              <div class="fin-fv" id="finv-approved-omr">{{ fin_approved_omr|floatformat:3 }}</div>
+              <input class="fin-fi fin-readonly" id="fini-approved-omr" style="display:none;" type="number" step="0.001"
+                readonly placeholder="Auto-calculated" tabindex="-1">
+            </div>
+
+            <!-- Row 3: Last Payment Date | Last Payment | Last Payment (OMR) -->
+            <div class="fin-ff">
+              <label class="fin-fl">Last Payment Date</label>
+              <div class="fin-fv">
+                {% if last_payment %}{{ last_payment.payment_date|date:"d/m/Y" }}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <div class="fin-ff">
+              <label class="fin-fl">Last Payment</label>
+              <div class="fin-fv">
+                {% if last_payment %}{{ last_payment.amount|floatformat:3 }}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl">Last Payment (OMR)</label>
+              <div class="fin-fv">
+                {% if last_payment %}{{ fin_last_payment_omr|floatformat:3 }}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <!-- Row 4: Last Received Date | Total Payment Done | Total Payment Done (OMR) -->
+            <div class="fin-ff">
+              <label class="fin-fl">Last Received Date</label>
+              <div class="fin-fv">
+                {% if last_payment %}{% if last_payment.received_date %}{{ last_payment.received_date|date:"d/m/Y" }}{% else %}{{ last_payment.payment_date|date:"d/m/Y" }}{% endif %}{% else %}—{% endif %}
+              </div>
+            </div>
+
+            <div class="fin-ff">
+              <label class="fin-fl">Total Payment Done</label>
+              <div class="fin-fv">{{ fin_total_payment|floatformat:3 }}</div>
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl">Total Payment Done (OMR)</label>
+              <div class="fin-fv">{{ fin_total_payment_omr|floatformat:3 }}</div>
+            </div>
+
+            <!-- Row 5: Remaining Amount (span 2) | Remaining Amount (OMR) -->
+            <div class="fin-ff" style="grid-column: span 2;">
+              <label class="fin-fl">Remaining Amount</label>
+              <div class="fin-fv" id="finv-remaining">{{ fin_remaining|floatformat:3 }}</div>
+            </div>
+
+            <div class="fin-ff fin-omr">
+              <label class="fin-fl">Remaining Amount (OMR)</label>
+              <div class="fin-fv" id="finv-remaining-omr">{{ fin_remaining_omr|floatformat:3 }}</div>
+            </div>
+
+          </div>
+
+          <!-- Bottom action buttons -->
+          <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
+            <button class="fin-btn-edit" id="finEditBtn" onclick="startFinEdit()"><i class="fas fa-edit"></i> EDIT</button>
+            <button class="fin-btn-save" id="finSaveBtn" style="display:none;" onclick="saveFinancials()"><i class="fas fa-save"></i> Save</button>
+            <button class="fin-btn-cancel" id="finCancelBtn" style="display:none;" onclick="cancelFinEdit()"><i class="fas fa-times"></i> Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment History -->
+      {% if payments %}
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin:24px 0 10px;">Payment History</div>
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Mode</th>
+            <th>Collection Date</th>
+            <th>Collection Amt</th>
+            <th>Transfer Date</th>
+            <th>Recvd Date</th>
+            <th>Recvd Amount</th>
+            <th>Conf. Date</th>
+            <th>Status</th>
+            <th>Notes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payments %}
+          <tr>
+            <td>{{ p.payment_mode.name|default:"—" }}</td>
+            <td>{{ p.payment_date|date:"d-M-Y" }}</td>
+            <td style="font-weight:700;color:#15803d;">
+              {{ p.amount|floatformat:3 }}
+              {% if p.collection_currency %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> {{ p.collection_currency.code }}</span>{% endif %}
+              {% if p.collection_omr and p.collection_currency and p.collection_currency.code != 'OMR' %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> ({{ p.collection_omr|floatformat:3 }} OMR)</span>{% endif %}
+            </td>
+            <td style="color:var(--text-muted);">{{ p.transfer_date|date:"d-M-Y"|default:"—" }}</td>
+            <td style="color:var(--text-muted);">{{ p.received_date|date:"d-M-Y"|default:"—" }}</td>
+            <td style="font-weight:600;color:#0d9488;">
+              {% if p.received_amount %}{{ p.received_amount|floatformat:3 }}{% if p.received_currency %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> {{ p.received_currency.code }}</span>{% endif %}{% if p.received_omr and p.received_currency.code != 'OMR' %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> ({{ p.received_omr|floatformat:3 }} OMR)</span>{% endif %}{% else %}—{% endif %}
+            </td>
+            <td style="color:var(--text-muted);">{{ p.confirmation_date|date:"d-M-Y"|default:"—" }}</td>
+            <td><span class="case-status-badge {% if p.status == 'cleared' %}active{% elif p.status == 'bounced' %}closed{% else %}contactable{% endif %}">{{ p.get_status_display }}</span></td>
+            <td style="color:var(--text-muted);font-size:12px;max-width:140px;">{{ p.notes|default:"—"|truncatechars:40 }}</td>
+            <td style="white-space:nowrap;">
+              {% if p.can_download_receipt %}
+              <a href="{% url 'payment_receipt' p.pk %}" class="pay-receipt-btn" title="Download receipt" target="_blank">
+                <i class="fas fa-file-download"></i>
+              </a>
+              {% endif %}
+              <button class="pay-edit-btn" onclick='openEditPayment({{ p.pk }})' title="Edit payment">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="pay-del-btn" onclick="deletePayment({{ p.pk }}, this)" title="Delete payment">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td style="font-weight:700;">Total</td>
+            <td></td>
+            <td style="font-weight:700;color:#15803d;">
+              {% if fin_payment_currency %}
+                {{ fin_total_payment|floatformat:3 }} <span style="font-size:11px;color:var(--text-muted);font-weight:400;">{{ fin_payment_currency }}</span>
+                {% if fin_payment_currency != 'OMR' %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> ({{ fin_total_payment_omr|floatformat:3 }} OMR)</span>{% endif %}
+              {% else %}
+                {{ fin_total_payment_omr|floatformat:3 }} <span style="font-size:11px;color:var(--text-muted);font-weight:400;">OMR</span>
+              {% endif %}
+            </td>
+            <td></td>
+            <td></td>
+            <td style="font-weight:700;color:#0d9488;">
+              {% if fin_received_currency %}
+                {{ fin_total_received|floatformat:3 }} <span style="font-size:11px;color:var(--text-muted);font-weight:400;">{{ fin_received_currency }}</span>
+                {% if fin_received_currency != 'OMR' %}<span style="font-size:11px;color:var(--text-muted);font-weight:400;"> ({{ fin_total_received_omr|floatformat:3 }} OMR)</span>{% endif %}
+              {% elif fin_total_received_omr %}
+                {{ fin_total_received_omr|floatformat:3 }} <span style="font-size:11px;color:var(--text-muted);font-weight:400;">OMR</span>
+              {% endif %}
+            </td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-money-bill-wave"></i>No payments recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ FOLLOW UPS TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-followups">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-phone-alt"></i> Follow Ups</div>
+      </div>
+      {% if follow_ups %}
+      <table class="sub-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Followed By</th><th>Legal</th><th>Notes</th></tr></thead>
+        <tbody>
+          {% for fu in follow_ups %}
+          <tr>
+            <td>{{ fu.follow_up_date|date:"d-M-Y" }}</td>
+            <td>{{ fu.get_follow_up_type_display }}</td>
+            <td><span class="case-status-badge {{ fu.case_status }}">{{ fu.get_case_status_display }}</span></td>
+            <td>{% if fu.followed_by %}{{ fu.followed_by.get_full_name|default:fu.followed_by.username }}{% else %}—{% endif %}</td>
+            <td>{% if fu.is_legal %}<span style="color:#dc2626;font-weight:700;">Yes</span>{% else %}No{% endif %}</td>
+            <td style="color:var(--text-muted);font-size:12px;max-width:250px;">{{ fu.notes|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-phone-alt"></i>No follow ups recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ REMINDERS TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-reminders">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-bell"></i> Reminders</div>
+      </div>
+      {% if reminders %}
+      <table class="sub-table">
+        <thead><tr><th>Title</th><th>Date</th><th>Status</th><th>Description</th></tr></thead>
+        <tbody>
+          {% for r in reminders %}
+          <tr>
+            <td style="font-weight:600;">{{ r.title }}</td>
+            <td>{{ r.reminder_date|date:"d-M-Y" }}</td>
+            <td><span class="case-status-badge {% if r.status == 'completed' %}active{% else %}contactable{% endif %}">{{ r.get_status_display }}</span></td>
+            <td style="color:var(--text-muted);font-size:12px;">{{ r.description|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-bell"></i>No reminders for this case.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ INSTALLMENTS TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-installments">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-list-ol"></i> Installments</div>
+        <button class="cd-action-btn" style="background:#059669;color:white;" onclick="openInstallmentModal()">
+          <i class="fas fa-plus"></i> Create
+        </button>
+      </div>
+      <div class="inst-remaining-bar">
+        <div class="inst-rem-item">
+          <span>Remaining Amount</span>
+          <strong id="instRemainingBar">{{ fin_remaining|floatformat:3 }}{% if case.currency %} {{ case.currency.code }}{% endif %} <em>({{ fin_remaining_omr|floatformat:3 }} OMR)</em></strong>
+        </div>
+        <div class="inst-rem-item">
+          <span>Scheduled in Installments</span>
+          <strong>{{ installments_total|floatformat:3 }}{% if case.currency %} {{ case.currency.code }}{% endif %}</strong>
+        </div>
+        <div class="inst-rem-item">
+          <span>Left to Allocate</span>
+          <strong id="instLeftToAllocate" style="color:#059669;">—</strong>
+        </div>
+      </div>
+      {% if installments %}
+      <table class="sub-table">
+        <thead><tr><th>#</th><th>Payment ID</th><th>Date</th><th>Check Number</th><th>Amount (OMR)</th><th>Method</th><th>Status</th><th>Move</th><th style="text-align:right;">Actions</th></tr></thead>
+        <tbody>
+          {% for p in installments %}
+          <tr>
+            <td style="color:var(--text-muted);">{{ forloop.counter }}</td>
+            <td style="font-family:monospace;font-size:11px;">{{ p.payment_id }}</td>
+            <td>{{ p.payment_date|date:"d-M-Y" }}</td>
+            <td style="font-family:monospace;font-size:12px;">{{ p.cheque_number|default:"—" }}</td>
+            <td style="font-weight:700;color:#15803d;">{{ p.amount|floatformat:3 }}</td>
+            <td>{{ p.get_payment_method_display }}</td>
+            <td><span class="case-status-badge {% if p.status == 'cleared' %}active{% elif p.status == 'bounced' %}closed{% else %}contactable{% endif %}">{{ p.get_status_display }}</span></td>
+            <td>
+              <button class="inst-move-btn" onclick="moveInstallmentToPayment({{ p.pk }})" title="Move this installment to a payment">
+                <i class="fas fa-arrow-right-arrow-left"></i> Move to Payment
+              </button>
+            </td>
+            <td style="white-space:nowrap;text-align:right;">
+              <button class="pay-edit-btn" onclick='openEditInstallment({{ p.pk }})' title="Edit installment">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="pay-del-btn" onclick="deletePayment({{ p.pk }}, this)" title="Delete installment">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-list-ol"></i>No installments recorded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ LEGAL CASE TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-legal">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-gavel"></i> Legal Case</div>
+      </div>
+      {% if legal_case %}
+      <div class="cd-panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="cd-panel-title" style="font-size:14px;"><i class="fas fa-scale-balanced"></i> Legal Info</div>
+        <div>
+          <button class="cd-action-btn green" id="legalEditBtn" onclick="startLegalEdit()"><i class="fas fa-pen"></i> Edit</button>
+          <button class="cd-action-btn outline" id="legalCancelBtn" onclick="cancelLegalEdit()" style="display:none;">Cancel</button>
+          <button class="cd-action-btn green" id="legalSaveBtn" onclick="saveLegalInfo()" style="display:none;"><i class="fas fa-check"></i> Save</button>
+        </div>
+      </div>
+      <div id="legalInfoForm" class="cd-form-grid" style="margin-bottom:0;">
+        <div class="cd-field">
+          <label>Select Lawyer <span class="req">*</span></label>
+          <div class="li-view cd-view-val {% if not legal_case.lawyer_display %}empty{% endif %}">{{ legal_case.lawyer_display|default:"—" }}</div>
+          <select class="li-edit" name="lawyer_id" id="liLawyer">
+            <option value="">— Select Lawyer —</option>
+            {% for l in lawyers %}<option value="{{ l.id }}" {% if legal_case.lawyer_id == l.id %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="cd-field">
+          <label>Legal Date</label>
+          <div class="li-view cd-view-val {% if not legal_case.legal_date %}empty{% endif %}">{{ legal_case.legal_date|date:"d-M-Y"|default:"—" }}</div>
+          <input type="date" class="li-edit" name="legal_date" value="{{ legal_case.legal_date|date:'Y-m-d' }}">
+        </div>
+        <div class="cd-field">
+          <label>Legal Case No.</label>
+          <div class="li-view cd-view-val {% if not legal_case.legal_case_no %}empty{% endif %}">{{ legal_case.legal_case_no|default:"—" }}</div>
+          <input type="text" class="li-edit" name="legal_case_no" value="{{ legal_case.legal_case_no }}" placeholder="Legal Case No">
+        </div>
+        <div class="cd-field">
+          <label>Legal Advisor</label>
+          <div class="li-view cd-view-val {% if not legal_case.legal_advisor %}empty{% endif %}">{{ legal_case.legal_advisor|default:"—" }}</div>
+          <input type="text" class="li-edit" name="legal_advisor" value="{{ legal_case.legal_advisor }}" placeholder="Legal Advisor">
+        </div>
+        <div class="cd-field">
+          <label>Judgment No.</label>
+          <div class="li-view cd-view-val {% if not legal_case.judgment_no %}empty{% endif %}">{{ legal_case.judgment_no|default:"—" }}</div>
+          <input type="text" class="li-edit" name="judgment_no" value="{{ legal_case.judgment_no }}" placeholder="Judgment No">
+        </div>
+        <div class="cd-field">
+          <label>Judgement Amount <span style="color:var(--text-muted);font-weight:600;">(OMR)</span></label>
+          <div class="li-view cd-view-val">{{ legal_case.judgement_amount|omr }}</div>
+          <input type="number" step="0.001" min="0" class="li-edit" name="judgement_amount" value="{{ legal_case.judgement_amount|stringformat:'.3f' }}">
+        </div>
+        <div class="cd-field">
+          <label>Outstanding Amount <span style="color:var(--text-muted);font-weight:600;">(OMR)</span></label>
+          <div class="li-view cd-view-val">{{ legal_case.outstanding_amount|omr }}</div>
+          <input type="number" step="0.001" min="0" class="li-edit" name="outstanding_amount" value="{{ legal_case.outstanding_amount|stringformat:'.3f' }}">
+        </div>
+        <div class="cd-field">
+          <label>Remaining Amount <span style="color:var(--text-muted);font-weight:600;">(OMR)</span></label>
+          <div class="li-view cd-view-val">{{ legal_case.remaining_amount|omr }}</div>
+          <input type="number" step="0.001" min="0" class="li-edit" name="remaining_amount" value="{{ legal_case.remaining_amount|stringformat:'.3f' }}">
+        </div>
+        <div class="cd-field">
+          <label>Lawyer Fee <span style="color:var(--text-muted);font-weight:600;">(OMR)</span></label>
+          <div class="li-view cd-view-val">{{ legal_case.lawyer_fee|omr }}</div>
+          <input type="number" step="0.001" min="0" class="li-edit" name="lawyer_fee" value="{{ legal_case.lawyer_fee|stringformat:'.3f' }}">
+        </div>
+        <div class="cd-field">
+          <label>Next Hearing</label>
+          <div class="li-view cd-view-val {% if not legal_case.next_hearing %}empty{% endif %}">{{ legal_case.next_hearing|date:"d-M-Y"|default:"—" }}</div>
+          <input type="date" class="li-edit" name="next_hearing" value="{{ legal_case.next_hearing|date:'Y-m-d' }}">
+        </div>
+        <div class="cd-field">
+          <label>Legal Status</label>
+          <div class="li-view cd-view-val">
+            <span style="display:inline-flex;align-items:center;gap:7px;font-weight:600;">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{ legal_case.status_color|default:'#8b5cf6' }};"></span>
+              {{ legal_case.status_label }}
+            </span>
+          </div>
+          <select class="li-edit" name="legal_status">
+            {% for name in legal_status_options %}
+            <option value="{{ name }}" {% if legal_case.status_label == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="cd-field">
+          <label>Approved Date</label>
+          <div class="li-view cd-view-val {% if not legal_case.legal_approved_date %}empty{% endif %}">{{ legal_case.legal_approved_date|date:"d-M-Y"|default:"—" }}</div>
+          <div class="li-edit" style="color:var(--text-muted);background:#f8fafc;">{{ legal_case.legal_approved_date|date:"d-M-Y"|default:"—" }} (auto)</div>
+        </div>
+        <div class="cd-field full">
+          <label>Details</label>
+          <div class="li-view cd-view-val {% if not legal_case.notes %}empty{% endif %}" style="white-space:pre-wrap;align-items:flex-start;">{{ legal_case.notes|default:"—" }}</div>
+          <textarea class="li-edit" name="notes" rows="3" placeholder="Details...">{{ legal_case.notes }}</textarea>
+        </div>
+      </div>
+
+      <!-- ─── Legal Fees ─── -->
+      <div class="cd-panel-header" style="margin-top:28px;display:flex;justify-content:space-between;align-items:center;">
+        <div class="cd-panel-title"><i class="fas fa-file-invoice-dollar"></i> Legal Fees</div>
+        <button class="cd-action-btn green" onclick="openModal('addLegalFeeModal')"><i class="fas fa-plus"></i> Add Legal Fees</button>
+      </div>
+      {% if legal_fees %}
+      <table class="sub-table">
+        <thead>
+          <tr><th>Fee Date</th><th>Fee Type</th><th>Amount</th><th>Notes</th><th style="text-align:right;">Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for f in legal_fees %}
+          <tr>
+            <td>{{ f.fee_date|date:"d-M-Y" }}</td>
+            <td>{% if f.fee_type %}{{ f.fee_type.name }}{% else %}—{% endif %}</td>
+            <td class="num">{{ f.amount|omr }}</td>
+            <td>{{ f.notes|default:"—" }}</td>
+            <td style="text-align:right;">
+              <button class="row-action-btn" title="Delete" onclick="deleteLegalFee({{ f.id }})" style="color:#dc2626;"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="tbl-total-row">
+            <td colspan="2" style="font-weight:700;">Total</td>
+            <td class="num" style="font-weight:700;">{{ legal_case.total_fees|omr }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+      {% else %}
+      <div class="empty-tab" style="padding:24px;"><i class="fas fa-file-invoice-dollar"></i>No legal fees added.</div>
+      {% endif %}
+
+      <!-- ─── Legal Update History ─── -->
+      <div class="cd-panel-header" style="margin-top:28px;">
+        <div class="cd-panel-title"><i class="fas fa-clock-rotate-left"></i> Legal Update History</div>
+      </div>
+      {% if legal_history %}
+      <table class="sub-table">
+        <thead>
+          <tr><th>Date</th><th>Time</th><th>Action By</th><th>Action</th><th>IP Address</th></tr>
+        </thead>
+        <tbody>
+          {% for h in legal_history %}
+          <tr>
+            <td>{{ h.created_at|date:"d-M-Y" }}</td>
+            <td style="color:var(--text-muted);">{{ h.created_at|time:"H:i" }}</td>
+            <td style="font-weight:600;">{% if h.action_by %}{{ h.action_by.get_full_name|default:h.action_by.username }}{% else %}—{% endif %}</td>
+            <td>{{ h.action }}</td>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-muted);">{{ h.ip_address|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-tab" style="padding:24px;"><i class="fas fa-clock-rotate-left"></i>No legal updates yet.</div>
+      {% endif %}
+
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-gavel"></i>No legal case linked to this case.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ HISTORY TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-history">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-history"></i> Case History</div>
+      </div>
+      {% if case_history %}
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Action By</th>
+            <th>Action</th>
+            <th>IP Address</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in case_history %}
+          <tr>
+            <td>{{ h.created_at|date:"d-M-Y" }}</td>
+            <td style="color:var(--text-muted);">{{ h.created_at|time:"H:i" }}</td>
+            <td style="font-weight:600;">{% if h.action_by %}{{ h.action_by.get_full_name|default:h.action_by.username }}{% else %}—{% endif %}</td>
+            <td>{{ h.action }}</td>
+            <td style="font-family:monospace;font-size:11px;color:var(--text-muted);">{{ h.ip_address|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+        <span style="color:#dc2626;font-weight:700;font-size:13px;">
+          Total Time Take (Age of Case) — {{ case_age_str }}
+        </span>
+      </div>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-history"></i>No history recorded for this case yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- ═══ ATTACHMENTS TAB ═══ -->
+    <div class="cd-panel hidden" id="tab-attachments">
+      <div class="cd-panel-header">
+        <div class="cd-panel-title"><i class="fas fa-paperclip"></i> Case Attachments</div>
+      </div>
+      {% if attachments %}
+      <table class="sub-table">
+        <thead>
+          <tr>
+            <th>Attachment Type</th>
+            <th>File Name</th>
+            <th>Description</th>
+            <th>Added By</th>
+            <th>Added On</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for att in attachments %}
+          <tr>
+            <td>
+              {% if att.attachment_type %}
+                <span class="att-type-tag">{{ att.attachment_type.name }}</span>
+              {% else %}
+                <span style="color:#cbd5e1;">—</span>
+              {% endif %}
+            </td>
+            <td>
+              <i class="fas fa-file-alt" style="color:var(--primary);margin-right:6px;font-size:13px;"></i>{{ att.filename }}
+            </td>
+            <td style="color:var(--text-muted);font-size:12px;">{{ att.description|default:"—" }}</td>
+            <td>{% if att.uploaded_by %}{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}{% else %}—{% endif %}</td>
+            <td style="color:var(--text-muted);font-size:12px;">{{ att.uploaded_at|date:"d-M-Y H:i" }}</td>
+            <td style="display:flex;gap:6px;align-items:center;">
+              <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="View in browser">
+                <i class="fas fa-eye"></i> View
+              </a>
+              <a href="{{ att.file.url }}" download="{{ att.filename }}" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="Download file">
+                <i class="fas fa-download"></i> Download
+              </a>
+              <button class="pay-del-btn" onclick="deleteAttachment({{ att.pk }}, this)" title="Delete">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty-tab"><i class="fas fa-paperclip"></i>No attachments uploaded yet.</div>
+      {% endif %}
+    </div>
+
+    <!-- Footer buttons -->
+    <div class="cd-footer" id="cdFooter">
+      <button class="btn-cd-edit" onclick="startEdit()"><i class="fas fa-pen"></i> Edit</button>
+    </div>
+    <div class="cd-footer hidden" id="cdFooterEdit">
+      <button class="btn-cd-cancel" onclick="cancelEdit()">Cancel</button>
+      <button class="btn-cd-save" onclick="saveGeneral()"><i class="fas fa-check"></i> Save Changes</button>
+    </div>
+
+  </div><!-- end cd-content -->
+</div><!-- end cd-layout -->
+
+<!-- Change Status Modal -->
+<div class="modal-overlay" id="statusModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-exchange-alt" style="color:#7c3aed;"></i> Change Status</h3>
+    <div class="mo-field">
+      <label>New Status</label>
+      <select id="statusSelect" class="mo-select" onchange="toggleStatusDateField()">
+        {% for val, label in case.all_status_choices %}
+        <option value="{{ val }}" {% if case.status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field" id="statusDateField" style="display:none;">
+      <label>Promise Date <span style="color:#dc2626;">*</span></label>
+      <input type="date" id="statusPromiseDate" class="mo-select" value="{{ case.promise_to_pay_date|date:'Y-m-d' }}">
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('statusModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitStatusChange()"><i class="fas fa-check"></i> Update</button>
+    </div>
+  </div>
+</div>
+
+{% if legal_case %}
+<!-- Change Case Legal Status Modal -->
+<div class="modal-overlay" id="legalStatusModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-gavel" style="color:#7c3aed;"></i> Change Case Legal Status</h3>
+    <div class="mo-field">
+      <label>Select Case Status</label>
+      <select id="legalStatusSelect" class="mo-select" onchange="toggleLegalHearingDateField()">
+        {% for name in legal_status_options %}
+        <option value="{{ name }}" {% if legal_case.status_label == name %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field" id="legalHearingDateField" style="display:none;">
+      <label>Next Hearing Date <span style="color:#dc2626;">*</span></label>
+      <input type="date" id="legalHearingDate" class="mo-select" value="{{ legal_case.next_hearing|date:'Y-m-d' }}">
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('legalStatusModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitLegalStatusChange()"><i class="fas fa-check"></i> Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Legal Fees Modal -->
+<div class="modal-overlay" id="addLegalFeeModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-file-invoice-dollar" style="color:#15803d;"></i> Add Legal Fees</h3>
+    <div class="mo-field">
+      <label>Fee Type</label>
+      <select id="feeTypeSelect" class="mo-select">
+        <option value="">— Select Fee Type —</option>
+        {% for t in legal_fee_types %}
+        <option value="{{ t.id }}">{{ t.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Fee Date</label>
+      <input type="date" id="feeDateInput" class="mo-select">
+    </div>
+    <div class="mo-field">
+      <label>Amount (OMR)</label>
+      <input type="number" step="0.001" min="0" id="feeAmountInput" class="mo-select" placeholder="0.000">
+    </div>
+    <div class="mo-field">
+      <label>Notes</label>
+      <textarea id="feeNotesInput" class="mo-select" rows="2" placeholder="Optional notes..."></textarea>
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('addLegalFeeModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitLegalFee()"><i class="fas fa-check"></i> Add Fee</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Change Collector Modal -->
+<div class="modal-overlay" id="collectorModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-user-edit" style="color:#dc2626;"></i> Change Collector</h3>
+    <div class="mo-field">
+      <label>Collector</label>
+      <select id="collectorSelect" class="mo-select">
+        <option value="">— No Collector —</option>
+        {% for u in collectors %}
+        <option value="{{ u.pk }}" {% if case.collector and case.collector.pk == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('collectorModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitCollectorChange()"><i class="fas fa-check"></i> Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Reminder Modal -->
+<div class="modal-overlay" id="addReminderModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-bell" style="color:#059669;"></i> Add Reminder</h3>
+    <div class="mo-field">
+      <label>Title *</label>
+      <input type="text" id="rem-title" class="mo-input" placeholder="Reminder title...">
+    </div>
+    <div class="mo-field">
+      <label>Date *</label>
+      <input type="date" id="rem-date" class="mo-input">
+    </div>
+    <div class="mo-field">
+      <label>Other User</label>
+      <select id="rem-other-user" class="mo-select">
+        <option value="">— None —</option>
+        {% for u in collectors %}
+        <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Description</label>
+      <textarea id="rem-desc" class="mo-input" rows="3" placeholder="Notes..." style="resize:vertical;"></textarea>
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('addReminderModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitReminder()"><i class="fas fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Payment Modal -->
+<div class="modal-overlay" id="addPaymentModal">
+  <div class="pay-modal">
+
+    <div class="pay-modal-header">
+      <div class="pay-modal-icon"><i class="fas fa-money-bill-wave"></i></div>
+      <div>
+        <div class="pay-modal-title" id="pay-modal-title">Add Payment</div>
+        <div class="pay-modal-sub" id="pay-modal-sub">Record a new payment for this case</div>
+      </div>
+      <button class="pay-modal-close" onclick="closeModal('addPaymentModal')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="pay-modal-body">
+
+      <input type="hidden" id="pay-edit-pk" value="">
+      <input type="hidden" id="pay-from-installment" value="">
+
+      <div class="pay-field">
+        <label class="pay-label">Payment Mode</label>
+        <select id="pay-mode" class="pay-input">
+          <option value="">— Select Mode —</option>
+          {% for pm in payment_modes %}
+          <option value="{{ pm.pk }}">{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="pay-section-lbl">Collection</div>
+      <div class="pay-g3">
+        <div class="pay-field">
+          <label class="pay-label">Date <span class="pay-req">*</span></label>
+          <input type="date" id="pay-date" class="pay-input" onchange="payDateChanged()">
+        </div>
+        <div class="pay-field">
+          <label class="pay-label">Currency</label>
+          <select id="pay-col-currency" class="pay-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="pay-field">
+          <label class="pay-label">Amount <span class="pay-req">*</span></label>
+          <input type="number" id="pay-amount" class="pay-input" placeholder="0.000" step="0.001" min="0">
+        </div>
+      </div>
+
+      <div class="pay-field">
+        <label class="pay-label">Transfer Date</label>
+        <input type="date" id="pay-transfer-date" class="pay-input" onchange="payDateChanged()">
+      </div>
+
+      <div class="pay-section-lbl">Received</div>
+      <div class="pay-g3">
+        <div class="pay-field">
+          <label class="pay-label">Date</label>
+          <input type="date" id="pay-received-date" class="pay-input" onchange="payDateChanged()">
+        </div>
+        <div class="pay-field">
+          <label class="pay-label">Currency</label>
+          <select id="pay-recv-currency" class="pay-input">
+            <option value="">— Currency —</option>
+            {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="pay-field">
+          <label class="pay-label">Amount</label>
+          <input type="number" id="pay-received-amount" class="pay-input" placeholder="0.000" step="0.001" min="0">
+        </div>
+      </div>
+
+      <div class="pay-field">
+        <label class="pay-label">Confirmation Date</label>
+        <input type="date" id="pay-confirm-date" class="pay-input" onchange="payDateChanged()">
+      </div>
+
+      <div class="pay-field">
+        <label class="pay-label">Notes</label>
+        <input type="text" id="pay-notes" class="pay-input" placeholder="Optional notes...">
+      </div>
+
+    </div>
+
+    <div class="pay-modal-footer">
+      <div id="pay-error" style="display:none; margin-right:auto; align-self:center; color:#dc2626; font-size:12.5px; font-weight:600;"></div>
+      <button class="btn-cd-cancel" onclick="closeModal('addPaymentModal')">Cancel</button>
+      <button class="btn-cd-save" id="pay-save-btn" onclick="submitPayment()"><i class="fas fa-check"></i> Save</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add Follow Up Modal -->
+<div class="modal-overlay" id="addFollowUpModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-phone-alt" style="color:#0d9488;"></i> Add Follow Up</h3>
+    <div class="mo-field">
+      <label>Type</label>
+      <select id="fu-type" class="mo-select">
+        <option value="">— Select Type —</option>
+        {% for val, label in followup_type_options %}
+        <option value="{{ val }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Date *</label>
+      <input type="date" id="fu-date" class="mo-input">
+    </div>
+    <div class="mo-field">
+      <label>Followed By</label>
+      <select id="fu-by" class="mo-select">
+        <option value="">— Select —</option>
+        {% for u in collectors %}
+        <option value="{{ u.pk }}" {% if u.pk == request.user.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Notes</label>
+      <textarea id="fu-notes" class="mo-input" rows="3" placeholder="Follow up notes..." style="resize:vertical;"></textarea>
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('addFollowUpModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitFollowUp()"><i class="fas fa-check"></i> Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Files Modal -->
+<div class="modal-overlay" id="addFilesModal">
+  <div class="modal-sm" style="max-width:500px;">
+    <h3><i class="fas fa-paperclip" style="color:#7c3aed;"></i> Upload File</h3>
+    <div class="mo-field">
+      <label>Attachment Type</label>
+      <select id="att-type" class="mo-select">
+        <option value="">— Select Type —</option>
+        {% for at in attachment_types %}
+        <option value="{{ at.pk }}">{{ at.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Select File *</label>
+      <input type="file" id="att-file" class="mo-input" style="padding:6px;">
+    </div>
+    <div class="mo-field">
+      <label>Description</label>
+      <input type="text" id="att-description" class="mo-input" placeholder="Optional description...">
+    </div>
+    <div class="mo-actions">
+      <button class="btn-cd-cancel" onclick="closeModal('addFilesModal')">Cancel</button>
+      <button class="btn-cd-save" id="att-submit-btn" onclick="submitFile()"><i class="fas fa-upload"></i> Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Installment Modal -->
+<div class="modal-overlay" id="createInstallmentModal">
+  <div class="modal-sm inst-modal" style="width:840px;max-width:calc(100vw - 40px);">
+    <div class="inst-modal-head">
+      <div class="inst-modal-icon"><i class="fas fa-list-ol"></i></div>
+      <div>
+        <h3 style="margin:0;border:none;padding:0;">Create Installment</h3>
+        <p class="inst-modal-sub">Split this case into one or more scheduled installments.</p>
+      </div>
+    </div>
+    <div class="inst-alloc">
+      <div class="inst-alloc-cell"><span>Remaining</span><strong id="instAllocBase">0.000</strong></div>
+      <div class="inst-alloc-cell"><span>Entered</span><strong id="instAllocEntered">0.000</strong></div>
+      <div class="inst-alloc-cell"><span>Left to Allocate</span><strong id="instAllocLeft">0.000</strong></div>
+    </div>
+    <div class="inst-grid-head">
+      <span>Installment Amount *</span>
+      <span>Due Date *</span>
+      <span>Method</span>
+      <span>Check Number</span>
+      <span></span>
+    </div>
+    <div id="installment-rows">
+      <div class="installment-row">
+        <input type="number" class="mo-input inst-amount" placeholder="0.000" step="0.001" min="0" oninput="recalcInstAlloc()">
+        <input type="date" class="mo-input inst-date">
+        <select class="mo-input inst-method">
+          <option value="direct">Direct</option>
+          <option value="check">Check</option>
+          <option value="promise">Promise</option>
+        </select>
+        <input type="text" class="mo-input inst-check" placeholder="Check #">
+        <button type="button" class="inst-row-del" onclick="removeInstallmentRow(this)" title="Remove row"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <button type="button" class="inst-add-btn" onclick="addInstallmentRow()">
+      <i class="fas fa-plus"></i> Add another installment
+    </button>
+    <div class="mo-actions" style="margin-top:18px;">
+      <button class="btn-cd-cancel" onclick="closeModal('createInstallmentModal')">Close</button>
+      <button class="btn-cd-save" onclick="submitInstallments()"><i class="fas fa-check"></i> Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Installment Modal -->
+<div class="modal-overlay" id="editInstallmentModal">
+  <div class="modal-sm inst-modal" style="width:560px;max-width:calc(100vw - 40px);">
+    <div class="inst-modal-head">
+      <div class="inst-modal-icon"><i class="fas fa-pen"></i></div>
+      <div>
+        <h3 style="margin:0;border:none;padding:0;">Edit Installment</h3>
+        <p class="inst-modal-sub">Update this installment's details.</p>
+      </div>
+    </div>
+    <input type="hidden" id="edit-inst-pk">
+    <div class="cd-form-grid" style="margin-bottom:0;">
+      <div class="mo-field">
+        <label>Installment Amount *</label>
+        <input type="number" id="edit-inst-amount" class="mo-input" placeholder="0.000" step="0.001" min="0">
+      </div>
+      <div class="mo-field">
+        <label>Due Date *</label>
+        <input type="date" id="edit-inst-date" class="mo-input">
+      </div>
+      <div class="mo-field">
+        <label>Method</label>
+        <select id="edit-inst-method" class="mo-input">
+          <option value="direct">Direct</option>
+          <option value="check">Check</option>
+          <option value="promise">Promise</option>
+        </select>
+      </div>
+      <div class="mo-field">
+        <label>Check Number</label>
+        <input type="text" id="edit-inst-check" class="mo-input" placeholder="Check #">
+      </div>
+      <div class="mo-field">
+        <label>Status</label>
+        <select id="edit-inst-status" class="mo-input">
+          <option value="pending">Pending</option>
+          <option value="cleared">Cleared</option>
+          <option value="bounced">Bounced</option>
+        </select>
+      </div>
+    </div>
+    <div class="mo-actions" style="margin-top:18px;">
+      <button class="btn-cd-cancel" onclick="closeModal('editInstallmentModal')">Cancel</button>
+      <button class="btn-cd-save" onclick="submitInstallmentEdit()"><i class="fas fa-check"></i> Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="cdToast"></div>
+
+<script>
+  const CSRF = '{{ csrf_token }}';
+  const UPDATE_URL = '{% url "case_detail_update" case.pk %}';
+
+  function switchTab(name, el) {
+    document.querySelectorAll('.cd-panel').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.cd-nav li a').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.remove('hidden');
+    el.classList.add('active');
+    // footer only on general tab
+    const isGeneral = name === 'general';
+    document.getElementById('cdFooter').classList.toggle('hidden', !isGeneral);
+    document.getElementById('cdFooterEdit').classList.add('hidden');
+    if (!isGeneral) document.getElementById('cdLayout').classList.remove('editing');
+    // remember the active tab so a reload (e.g. after adding a payment) stays here
+    history.replaceState(null, '', '#' + name);
+    return false;
+  }
+
+  // Restore the active tab from the URL hash on load (preserved across reloads)
+  document.addEventListener('DOMContentLoaded', function () {
+    updateInstLeftBar();
+    const name = (location.hash || '').replace('#', '');
+    if (!name) return;
+    const link = document.querySelector('.cd-nav a[onclick*="' + name + '"]');
+    if (link) switchTab(name, link);
+  });
+
+  // Reload while staying on whichever tab is currently active (so adding a
+  // payment/follow-up/etc. keeps you on the same page you started from).
+  function cdReloadKeepTab() {
+    const active = document.querySelector('.cd-nav li a.active');
+    if (active) {
+      const m = (active.getAttribute('onclick') || '').match(/switchTab\('([^']+)'/);
+      if (m) history.replaceState(null, '', '#' + m[1]);
+    }
+    location.reload();
+  }
+
+  // Show/hide the Select Agency field based on the Is Agency checkbox.
+  function toggleAgencyField() {
+    const on = document.getElementById('cdIsAgency').checked;
+    document.getElementById('cdAgencyField').style.display = on ? '' : 'none';
+  }
+
+  function startEdit() {
+    document.getElementById('cdLayout').classList.add('editing');
+    document.getElementById('cdFooter').classList.add('hidden');
+    document.getElementById('cdFooterEdit').classList.remove('hidden');
+    // Enable is_agency checkbox
+    document.getElementById('cdIsAgency').disabled = false;
+    toggleAgencyField();
+  }
+
+  function cancelEdit() {
+    document.getElementById('cdLayout').classList.remove('editing');
+    document.getElementById('cdFooter').classList.remove('hidden');
+    document.getElementById('cdFooterEdit').classList.add('hidden');
+    document.getElementById('cdIsAgency').disabled = true;
+  }
+
+  async function saveGeneral() {
+    const form = document.getElementById('cdGeneralForm');
+    const fd = new FormData(form);
+    const accountNo = (fd.get('account_no') || '').trim();
+    if (!accountNo) {
+      showToast('Account No is required.', 'error');
+      document.querySelector('[name="account_no"]').focus();
+      return;
+    }
+    const res = await fetch(UPDATE_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) {
+      cancelEdit();
+      setTimeout(cdReloadKeepTab, 900);
+    }
+  }
+
+  // Statuses that require a Promise Date (kept in sync with Case.DATE_REQUIRED_STATUSES)
+  const STATUS_DATE_REQUIRED = ['promise_to_pay'];
+
+  function toggleGeneralPromiseDate(status) {
+    const field = document.getElementById('generalPromiseDate');
+    if (field) field.style.display = STATUS_DATE_REQUIRED.includes(status) ? '' : 'none';
+  }
+
+  function toggleStatusDateField() {
+    const val = document.getElementById('statusSelect').value;
+    document.getElementById('statusDateField').style.display = STATUS_DATE_REQUIRED.includes(val) ? '' : 'none';
+  }
+
+  function openStatusModal() {
+    document.getElementById('statusModal').classList.add('show');
+    toggleStatusDateField();
+  }
+  function openCollectorModal() { document.getElementById('collectorModal').classList.add('show'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  async function submitStatusChange() {
+    const status = document.getElementById('statusSelect').value;
+    const dateEl = document.getElementById('statusPromiseDate');
+    if (STATUS_DATE_REQUIRED.includes(status) && !dateEl.value) {
+      showToast('Promise Date is required for this status.', 'error');
+      dateEl.focus();
+      return;
+    }
+    const fd = new FormData();
+    fd.append('status', status);
+    fd.append('promise_to_pay_date', dateEl.value);
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "case_change_status" case.pk %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    closeModal('statusModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(cdReloadKeepTab, 900);
+  }
+
+  async function submitCollectorChange() {
+    const fd = new FormData();
+    fd.append('collector_id', document.getElementById('collectorSelect').value);
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "case_change_collector" case.pk %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    closeModal('collectorModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(cdReloadKeepTab, 900);
+  }
+
+  // Any legal status whose name mentions "hearing" (In Court Hearing, In
+  // Appeal Hearing, …) needs a Next Hearing Date, the same way Promise to Pay
+  // needs a Promise Date on the case status modal.
+  function toggleLegalHearingDateField() {
+    const val = document.getElementById('legalStatusSelect').value;
+    document.getElementById('legalHearingDateField').style.display =
+      val.toLowerCase().includes('hearing') ? '' : 'none';
+  }
+
+  async function submitLegalStatusChange() {
+    const status = document.getElementById('legalStatusSelect').value;
+    const isHearing = status.toLowerCase().includes('hearing');
+    const dateEl = document.getElementById('legalHearingDate');
+    if (isHearing && !dateEl.value) {
+      showToast('Next Hearing Date is required for this status.', 'error');
+      dateEl.focus();
+      return;
+    }
+    const fd = new FormData();
+    fd.append('legal_status', status);
+    if (isHearing) fd.append('next_hearing', dateEl.value);
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "case_change_legal_status" case.pk %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    closeModal('legalStatusModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(cdReloadKeepTab, 900);
+  }
+
+  async function submitLegalFee() {
+    const fd = new FormData();
+    fd.append('fee_type_id', document.getElementById('feeTypeSelect').value);
+    fd.append('fee_date', document.getElementById('feeDateInput').value);
+    fd.append('amount', document.getElementById('feeAmountInput').value || '0');
+    fd.append('notes', document.getElementById('feeNotesInput').value.trim());
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "legal_fee_add" case.pk %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) { closeModal('addLegalFeeModal'); setTimeout(cdReloadKeepTab, 900); }
+  }
+
+  async function deleteLegalFee(id) {
+    if (!confirm('Delete this legal fee?')) return;
+    const fd = new FormData();
+    fd.append('id', id);
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "legal_fee_delete" %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(cdReloadKeepTab, 900);
+  }
+
+  // ---- Legal Info inline edit ----
+  function startLegalEdit() {
+    document.getElementById('legalInfoForm').classList.add('editing');
+    document.getElementById('legalEditBtn').style.display = 'none';
+    document.getElementById('legalCancelBtn').style.display = '';
+    document.getElementById('legalSaveBtn').style.display = '';
+  }
+  function cancelLegalEdit() {
+    document.getElementById('legalInfoForm').classList.remove('editing');
+    document.getElementById('legalEditBtn').style.display = '';
+    document.getElementById('legalCancelBtn').style.display = 'none';
+    document.getElementById('legalSaveBtn').style.display = 'none';
+    cdReloadKeepTab();
+  }
+  async function saveLegalInfo() {
+    const lawyerEl = document.getElementById('liLawyer');
+    if (!lawyerEl.value) {
+      lawyerEl.focus();
+      showToast('Please select a lawyer.', 'error');
+      return;
+    }
+    const fd = new FormData();
+    document.querySelectorAll('#legalInfoForm .li-edit[name]').forEach(el => fd.append(el.name, el.value));
+    fd.append('csrfmiddlewaretoken', CSRF);
+    const res = await fetch('{% url "case_legal_info_update" case.pk %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(cdReloadKeepTab, 900);
+  }
+
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('cdToast');
+    t.textContent = msg; t.className = 'toast show ' + type;
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  // Close modals on outside click (Add Payment only closes via its X / Cancel buttons)
+  document.querySelectorAll('.modal-overlay').forEach(mo => {
+    if (mo.id === 'addPaymentModal') return;
+    mo.addEventListener('click', e => { if (e.target === mo) mo.classList.remove('show'); });
+  });
+
+  function openModal(id)  {
+    const el = document.getElementById(id);
+    el.classList.add('show');
+    // re-center the draggable payment modal each time it opens
+    if (id === 'addPaymentModal') {
+      const m = el.querySelector('.pay-modal'); if (m) m.style.transform = '';
+      document.getElementById('pay-error').style.display = 'none';
+      document.getElementById('pay-amount').style.borderColor = '';
+      document.getElementById('pay-date').style.borderColor = '';
+    }
+  }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  // Make the Add Payment modal draggable by its header, so it can be moved
+  // aside to see the installments table while entering data.
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal  = document.querySelector('#addPaymentModal .pay-modal');
+    const handle = document.querySelector('#addPaymentModal .pay-modal-header');
+    if (!modal || !handle) return;
+    let startX, startY, baseX = 0, baseY = 0, dragging = false;
+    handle.addEventListener('mousedown', function (e) {
+      if (e.target.closest('.pay-modal-close')) return;
+      dragging = true;
+      startX = e.clientX; startY = e.clientY;
+      const m = new DOMMatrixReadOnly(getComputedStyle(modal).transform);
+      baseX = m.m41; baseY = m.m42;
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function (e) {
+      if (!dragging) return;
+      modal.style.transform = `translate(${baseX + (e.clientX - startX)}px, ${baseY + (e.clientY - startY)}px)`;
+    });
+    document.addEventListener('mouseup', function () {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.userSelect = '';
+    });
+  });
+
+  async function cdPost(url, fd) {
+    let res = null;
+    try {
+      res = await fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(cdReloadKeepTab, 900);
+      return data;
+    } catch (err) {
+      let msg;
+      if (res && (res.status === 403 || res.redirected)) {
+        msg = 'Your session has expired — please refresh the page and log in again.';
+      } else if (res && res.status >= 500) {
+        msg = `Server error (${res.status}) — please try again or contact support.`;
+      } else if (res) {
+        msg = `Unexpected response from server (${res.status}) — please refresh and try again.`;
+      } else {
+        msg = 'Could not reach the server — check your connection and try again.';
+      }
+      showToast(msg, 'error');
+      return { success: false, message: msg };
+    }
+  }
+
+  async function submitReminder() {
+    const title = document.getElementById('rem-title').value.trim();
+    const date  = document.getElementById('rem-date').value;
+    if (!title || !date) { showToast('Title and date are required.', 'error'); return; }
+    closeModal('addReminderModal');
+    const fd = new FormData();
+    fd.append('case_id',        '{{ case.pk }}');
+    fd.append('title',          title);
+    fd.append('reminder_date',  date);
+    fd.append('description',    document.getElementById('rem-desc').value.trim());
+    fd.append('other_user_id',  document.getElementById('rem-other-user').value);
+    await cdPost('{% url "reminder_create" %}', fd);
+  }
+
+  // Payment data for edit pre-fill
+  const PAYMENTS_DATA = {
+    {% for p in payments %}
+    "{{ p.pk }}": {
+      mode: "{{ p.payment_mode_id|default:'' }}",
+      date: "{{ p.payment_date|date:'Y-m-d' }}",
+      col_currency: "{{ p.collection_currency_id|default:'' }}",
+      amount: "{{ p.amount }}",
+      transfer_date: "{{ p.transfer_date|date:'Y-m-d' }}",
+      received_date: "{{ p.received_date|date:'Y-m-d' }}",
+      recv_currency: "{{ p.received_currency_id|default:'' }}",
+      received_amount: "{{ p.received_amount|default:'' }}",
+      confirm_date: "{{ p.confirmation_date|date:'Y-m-d' }}",
+      notes: "{{ p.notes|escapejs }}"
+    },
+    {% endfor %}
+  };
+
+  const INSTALLMENTS_DATA = {
+    {% for p in installments %}
+    "{{ p.pk }}": {
+      amount: "{{ p.amount }}",
+      date: "{{ p.payment_date|date:'Y-m-d' }}",
+      method: "{{ p.payment_method|default:'direct' }}",
+      check: "{{ p.cheque_number|escapejs }}",
+      status: "{{ p.status|default:'pending' }}"
+    },
+    {% endfor %}
+  };
+
+  const PAY_DATE_IDS = ['pay-date','pay-transfer-date','pay-received-date','pay-confirm-date'];
+
+  // Keep the payment dates in chronological order — each date can only be the
+  // same day or after the one before it in the chain:
+  // Collection Date → Transfer Date → Received Date → Confirmation Date.
+  // Collection Date itself is restricted to today or later (no past dates).
+  function setPayDateMin(clearInvalid) {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    document.getElementById('pay-date').setAttribute('min', today);
+    let floor = document.getElementById('pay-date').value || today;
+    ['pay-transfer-date','pay-received-date','pay-confirm-date'].forEach(id => {
+      const el = document.getElementById(id);
+      el.setAttribute('min', floor);
+      if (clearInvalid && el.value && el.value < floor) el.value = '';
+      if (el.value) floor = el.value;
+    });
+  }
+
+  function payDateChanged() { setPayDateMin(true); }
+
+  function resetPaymentModal() {
+    document.getElementById('pay-edit-pk').value = '';
+    document.getElementById('pay-from-installment').value = '';
+    ['pay-date','pay-amount','pay-transfer-date','pay-received-date','pay-received-amount',
+     'pay-confirm-date','pay-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pay-mode').value = '';
+    document.getElementById('pay-col-currency').value = '';
+    document.getElementById('pay-recv-currency').value = '';
+    document.getElementById('pay-error').style.display = 'none';
+    document.getElementById('pay-amount').style.borderColor = '';
+    document.getElementById('pay-date').style.borderColor = '';
+  }
+
+  function openAddPayment() {
+    resetPaymentModal();
+    setPayDateMin();
+    document.getElementById('pay-modal-title').textContent = 'Add Payment';
+    document.getElementById('pay-modal-sub').textContent = 'Record a new payment for this case';
+    openModal('addPaymentModal');
+  }
+
+  function openEditPayment(pk) {
+    const d = PAYMENTS_DATA[pk];
+    if (!d) { showToast('Payment data not found.', 'error'); return; }
+    document.getElementById('pay-edit-pk').value = pk;
+    document.getElementById('pay-mode').value           = d.mode;
+    document.getElementById('pay-date').value           = d.date;
+    document.getElementById('pay-col-currency').value   = d.col_currency;
+    document.getElementById('pay-amount').value         = d.amount;
+    document.getElementById('pay-transfer-date').value  = d.transfer_date;
+    document.getElementById('pay-received-date').value  = d.received_date;
+    document.getElementById('pay-recv-currency').value  = d.recv_currency;
+    document.getElementById('pay-received-amount').value = d.received_amount;
+    document.getElementById('pay-confirm-date').value   = d.confirm_date;
+    document.getElementById('pay-notes').value          = d.notes;
+    setPayDateMin();
+    document.getElementById('pay-modal-title').textContent = 'Edit Payment';
+    document.getElementById('pay-modal-sub').textContent = 'Update this payment record';
+    openModal('addPaymentModal');
+  }
+
+  async function submitPayment() {
+    const amountEl = document.getElementById('pay-amount');
+    const dateEl   = document.getElementById('pay-date');
+    const errEl    = document.getElementById('pay-error');
+    const amount = amountEl.value, date = dateEl.value;
+    amountEl.style.borderColor = ''; dateEl.style.borderColor = '';
+    if (!amount || !date) {
+      if (!amount) amountEl.style.borderColor = '#dc2626';
+      if (!date)   dateEl.style.borderColor   = '#dc2626';
+      errEl.textContent = 'Collection amount and date are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    // Dates must be in order: Collection ≤ Transfer ≤ Received ≤ Confirmation
+    // (empty ones are skipped). ISO yyyy-mm-dd strings compare correctly as text.
+    const seq = [
+      ['Collection Date',   date],
+      ['Transfer Date',     document.getElementById('pay-transfer-date').value],
+      ['Received Date',     document.getElementById('pay-received-date').value],
+      ['Confirmation Date', document.getElementById('pay-confirm-date').value],
+    ];
+    let prevD = null;
+    for (const [label, v] of seq) {
+      if (!v) continue;
+      if (prevD && v < prevD.v) {
+        errEl.textContent = `${label} cannot be before ${prevD.label}.`;
+        errEl.style.display = 'block';
+        return;
+      }
+      prevD = { label, v };
+    }
+    errEl.style.display = 'none';
+    const editPk = document.getElementById('pay-edit-pk').value;
+    const saveBtn = document.getElementById('pay-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const fd = new FormData();
+    fd.append('amount',                 amount);
+    fd.append('payment_date',           date);
+    fd.append('payment_mode_id',        document.getElementById('pay-mode').value);
+    fd.append('collection_currency_id', document.getElementById('pay-col-currency').value);
+    fd.append('transfer_date',          document.getElementById('pay-transfer-date').value);
+    fd.append('received_date',          document.getElementById('pay-received-date').value);
+    fd.append('received_currency_id',   document.getElementById('pay-recv-currency').value);
+    fd.append('received_amount',        document.getElementById('pay-received-amount').value);
+    fd.append('confirmation_date',      document.getElementById('pay-confirm-date').value);
+    fd.append('notes',                  document.getElementById('pay-notes').value.trim());
+    let data;
+    try {
+      if (editPk) {
+        fd.append('payment_pk', editPk);
+        data = await cdPost('{% url "payment_update" %}', fd);
+      } else {
+        fd.append('case_id', '{{ case.pk }}');
+        const fromInst = document.getElementById('pay-from-installment').value;
+        if (fromInst) fd.append('from_installment', fromInst);
+        data = await cdPost('{% url "payment_create_modal" %}', fd);
+      }
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fas fa-check"></i> Save';
+    }
+    if (data && data.success) {
+      closeModal('addPaymentModal');
+    } else {
+      errEl.textContent = (data && data.message) || 'Something went wrong — please try again.';
+      errEl.style.display = 'block';
+    }
+  }
+
+  // Move an installment into an actual payment (pre-fills the Add Payment modal)
+  function moveInstallmentToPayment(pk) {
+    const d = INSTALLMENTS_DATA[pk];
+    if (!d) { showToast('Installment data not found.', 'error'); return; }
+    resetPaymentModal();
+    setPayDateMin();
+    document.getElementById('pay-from-installment').value = pk;
+    document.getElementById('pay-amount').value = d.amount;
+    document.getElementById('pay-modal-title').textContent = 'Move to Payment';
+    document.getElementById('pay-modal-sub').textContent = 'Record the actual payment for this installment';
+    openModal('addPaymentModal');
+  }
+
+  async function deletePayment(payId, btn) {
+    if (!confirm('Delete this payment? This cannot be undone.')) return;
+    btn.disabled = true;
+    const fd = new FormData();
+    fd.append('ids[]', payId);
+    await cdPost('{% url "payment_delete" %}', fd);
+  }
+
+  async function submitFollowUp() {
+    const date = document.getElementById('fu-date').value;
+    if (!date) { showToast('Date is required.', 'error'); return; }
+    closeModal('addFollowUpModal');
+    const fd = new FormData();
+    fd.append('case_id',        '{{ case.pk }}');
+    fd.append('follow_up_type', document.getElementById('fu-type').value);
+    fd.append('follow_up_date', date);
+    fd.append('followed_by_id', document.getElementById('fu-by').value);
+    fd.append('notes',          document.getElementById('fu-notes').value.trim());
+    await cdPost('{% url "follow_up_create" %}', fd);
+  }
+
+  async function submitFile() {
+    const fileInput = document.getElementById('att-file');
+    if (!fileInput.files.length) { showToast('Please select a file.', 'error'); return; }
+    const btn = document.getElementById('att-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    closeModal('addFilesModal');
+    const fd = new FormData();
+    fd.append('case_id',            '{{ case.pk }}');
+    fd.append('file',               fileInput.files[0]);
+    fd.append('attachment_type_id', document.getElementById('att-type').value);
+    fd.append('description',        document.getElementById('att-description').value.trim());
+    await cdPost('{% url "case_attachment_upload" %}', fd);
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+  }
+
+  async function deleteAttachment(attId, btn) {
+    if (!confirm('Delete this attachment? This cannot be undone.')) return;
+    btn.disabled = true;
+    const fd = new FormData();
+    fd.append('id', attId);
+    await cdPost('{% url "case_attachment_delete" %}', fd);
+  }
+
+  // ── Financials form ──
+  const FIN_URL = '{% url "case_financials_update" case.pk %}';
+  const FIN_CURRENCIES = {
+    {% for c in currencies %}"{{ c.pk }}": { rate: {{ c.value }}, code: "{{ c.code }}" },{% endfor %}
+  };
+
+  function finConvert() {
+    const sel = document.getElementById('fini-currency');
+    const currId = sel ? sel.value : '';
+    const outstanding = parseFloat(document.getElementById('fini-outstanding').value) || 0;
+    const approved    = parseFloat(document.getElementById('fini-approved').value) || 0;
+    const discount    = parseFloat(document.getElementById('fini-discount').value) || 0;
+    let outOMR = outstanding, appOMR = approved, discOMR = discount;
+    if (currId && FIN_CURRENCIES[currId]) {
+      const rate = parseFloat(FIN_CURRENCIES[currId].rate);
+      if (rate && rate !== 0) { outOMR = outstanding / rate; appOMR = approved / rate; discOMR = discount / rate; }
+    }
+    document.getElementById('fini-outstanding-omr').value = outOMR.toFixed(3);
+    document.getElementById('fini-approved-omr').value    = appOMR.toFixed(3);
+    document.getElementById('fini-discount-omr').value    = discOMR.toFixed(3);
+    document.getElementById('fini-principal').value = outOMR.toFixed(3);
+  }
+
+  const FIN_EDITABLE_IDS = ['finv-currency','finv-outstanding','finv-outstanding-omr','finv-approved','finv-approved-omr','finv-principal','finv-discount','finv-discount-note','finv-discount-omr'];
+
+  function startFinEdit() {
+    FIN_EDITABLE_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    document.getElementById('fini-currency').style.display = '';
+    document.getElementById('fini-outstanding').style.display = '';
+    document.getElementById('fini-outstanding-omr').style.display = '';
+    document.getElementById('fini-approved').style.display = '';
+    document.getElementById('fini-approved-omr').style.display = '';
+    document.getElementById('fini-principal').style.display = '';
+    document.getElementById('fini-discount').style.display = '';
+    document.getElementById('fini-discount-note').style.display = '';
+    document.getElementById('fini-discount-omr').style.display = '';
+    document.getElementById('finEditBtn').style.display = 'none';
+    document.getElementById('finSaveBtn').style.display = '';
+    document.getElementById('finCancelBtn').style.display = '';
+    finConvert();
+  }
+
+  function cancelFinEdit() {
+    FIN_EDITABLE_IDS.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+    ['fini-currency','fini-outstanding','fini-outstanding-omr','fini-approved','fini-approved-omr',
+     'fini-principal','fini-discount','fini-discount-note','fini-discount-omr'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.style.display = 'none';
+    });
+    document.getElementById('finEditBtn').style.display = '';
+    document.getElementById('finSaveBtn').style.display = 'none';
+    document.getElementById('finCancelBtn').style.display = 'none';
+  }
+
+  function toggleFinBody() {
+    const body = document.getElementById('finCardBody');
+    const icon = document.getElementById('finCollapseIcon');
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      icon.className = 'fas fa-chevron-down';
+    } else {
+      body.style.display = 'none';
+      icon.className = 'fas fa-chevron-right';
+    }
+  }
+
+  // Collected total in OMR — fixed while on this page; used to recompute
+  // Remaining client-side after a save so no reload is needed.
+  const FIN_TOTAL_PAYMENT_OMR = parseFloat('{{ fin_total_payment_omr|floatformat:3 }}') || 0;
+
+  async function saveFinancials() {
+    const approved = document.getElementById('fini-approved').value.trim();
+    if (!approved) { showToast('Total Approved Amount is required.', 'error'); return; }
+    const fd = new FormData();
+    fd.append('currency_id',      document.getElementById('fini-currency').value);
+    fd.append('approved_amount',  approved);
+    fd.append('principal_amount', document.getElementById('fini-principal').value.trim());
+    const discountVal = document.getElementById('fini-discount').value.trim();
+    fd.append('discount_amount',  discountVal || '0');
+    fd.append('discount_given',   (parseFloat(discountVal) || 0) > 0 ? '1' : '0');
+    fd.append('discount_note',    document.getElementById('fini-discount-note').value.trim());
+    const res  = await fetch(FIN_URL, { method: 'POST', headers: { 'X-CSRFToken': CSRF }, body: fd });
+    const data = await res.json();
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (!data.success) return;
+
+    // Update the displayed values in place instead of reloading the page.
+    const currId  = document.getElementById('fini-currency').value;
+    const curr    = FIN_CURRENCIES[currId];
+    const rate    = (curr && parseFloat(curr.rate)) ? parseFloat(curr.rate) : 1;
+    const app     = parseFloat(approved) || 0;
+    const appOMR  = app / rate;
+    const remOMR  = appOMR - FIN_TOTAL_PAYMENT_OMR;
+    const rem     = remOMR * rate;
+    const setTxt  = (id, v) => { const el = document.getElementById(id); if (el) { el.textContent = v; el.classList.remove('empty'); } };
+    setTxt('finv-currency',        curr ? curr.code : '—');
+    setTxt('finv-outstanding',     app.toFixed(3));
+    setTxt('finv-approved',        app.toFixed(3));
+    setTxt('finv-outstanding-omr', appOMR.toFixed(3));
+    setTxt('finv-approved-omr',    appOMR.toFixed(3));
+    setTxt('finv-principal',       (parseFloat(document.getElementById('fini-principal').value) || 0).toFixed(3));
+    const disc = parseFloat(discountVal) || 0;
+    setTxt('finv-discount',        disc.toFixed(3));
+    setTxt('finv-discount-omr',    (disc / rate).toFixed(3));
+    setTxt('finv-discount-note',   document.getElementById('fini-discount-note').value.trim() || '—');
+    setTxt('finv-remaining',       rem.toFixed(3));
+    setTxt('finv-remaining-omr',   remOMR.toFixed(3));
+    const bar = document.getElementById('instRemainingBar');
+    if (bar) bar.innerHTML = rem.toFixed(3) + (curr ? ' ' + curr.code : '') + ' <em>(' + remOMR.toFixed(3) + ' OMR)</em>';
+    INST_REMAINING = rem;
+    updateInstLeftBar();
+    cancelFinEdit();
+  }
+
+  // Remaining amount available to split into installments (case currency)
+  let INST_REMAINING = parseFloat('{{ fin_remaining|floatformat:3 }}') || 0;
+  const INST_SCHEDULED = parseFloat('{{ installments_total|floatformat:3 }}') || 0;
+  const INST_CCY = '{{ case.currency.code|default:"" }}';
+
+  function fmtInst(v) {
+    return (v).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + (INST_CCY ? ' ' + INST_CCY : '');
+  }
+
+  // "Left to Allocate" shown above the installments table = remaining − already scheduled
+  function updateInstLeftBar() {
+    const el = document.getElementById('instLeftToAllocate');
+    if (!el) return;
+    const left = INST_REMAINING - INST_SCHEDULED;
+    el.textContent = fmtInst(left);
+    el.style.color = left < 0 ? '#dc2626' : '#059669';
+  }
+
+  function openInstallmentModal() {
+    // reset to a single blank row each time
+    const container = document.getElementById('installment-rows');
+    container.innerHTML = installmentRowHTML();
+    recalcInstAlloc();
+    openModal('createInstallmentModal');
+  }
+
+  // Live tracker inside the modal: subtract entered amounts from what's available
+  function recalcInstAlloc() {
+    const available = INST_REMAINING - INST_SCHEDULED;
+    let entered = 0;
+    document.querySelectorAll('#installment-rows .inst-amount').forEach(i => { entered += parseFloat(i.value) || 0; });
+    const left = available - entered;
+    document.getElementById('instAllocBase').textContent    = fmtInst(available);
+    document.getElementById('instAllocEntered').textContent = fmtInst(entered);
+    const leftEl = document.getElementById('instAllocLeft');
+    leftEl.textContent = fmtInst(left);
+    leftEl.style.color = left < 0 ? '#dc2626' : '#059669';
+    // Once nothing is left to allocate, disable "Add another installment"
+    const addBtn = document.querySelector('#createInstallmentModal .inst-add-btn');
+    if (addBtn) {
+      const noneLeft = left <= 0;
+      addBtn.disabled = noneLeft;
+      addBtn.title = noneLeft ? 'Remaining amount fully allocated' : '';
+    }
+  }
+
+  // Markup for one installment row (inner contents of .installment-row)
+  function installmentRowInner() {
+    return `
+      <input type="number" class="mo-input inst-amount" placeholder="0.000" step="0.001" min="0" oninput="recalcInstAlloc()">
+      <input type="date" class="mo-input inst-date">
+      <select class="mo-input inst-method">
+        <option value="direct">Direct</option>
+        <option value="check">Check</option>
+        <option value="promise">Promise</option>
+      </select>
+      <input type="text" class="mo-input inst-check" placeholder="Check #">
+      <button type="button" class="inst-row-del" onclick="removeInstallmentRow(this)" title="Remove row"><i class="fas fa-times"></i></button>`;
+  }
+  function installmentRowHTML() {
+    return `<div class="installment-row">${installmentRowInner()}</div>`;
+  }
+
+  function addInstallmentRow() {
+    const container = document.getElementById('installment-rows');
+    const row = document.createElement('div');
+    row.className = 'installment-row';
+    row.innerHTML = installmentRowInner();
+    container.appendChild(row);
+    row.querySelector('.inst-amount').focus();
+    recalcInstAlloc();
+  }
+
+  function removeInstallmentRow(btn) {
+    const rows = document.querySelectorAll('#installment-rows .installment-row');
+    if (rows.length <= 1) {
+      // keep at least one row — just clear it
+      const r = btn.closest('.installment-row');
+      r.querySelector('.inst-amount').value = '';
+      r.querySelector('.inst-date').value = '';
+      r.querySelector('.inst-check').value = '';
+      r.querySelector('.inst-method').value = 'direct';
+    } else {
+      btn.closest('.installment-row').remove();
+    }
+    recalcInstAlloc();
+  }
+
+  // ── Edit a single installment ──
+  function openEditInstallment(pk) {
+    const d = INSTALLMENTS_DATA[pk];
+    if (!d) { showToast('Installment data not found.', 'error'); return; }
+    document.getElementById('edit-inst-pk').value     = pk;
+    document.getElementById('edit-inst-amount').value = d.amount;
+    document.getElementById('edit-inst-date').value   = d.date;
+    document.getElementById('edit-inst-method').value = d.method || 'direct';
+    document.getElementById('edit-inst-check').value  = d.check || '';
+    document.getElementById('edit-inst-status').value = d.status || 'pending';
+    openModal('editInstallmentModal');
+  }
+
+  async function submitInstallmentEdit() {
+    const amount = document.getElementById('edit-inst-amount').value.trim();
+    const date   = document.getElementById('edit-inst-date').value.trim();
+    if (!amount || parseFloat(amount) <= 0 || !date) {
+      showToast('A valid amount and date are required.', 'error'); return;
+    }
+    closeModal('editInstallmentModal');
+    const fd = new FormData();
+    fd.append('payment_pk',     document.getElementById('edit-inst-pk').value);
+    fd.append('amount',         amount);
+    fd.append('payment_date',   date);
+    fd.append('payment_method', document.getElementById('edit-inst-method').value);
+    fd.append('cheque_number',  document.getElementById('edit-inst-check').value.trim());
+    fd.append('status',         document.getElementById('edit-inst-status').value);
+    await cdPost('{% url "installment_update" %}', fd);
+  }
+
+  async function submitInstallments() {
+    const amounts = [...document.querySelectorAll('#installment-rows .inst-amount')].map(i => i.value.trim());
+    const dates   = [...document.querySelectorAll('#installment-rows .inst-date')].map(i => i.value.trim());
+    const checks  = [...document.querySelectorAll('#installment-rows .inst-check')].map(i => i.value.trim());
+    const methods = [...document.querySelectorAll('#installment-rows .inst-method')].map(i => i.value);
+    if (amounts.some(a => !a || parseFloat(a) <= 0) || dates.some(d => !d)) {
+      showToast('All rows need a valid amount and date.', 'error'); return;
+    }
+    closeModal('createInstallmentModal');
+    const fd = new FormData();
+    fd.append('case_id', '{{ case.pk }}');
+    amounts.forEach(a => fd.append('amounts', a));
+    dates.forEach(d => fd.append('dates', d));
+    checks.forEach(c => fd.append('checks', c));
+    methods.forEach(m => fd.append('methods', m));
+    await cdPost('{% url "installment_bulk_create" %}', fd);
+  }
+
+  // Deep-link: /cases/<pk>/?open=payment|followup|reminder auto-opens that
+  // modal (used by the Case Group page's per-case Actions menu).
+  (function () {
+    const open = new URLSearchParams(window.location.search).get('open');
+    if (!open) return;
+    if (open === 'payment') openAddPayment();
+    else if (open === 'followup') openModal('addFollowUpModal');
+    else if (open === 'reminder') openModal('addReminderModal');
+  })();
+</script>
+{% endblock %}

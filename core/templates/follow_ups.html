@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+
+{% block title %}Follow Ups{% endblock %}
+
+{% block extra_styles %}
+  .filter-panel { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; }
+  .filter-input:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 22px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  .panel-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .panel-title-bar h3 { font-size: 17px; font-weight: 700; }
+  .show-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .show-select select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; }
+  .fu-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .fu-toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .col-picker { position: relative; }
+  .col-picker-btn { background: white; color: var(--text-dark); border: 1.5px solid var(--border); padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .col-picker-btn:hover { border-color: var(--primary); color: var(--primary); }
+  .col-menu { display: none; position: absolute; right: 0; top: calc(100% + 6px); background: white; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 10px 0; min-width: 190px; z-index: 500; max-height: 320px; overflow-y: auto; }
+  .col-menu.open { display: block; }
+  .col-menu label { display: flex; align-items: center; gap: 9px; padding: 7px 16px; font-size: 13px; cursor: pointer; color: var(--text-dark); user-select: none; }
+  .col-menu label:hover { background: #f8fafc; }
+  .col-menu input { cursor: pointer; }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: #1a56db; }
+  th.sortable .sort-ic { margin-left: 5px; opacity: 0.5; font-size: 10px; }
+  th.sortable.asc .sort-ic, th.sortable.desc .sort-ic { opacity: 1; }
+
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-yes { background: #d1fae5; color: #065f46; }
+  .badge-no { background: #f1f5f9; color: #64748b; }
+  .badge-type { background: #ede9fe; color: #5b21b6; }
+
+  .status-bar-cell { display: flex; align-items: center; gap: 8px; }
+  .status-bar { width: 4px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+  .status-bar.active { background: #22c55e; }
+  .status-bar.contactable { background: #f59e0b; }
+  .status-bar.broken_promise { background: #ef4444; }
+  .status-bar.closed_by_client { background: #ef4444; }
+  .status-bar.closed { background: #94a3b8; }
+  .status-bar-label { font-size: 12px; font-weight: 600; }
+  .status-bar-label.active { color: #16a34a; }
+  .status-bar-label.contactable { color: #d97706; }
+  .status-bar-label.broken_promise { color: #dc2626; }
+  .status-bar-label.closed_by_client { color: #dc2626; }
+  .status-bar-label.closed { color: #64748b; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 560px; width: 94%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  @keyframes modalIn { from { transform: scale(0.93); opacity:0; } to { transform: scale(1); opacity:1; } }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .modal-header h3 { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; }
+  .modal-close:hover { background: #f1f5f9; }
+  .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
+  .modal-field { display: flex; flex-direction: column; gap: 5px; }
+  .modal-field.full { grid-column: 1 / -1; }
+  .modal-field label { font-size: 12px; font-weight: 600; color: var(--text-dark); text-transform: uppercase; letter-spacing: 0.3px; }
+  .modal-input { padding: 9px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; box-sizing: border-box; }
+  .modal-input:focus { border-color: var(--primary); }
+  .modal-input.error { border-color: #dc2626; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel-sm { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 9px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Cases <span>— Follow Ups</span></div>
+      <div class="breadcrumb-sub">{{ follow_ups|length }} follow up(s)</div>
+    </div>
+    <div>
+      <button class="btn-primary" onclick="document.getElementById('addFuModal').classList.add('show')">
+        <i class="fas fa-plus"></i> Add Follow Up
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-panel-title"><i class="fas fa-filter"></i> Filter Follow Ups</div>
+    <form method="get">
+      <div class="filter-grid">
+        <div class="filter-group">
+          <label>Collector</label>
+          <select name="collector" class="filter-input">
+            <option value="">All Collectors</option>
+            {% for u in all_users %}
+            <option value="{{ u.id }}" {% if filter_collector == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Debtor</label>
+          <select name="debtor" class="filter-input">
+            <option value="">All Debtors</option>
+            {% for d in all_debtors %}
+            <option value="{{ d.id }}" {% if filter_debtor == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Client</label>
+          <select name="client" class="filter-input">
+            <option value="">All Clients</option>
+            {% for c in all_clients %}
+            <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Follow Up Type</label>
+          <select name="follow_up_type" class="filter-input">
+            <option value="">All Types</option>
+            {% for val, label in type_choices %}
+            <option value="{{ val }}" {% if filter_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Is Legal</label>
+          <select name="is_legal" class="filter-input">
+            <option value="">All</option>
+            <option value="1" {% if filter_is_legal == '1' %}selected{% endif %}>Yes</option>
+            <option value="0" {% if filter_is_legal == '0' %}selected{% endif %}>No</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Follow Up Date</label>
+          <input type="date" name="follow_up_date" class="filter-input" value="{{ filter_date }}">
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> Submit</button>
+        <a href="{% url 'follow_ups' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> Reset</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="data-card">
+    <div class="panel-title-bar">
+      <h3>Follow Ups</h3>
+    </div>
+
+    <div class="fu-toolbar">
+      <div class="fu-toolbar-left">
+        <div class="filter-search-box" style="min-width:280px; max-width:360px;">
+          <i class="fas fa-search"></i>
+          <input type="text" id="fuSearch" placeholder="Search by case, client, debtor..." autocomplete="off" oninput="fuLiveSearch(this.value)">
+        </div>
+        <div class="show-select">Show: <select id="fuPageSize" onchange="_fuCurrentPage=1;fuApplyAll()"><option>10</option><option>50</option><option>100</option><option>All</option></select></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" onclick="copyFuTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+            <a class="exp-excel" href="#" onclick="this.href = fuExportUrl('excel')"><i class="fas fa-file-excel"></i> Excel</a>
+            <a class="exp-pdf" href="#" onclick="this.href = fuExportUrl('pdf')"><i class="fas fa-file-pdf"></i> PDF</a>
+          </div>
+        </div>
+        <div class="col-picker">
+          <button type="button" class="col-picker-btn" onclick="toggleColMenu(event)"><i class="fas fa-table-columns"></i> Columns <i class="fas fa-chevron-down" style="font-size:10px;"></i></button>
+          <div class="col-menu" id="fuColMenu"></div>
+        </div>
+      </div>
+    </div>
+
+    {% if follow_ups %}
+    <table class="data-table" id="fuTable">
+      <thead>
+        <tr>
+          <th class="sortable" onclick="fuSortCol(0)">Case ID <i class="fas fa-sort sort-ic"></i></th>
+          <th class="sortable" onclick="fuSortCol(1)">Client <i class="fas fa-sort sort-ic"></i></th>
+          <th class="sortable" onclick="fuSortCol(2)">Debtor <i class="fas fa-sort sort-ic"></i></th>
+          <th>A/C No</th>
+          <th class="sortable" onclick="fuSortCol(4)">Date <i class="fas fa-sort sort-ic"></i></th>
+          <th>Type</th>
+          <th>Is Legal</th>
+          <th class="sortable" onclick="fuSortCol(7)">Followed By <i class="fas fa-sort sort-ic"></i></th>
+          <th class="sortable" onclick="fuSortCol(8)">Case Status <i class="fas fa-sort sort-ic"></i></th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fu in follow_ups %}
+        <tr>
+          <td><a href="{% url 'case_detail' fu.case.pk %}" class="clickable" style="font-size:12px;">{{ fu.case.case_id }}</a></td>
+          <td><span class="clickable">{{ fu.case.client.name }}</span></td>
+          <td><a href="{% url 'debtor_detail' fu.case.debtor.pk %}" class="clickable">{{ fu.case.debtor.name }}</a></td>
+          <td>{{ fu.case.account_no|default:"—" }}</td>
+          <td>{{ fu.follow_up_date|date:"d-M-Y" }}</td>
+          <td><span class="badge badge-type">{{ fu.get_follow_up_type_display }}</span></td>
+          <td>
+            {% if fu.is_legal %}
+              <span class="badge badge-yes">Yes</span>
+            {% else %}
+              <span class="badge badge-no">No</span>
+            {% endif %}
+          </td>
+          <td>{% if fu.followed_by %}{{ fu.followed_by.get_full_name|default:fu.followed_by.username }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+          <td>
+            <div class="status-bar-cell">
+              <div class="status-bar {{ fu.case_status }}"></div>
+              <span class="status-bar-label {{ fu.case_status }}">{{ fu.get_case_status_display }}</span>
+            </div>
+          </td>
+          <td style="max-width:260px; min-width:180px; white-space:pre-line; color:var(--text-muted); font-size:12px; line-height:1.5;" title="{{ fu.notes|default:'' }}">{{ fu.notes|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="table-footer">
+      <span id="fuPageInfo" class="page-info"></span>
+      <div id="fuPageNav" class="page-nav"></div>
+    </div>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-gem"></i>
+        <p>No follow ups found. Adjust the filters above or add a new follow up.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Add Follow Up Modal -->
+  <div class="modal-overlay" id="addFuModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3><i class="fas fa-phone-volume" style="color:var(--primary);"></i> Add Follow Up</h3>
+        <button class="modal-close" onclick="document.getElementById('addFuModal').classList.remove('show')">&times;</button>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Case <span style="color:#dc2626;">*</span></label>
+          <select id="fu-case" class="modal-input">
+            <option value="">— Select Case —</option>
+            {% for c in all_cases %}
+            <option value="{{ c.id }}">{{ c.case_id }} — {{ c.debtor.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Date <span style="color:#dc2626;">*</span></label>
+          <input type="date" id="fu-date" class="modal-input">
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Type</label>
+          <select id="fu-type" class="modal-input">
+            <option value="">— Select Type —</option>
+            {% for val, label in followup_type_options %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Followed By</label>
+          <select id="fu-followed-by" class="modal-input">
+            <option value="">— None —</option>
+            {% for u in all_users %}
+            <option value="{{ u.id }}">{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field">
+          <label>Case Status</label>
+          <select id="fu-case-status" class="modal-input">
+            {% for val, label in status_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Is Legal?</label>
+          <select id="fu-is-legal" class="modal-input">
+            <option value="0">No</option>
+            <option value="1">Yes</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-row">
+        <div class="modal-field full">
+          <label>Notes</label>
+          <textarea id="fu-notes" class="modal-input" rows="3" placeholder="Add notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel-sm" onclick="document.getElementById('addFuModal').classList.remove('show')">Cancel</button>
+        <button class="btn-primary" id="fu-submit-btn" onclick="submitFollowUp()">
+          <i class="fas fa-paper-plane"></i> Save Follow Up
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const csrfToken = '{{ csrf_token }}';
+
+  // ── Live search & sort ──
+  let _fuQ = '';
+  let _fuCurrentPage = 1;
+
+  function fuLiveSearch(q) {
+    _fuQ = q.trim().toLowerCase();
+    _fuCurrentPage = 1;
+    fuApplyAll();
+  }
+
+  function fuApplyAll() {
+    const tbody = document.querySelector('#fuTable tbody');
+    if (!tbody) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    allRows.forEach(row => {
+      const text = Array.from(row.cells).map(c => c.textContent.trim().toLowerCase()).join(' ');
+      row._matches = !_fuQ || text.includes(_fuQ);
+    });
+    _fuRenderPage(allRows);
+  }
+
+  function _fuRenderPage(allRows) {
+    const sel = document.getElementById('fuPageSize') || document.getElementById('pageSize');
+    const perPage = sel && sel.value === 'All' ? Infinity : parseInt(sel ? sel.value : 10);
+    const total = allRows.filter(r => r._matches !== false).length;
+    const totalPages = perPage === Infinity ? 1 : Math.max(1, Math.ceil(total / perPage));
+    if (_fuCurrentPage > totalPages) _fuCurrentPage = 1;
+    const start = (_fuCurrentPage - 1) * (perPage === Infinity ? 0 : perPage);
+    const end = perPage === Infinity ? total : start + perPage;
+    let idx = 0;
+    allRows.forEach(row => {
+      if (!row._matches) { row.style.display = 'none'; return; }
+      row.style.display = (idx >= start && idx < end) ? '' : 'none';
+      idx++;
+    });
+    const info = document.getElementById('fuPageInfo');
+    const nav = document.getElementById('fuPageNav');
+    const from = total === 0 ? 0 : start + 1;
+    const to = Math.min(end, total);
+    if (info) info.textContent = total === 0 ? 'No entries found' : `Showing ${from} to ${to} of ${total} entries`;
+    if (nav) _fuBuildPageNav(nav, totalPages);
+  }
+
+  function _fuBuildPageNav(nav, totalPages) {
+    nav.innerHTML = '';
+    const mk = (lbl, pg, dis, act) => {
+      const b = document.createElement('button');
+      b.innerHTML = lbl; b.className = 'pg-btn' + (act ? ' active' : '') + (dis ? ' disabled' : '');
+      b.disabled = dis;
+      if (!dis) b.onclick = () => { _fuCurrentPage = pg; fuApplyAll(); };
+      return b;
+    };
+    nav.appendChild(mk('&laquo;', _fuCurrentPage - 1, _fuCurrentPage <= 1, false));
+    let pages;
+    if (totalPages <= 7) { pages = Array.from({length: totalPages}, (_, i) => i + 1); }
+    else {
+      pages = [1];
+      if (_fuCurrentPage > 3) pages.push('…');
+      for (let i = Math.max(2, _fuCurrentPage - 1); i <= Math.min(totalPages - 1, _fuCurrentPage + 1); i++) pages.push(i);
+      if (_fuCurrentPage < totalPages - 2) pages.push('…');
+      pages.push(totalPages);
+    }
+    pages.forEach(p => {
+      if (p === '…') { const s = document.createElement('span'); s.textContent = '…'; s.className = 'pg-ellipsis'; nav.appendChild(s); }
+      else nav.appendChild(mk(p, p, false, p === _fuCurrentPage));
+    });
+    nav.appendChild(mk('&raquo;', _fuCurrentPage + 1, _fuCurrentPage >= totalPages, false));
+  }
+
+  function fuSortCol(col) {
+    const tbl = document.getElementById('fuTable');
+    if (!tbl) return;
+    const tbody = tbl.querySelector('tbody');
+    const ths = tbl.querySelectorAll('th.sortable');
+    let next = 'asc';
+    ths.forEach(th => {
+      const c = parseInt((th.getAttribute('onclick') || '').match(/\d+/)?.[0] ?? -1);
+      if (c === col) { next = th.classList.contains('asc') ? 'desc' : 'asc'; th.classList.toggle('asc', next==='asc'); th.classList.toggle('desc', next==='desc'); }
+      else th.classList.remove('asc','desc');
+    });
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const va = (a.cells[col]||{}).textContent?.trim()||'';
+      const vb = (b.cells[col]||{}).textContent?.trim()||'';
+      const na = parseFloat(va.replace(/[^0-9.-]/g,'')), nb = parseFloat(vb.replace(/[^0-9.-]/g,''));
+      const cmp = (!isNaN(na)&&!isNaN(nb)) ? na-nb : va.localeCompare(vb);
+      return next==='asc' ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    fuApplyAll();
+  }
+
+  fuApplyAll();
+  // ── End live search ──
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  document.getElementById('addFuModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+  });
+
+  async function submitFollowUp() {
+    const caseEl = document.getElementById('fu-case');
+    const dateEl = document.getElementById('fu-date');
+    let valid = true;
+    if (!caseEl.value) { caseEl.classList.add('error'); valid = false; } else caseEl.classList.remove('error');
+    if (!dateEl.value) { dateEl.classList.add('error'); valid = false; } else dateEl.classList.remove('error');
+    if (!valid) { showToast('Case and date are required.', 'error'); return; }
+
+    const btn = document.getElementById('fu-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const fd = new FormData();
+    fd.append('case_id', caseEl.value);
+    fd.append('follow_up_date', dateEl.value);
+    fd.append('follow_up_type', document.getElementById('fu-type').value);
+    fd.append('followed_by_id', document.getElementById('fu-followed-by').value);
+    fd.append('case_status', document.getElementById('fu-case-status').value);
+    fd.append('is_legal', document.getElementById('fu-is-legal').value);
+    fd.append('notes', document.getElementById('fu-notes').value);
+    try {
+      const res = await fetch('{% url "follow_up_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      if (data.success) {
+        document.getElementById('addFuModal').classList.remove('show');
+        showToast(data.message);
+        setTimeout(() => { location.href = '{% url "follow_ups" %}'; }, 900);
+      } else { showToast(data.message, 'error'); }
+    } catch { showToast('Network error.', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Save Follow Up'; }
+  }
+
+  // Export honours the filter query string + the column picker
+  // (this table's column order matches the export's, 0..9).
+  function fuExportUrl(fmt) {
+    const base = fmt === 'excel'
+      ? "{% url 'follow_up_export' 'excel' %}"
+      : "{% url 'follow_up_export' 'pdf' %}";
+    const params = new URLSearchParams(window.location.search);
+    params.delete('cols');
+    const hidden = _hiddenCols();
+    const visible = [];
+    for (let c = 0; c <= 9; c++) { if (!hidden.includes(c)) visible.push(c); }
+    if (visible.length < 10) params.set('cols', visible.join(','));
+    return base + '?' + params.toString();
+  }
+
+  function copyFuTable() {
+    const rows = document.querySelectorAll('#fuTable tr');
+    const text = Array.from(rows).map(row =>
+      Array.from(row.querySelectorAll('th, td')).map(c => c.textContent.trim()).join('\t')
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ── Column visibility picker (persisted per browser) ──
+  const COL_STORE_KEY = 'fuHiddenCols';
+
+  function _hiddenCols() {
+    try { return JSON.parse(localStorage.getItem(COL_STORE_KEY)) || []; } catch { return []; }
+  }
+
+  function _applyHiddenCols(hidden) {
+    const table = document.getElementById('fuTable');
+    if (!table) return;
+    table.querySelectorAll('tr').forEach(tr => {
+      Array.from(tr.cells).forEach((cell, i) => {
+        cell.style.display = hidden.includes(i) ? 'none' : '';
+      });
+    });
+  }
+
+  function buildColMenu() {
+    const menu = document.getElementById('fuColMenu');
+    const table = document.getElementById('fuTable');
+    if (!menu || !table) return;
+    const hidden = _hiddenCols();
+    menu.innerHTML = Array.from(table.querySelectorAll('thead th')).map((th, col) => {
+      const name = th.textContent.trim();
+      return `<label><input type="checkbox" ${hidden.includes(col) ? '' : 'checked'} onchange="toggleColumn(${col}, this.checked)"> ${name}</label>`;
+    }).join('');
+    _applyHiddenCols(hidden);
+  }
+
+  function toggleColumn(col, visible) {
+    let hidden = _hiddenCols();
+    hidden = visible ? hidden.filter(c => c !== col) : [...new Set([...hidden, col])];
+    localStorage.setItem(COL_STORE_KEY, JSON.stringify(hidden));
+    _applyHiddenCols(hidden);
+  }
+
+  function toggleColMenu(e) {
+    e.stopPropagation();
+    document.getElementById('fuColMenu').classList.toggle('open');
+  }
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.col-picker')) {
+      const m = document.getElementById('fuColMenu');
+      if (m) m.classList.remove('open');
+    }
+  });
+
+  buildColMenu();
+</script>
+{% endblock %}

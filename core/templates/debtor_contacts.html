@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+{% load core_filters %}
+{% block title %}Debtor Contacts{% endblock %}
+
+{% block extra_styles %}
+  .search-card { background: white; border-radius: 14px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 5px rgba(0,0,0,0.06); border: 1px solid #f1f5f9; }
+  .search-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: #0f172a; }
+  .search-grid { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: stretch; }
+  .s-iw { position: relative; }
+  .s-iw i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; pointer-events: none; }
+  .s-iw input, .s-iw select { width: 100%; padding: 10px 12px 10px 36px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; background: white; box-sizing: border-box; }
+  .s-iw input:focus, .s-iw select:focus { border-color: var(--primary); }
+  .search-btn { background: var(--primary); color: white; padding: 10px 26px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 13px; letter-spacing: 0.04em; }
+  .search-btn:hover { filter: brightness(1.08); }
+
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: #1a56db; }
+  th.sortable .sort-ic { margin-left: 5px; opacity: 0.5; font-size: 10px; }
+  th.sortable.asc .sort-ic, th.sortable.desc .sort-ic { opacity: 1; }
+
+  .card-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 15px; font-weight: 700; color: #0f172a; }
+
+  .tbl-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .tbl-filter-wrap { position: relative; flex: 1; max-width: 320px; }
+  .tbl-filter-wrap i { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; pointer-events: none; }
+  .tbl-filter-wrap input { width: 100%; padding: 9px 34px 9px 13px; border: 1.5px solid var(--primary); border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; }
+  .tbl-right { display: flex; align-items: center; gap: 8px; }
+  .show-lbl { font-size: 13px; color: var(--text-muted); }
+  .show-sel { padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; cursor: pointer; }
+
+
+  .badge.enabled  { background: #d1fae5; color: #059669; }
+  .badge.disabled { background: #fee2e2; color: #dc2626; }
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+
+  .btn-group { display: flex; gap: 10px; }
+  .btn-danger { background: #dc2626; color: white; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; font-size: 13px; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 30px; max-width: 480px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .modal h3 i { color: #dc2626; font-size: 22px; }
+  .modal p { color: var(--text-muted); margin-bottom: 22px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  .ac-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.48); z-index: 1000; align-items: center; justify-content: center; }
+  .ac-overlay.show { display: flex; }
+  .ac-modal { background: white; border-radius: 12px; padding: 28px 30px 24px; width: 100%; max-width: 580px; box-shadow: 0 20px 60px rgba(0,0,0,0.22); animation: acIn 0.18s; }
+  @keyframes acIn { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .ac-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+  .ac-header h3 { font-size: 17px; font-weight: 700; color: var(--text-dark); }
+  .ac-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .ac-close:hover { background: #f1f5f9; }
+  .ac-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 16px; }
+  .ac-group { display: flex; flex-direction: column; gap: 6px; }
+  .ac-group label { font-size: 13px; color: var(--text-dark); font-weight: 500; }
+  .ac-input { padding: 10px 13px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); width: 100%; box-sizing: border-box; transition: border-color 0.2s; }
+  .ac-input:focus { border-color: var(--primary); }
+  .ac-input.error { border-color: #dc2626; }
+  .ac-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+  .btn-submit { background: var(--primary); color: white; border: none; padding: 10px 26px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-submit:hover { filter: brightness(1.1); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; z-index: 1100; font-size: 14px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error   { background: #dc2626; }
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">Debtors <span>— Debtor Contacts</span></div>
+    <div class="breadcrumb-sub"><span id="selectedCount">0</span> of {{ contacts|length }} selected</div>
+  </div>
+  <div class="btn-group">
+    <button class="btn-primary" onclick="openAddContact()"><i class="fas fa-plus"></i> Add Contacts</button>
+    {% if request.user.is_superuser %}
+    <button id="deleteBtn" class="btn-danger" disabled onclick="openDeleteModal()"><i class="fas fa-trash"></i> Delete</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Search Card -->
+<div class="search-card">
+  <h3>Search Results</h3>
+  <form method="get">
+    <div class="search-grid">
+      <div class="s-iw">
+        <i class="fas fa-user"></i>
+        <input type="text" name="filter" value="{{ filter_q }}" placeholder="Enter Contact Name">
+      </div>
+      <div class="s-iw">
+        <i class="fas fa-envelope"></i>
+        <input type="email" name="email" value="{{ email_q|default:'' }}" placeholder="Enter Email Address">
+      </div>
+      <div class="s-iw">
+        <i class="fas fa-user-tag"></i>
+        <select name="debtor">
+          <option value="">All Debtors</option>
+          {% for d in all_debtors %}
+            <option value="{{ d.id }}" {% if selected_debtor == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="search-btn">SEARCH</button>
+    </div>
+  </form>
+</div>
+
+<!-- Contacts Table Card -->
+<div class="data-card">
+  <div class="card-title-row">
+    <span class="card-title">Debtors Contacts</span>
+  </div>
+
+  <div class="tbl-toolbar">
+    <div class="tbl-filter-wrap">
+      <input type="text" id="quickFilter" placeholder="Type to filter...">
+      <i class="fas fa-search"></i>
+    </div>
+    <div class="tbl-right">
+      <span class="show-lbl">Show:</span>
+      <select class="show-sel" id="pageSize" onchange="_currentPage=1;dcApplyFilter()">
+        <option>10</option><option>50</option><option>100</option><option>All</option>
+      </select>
+      {% if request.user.is_superuser %}
+      <div class="export-dropdown">
+        <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+        <div class="export-drop-menu">
+          <button class="exp-copy" onclick="copyTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+          <a class="exp-excel" href="{% url 'debtor_contact_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
+          <a class="exp-pdf" href="{% url 'debtor_contact_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if contacts %}
+  <table class="data-table" id="contactsTable">
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="selectAll"></th>
+        <th style="width:48px;">#</th>
+        <th class="sortable" onclick="sortCol(this)">Contact Name <i class="fas fa-sort sort-ic"></i></th>
+        <th class="sortable" onclick="sortCol(this)">Contact Type <i class="fas fa-sort sort-ic"></i></th>
+        <th class="sortable" onclick="sortCol(this)">Debtor <i class="fas fa-sort sort-ic"></i></th>
+        <th class="sortable" onclick="sortCol(this)">Email <i class="fas fa-sort sort-ic"></i></th>
+        <th class="sortable" onclick="sortCol(this)">Phone <i class="fas fa-sort sort-ic"></i></th>
+        <th class="sortable" onclick="sortCol(this)">Date Created <i class="fas fa-sort sort-ic"></i></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contacts %}
+      <tr data-id="{{ c.id }}">
+        <td><input type="checkbox" class="row-checkbox" value="{{ c.id }}"></td>
+        <td style="color:var(--text-muted);">{{ forloop.counter }}</td>
+        <td>
+          {{ c.name }}
+          <span class="badge {% if c.enabled %}enabled{% else %}disabled{% endif %}" style="margin-left:6px;">{% if c.enabled %}Enabled{% else %}Disabled{% endif %}</span>
+        </td>
+        <td>{{ c.get_contact_type_display }}</td>
+        <td><a href="{% url 'debtor_detail' c.debtor.pk %}" class="clickable">{{ c.debtor.name }}</a></td>
+        <td>{{ c.email|default:"—" }}</td>
+        <td>{{ c.phone|default:"—" }}</td>
+        <td>{{ c.created_at|date:"d-M-Y" }}</td>
+        <td class="actions">
+          {% if request.user.is_superuser %}
+          <div style="position:relative;display:inline-block;">
+            <button class="row-action-btn" onclick="toggleCtxMenu(this)"><i class="fas fa-ellipsis-v"></i></button>
+            <div class="row-ctx-menu">
+              <div class="ctx-item danger" onclick="quickDelete({{ c.id }})"><i class="fas fa-trash"></i> Delete</div>
+            </div>
+          </div>
+          {% else %}
+          <span style="color:var(--text-muted);">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="tbl-total-row">
+        <td colspan="9">Total: <span id="dcTotalCount">{{ contacts|length }}</span> contacts</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div class="table-footer">
+    <span id="dcPageInfo" class="page-info"></span>
+    <div id="dcPageNav" class="page-nav"></div>
+  </div>
+  {% else %}
+  <div class="empty-state"><i class="fas fa-id-card"></i><p>No debtor contacts found.</p></div>
+  {% endif %}
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+    <p id="deleteMsg">Are you sure?</p>
+    <div class="modal-actions">
+      <button style="background:white;color:var(--text-muted);border:1px solid var(--border);padding:10px 18px;border-radius:8px;font-weight:600;cursor:pointer;" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="ac-overlay" id="addContactModal">
+  <div class="ac-modal">
+    <div class="ac-header">
+      <h3>Add Debtor Contact</h3>
+      <button class="ac-close" onclick="closeAddContact()">&times;</button>
+    </div>
+    <div class="ac-row" style="grid-template-columns:1fr;">
+      <div class="ac-group">
+        <label>Debtor <span style="color:#dc2626;">*</span></label>
+        <select id="ac-debtor" class="ac-input" onchange="dcUpdateContactTypeOptions()">
+          <option value="">— Select Debtor —</option>
+          {% for d in all_debtors %}<option value="{{ d.id }}" data-org="{{ d.is_organization|yesno:'1,0' }}">{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-group">
+        <label>Contact Name <span style="color:#dc2626;">*</span></label>
+        <input type="text" id="ac-name" class="ac-input" placeholder="Full Name">
+      </div>
+      <div class="ac-group">
+        <label>Contact Type</label>
+        <select id="ac-type" class="ac-input"></select>
+      </div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-group">
+        <label>Email</label>
+        <input type="email" id="ac-email" class="ac-input" placeholder="email@example.com">
+      </div>
+      <div class="ac-group">
+        <label>Phone</label>
+        <div style="display:flex; gap:6px;">
+          <select id="ac-phone-code" class="ac-input" style="flex:0 0 92px;">
+            {% for c in all_countries %}
+            <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
+            {% endfor %}
+          </select>
+          <input type="tel" id="ac-phone" class="ac-input" placeholder="XXXXXXXX" style="flex:1;">
+        </div>
+      </div>
+    </div>
+    <div class="ac-row">
+      <div class="ac-group">
+        <label>Status</label>
+        <select id="ac-enabled" class="ac-input">
+          <option value="true">Enabled</option>
+          <option value="false">Disabled</option>
+        </select>
+      </div>
+      <div class="ac-group"></div>
+    </div>
+    <div class="ac-footer">
+      <button class="btn-submit" id="ac-submit-btn" onclick="submitAddContact()">SUBMIT <i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const csrfToken    = '{{ csrf_token }}';
+  const selectedCount = document.getElementById('selectedCount');
+  const deleteBtn    = document.getElementById('deleteBtn');
+
+  function getSelectedIds() { return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value); }
+  function updateButtons()  { const ids = getSelectedIds(); selectedCount.textContent = ids.length; if (deleteBtn) deleteBtn.disabled = !ids.length; }
+
+  document.getElementById('selectAll')?.addEventListener('change', e => { document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked); updateButtons(); });
+  document.addEventListener('change', e => { if (e.target.classList.contains('row-checkbox')) updateButtons(); });
+
+  function openDeleteModal() {
+    const ids = getSelectedIds();
+    document.getElementById('deleteMsg').textContent = `Delete ${ids.length} contact(s)? This cannot be undone.`;
+    document.getElementById('deleteModal').classList.add('show');
+  }
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast'); t.textContent = msg;
+    t.className = 'toast show ' + type; setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  function quickDelete(id) { document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = cb.value == id); updateButtons(); openDeleteModal(); }
+
+  async function confirmDelete() {
+    const ids = getSelectedIds();
+    const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
+    const res = await fetch('{% url "debtor_contact_delete" %}', { method:'POST', headers:{'X-CSRFToken':csrfToken}, body:fd });
+    const data = await res.json();
+    closeModal('deleteModal'); showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  function toggleCtxMenu(btn) {
+    const menu = btn.nextElementSibling;
+    document.querySelectorAll('.row-ctx-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+    menu.classList.toggle('open');
+  }
+  document.addEventListener('click', e => { if (!e.target.closest('.row-action-btn') && !e.target.closest('.row-ctx-menu')) document.querySelectorAll('.row-ctx-menu.open').forEach(m => m.classList.remove('open')); });
+
+  function copyTable() {
+    const rows = document.querySelectorAll('#contactsTable tr');
+    const text = Array.from(rows).map(r => Array.from(r.querySelectorAll('th,td')).slice(1,-1).map(c => c.textContent.trim()).join('\t')).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ── Column sorting ──
+  let _dcSortState = {};
+  function sortCol(th) {
+    const tbl = document.getElementById('contactsTable');
+    const tbody = tbl.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const col = Array.from(th.parentElement.children).indexOf(th);
+    const prev = _dcSortState.col === col ? _dcSortState.dir : null;
+    const next = prev === null ? 'asc' : prev === 'asc' ? 'desc' : null;
+
+    tbl.querySelectorAll('th.sortable').forEach(h => {
+      h.classList.remove('asc', 'desc');
+      h.querySelector('.sort-ic').className = 'fas fa-sort sort-ic';
+    });
+
+    if (next === null) { _dcSortState = {}; return; }
+    _dcSortState = { col, dir: next };
+    th.classList.add(next);
+    th.querySelector('.sort-ic').className = `fas fa-sort-${next === 'asc' ? 'up' : 'down'} sort-ic`;
+
+    rows.sort((a, b) => {
+      const va = (a.cells[col] || {}).textContent?.trim().toLowerCase() || '';
+      const vb = (b.cells[col] || {}).textContent?.trim().toLowerCase() || '';
+      const na = parseFloat(va), nb = parseFloat(vb);
+      const cmp = (va !== '' && vb !== '' && !isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+      return next === 'asc' ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    dcApplyFilter();
+  }
+
+  // ── Pagination ──
+  var _currentPage = 1;
+  function dcApplyFilter() {
+    const q = (document.getElementById('quickFilter').value || '').trim().toLowerCase();
+    const tbody = document.querySelector('#contactsTable tbody');
+    if (!tbody) return;
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    allRows.forEach(r => r._matches = !q || r.textContent.toLowerCase().includes(q));
+    const matching = allRows.filter(r => r._matches !== false);
+    document.getElementById('dcTotalCount').textContent = matching.length;
+    _renderPage(allRows, 'dcPageInfo', 'dcPageNav');
+  }
+
+  function _renderPage(allRows, infoId, navId) {
+    const sel = document.getElementById('pageSize');
+    const perPage = sel && sel.value === 'All' ? Infinity : parseInt(sel ? sel.value : 10);
+    const matching = allRows.filter(r => r._matches !== false);
+    const total = matching.length;
+    const totalPages = perPage === Infinity ? 1 : Math.ceil(total / perPage);
+    _currentPage = Math.max(1, Math.min(_currentPage, totalPages || 1));
+    const start = (_currentPage - 1) * (perPage === Infinity ? total : perPage);
+    const end   = perPage === Infinity ? total : Math.min(start + perPage, total);
+    allRows.forEach(row => row.style.display = 'none');
+    matching.slice(start, end).forEach(row => row.style.display = '');
+    const info = document.getElementById(infoId);
+    if (info) info.textContent = total ? `Showing ${start+1} to ${end} of ${total} entries` : 'No entries found';
+    const nav = document.getElementById(navId);
+    if (!nav) return;
+    const pages = _buildPageNav(totalPages, _currentPage);
+    nav.innerHTML = pages.map(p => {
+      if (p === '...') return `<span class="pg-ellipsis">…</span>`;
+      const dis = p === _currentPage;
+      return `<button class="pg-btn${dis?' active':''}" ${dis?'disabled':''}>${p}</button>`;
+    }).join('');
+    nav.querySelectorAll('.pg-btn:not([disabled])').forEach(b => {
+      const pg = parseInt(b.textContent);
+      b.onclick = () => { _currentPage = pg; dcApplyFilter(); };
+    });
+  }
+
+  function _buildPageNav(total, cur) {
+    if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+    const pages = [1];
+    if (cur > 3) pages.push('...');
+    for (let i = Math.max(2, cur-1); i <= Math.min(total-1, cur+1); i++) pages.push(i);
+    if (cur < total-2) pages.push('...');
+    pages.push(total);
+    return pages;
+  }
+
+  document.getElementById('quickFilter')?.addEventListener('input', () => { _currentPage=1; dcApplyFilter(); });
+  dcApplyFilter();
+
+  // ── Add Contact Modal ──
+  // Contact-type options depend on whether the selected debtor is a company (org roles)
+  // or an individual (family/personal relations).
+  const CONTACT_TYPES_ORG = [
+    ['self', 'Self'], ['ceo', 'CEO'], ['chairman', 'Chairman'], ['managing_partner', 'Managing Partner'],
+    ['owner', 'Owner'], ['sales_manager', 'Sales Manager'], ['assistant_manager', 'Assistant Manager'],
+    ['accounts', 'Accounts'], ['guarantor', 'Guarantor'], ['other', 'Other'],
+  ];
+  const CONTACT_TYPES_INDIVIDUAL = [
+    ['self', 'Self'], ['guarantor', 'Guarantor'], ['father', 'Father'], ['mother', 'Mother'], ['spouse', 'Spouse'],
+    ['son', 'Son'], ['daughter', 'Daughter'], ['sibling', 'Sibling'], ['guardian', 'Guardian'],
+    ['friend', 'Friend'], ['colleague', 'Colleague'], ['other', 'Other'],
+  ];
+  function dcUpdateContactTypeOptions() {
+    const debtorSel = document.getElementById('ac-debtor');
+    const opt = debtorSel.options[debtorSel.selectedIndex];
+    const isOrg = opt && opt.dataset.org === '1';
+    const sel = document.getElementById('ac-type');
+    const prev = sel.value;
+    const list = isOrg ? CONTACT_TYPES_ORG : CONTACT_TYPES_INDIVIDUAL;
+    sel.innerHTML = list.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+    sel.value = list.some(([v]) => v === prev) ? prev : 'other';
+  }
+
+  function openAddContact() {
+    document.getElementById('ac-debtor').value = '';
+    document.getElementById('ac-name').value  = '';
+    dcUpdateContactTypeOptions();
+    document.getElementById('ac-email').value = '';
+    document.getElementById('ac-phone').value = '';
+    document.getElementById('ac-enabled').value = 'true';
+    const codeEl = document.getElementById('ac-phone-code');
+    if (codeEl && codeEl.querySelector('option[value="+968"]')) codeEl.value = '+968';
+    ['ac-debtor','ac-name','ac-email','ac-phone'].forEach(id => document.getElementById(id).classList.remove('error'));
+    document.getElementById('addContactModal').classList.add('show');
+  }
+  function closeAddContact() { document.getElementById('addContactModal').classList.remove('show'); }
+  document.getElementById('addContactModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAddContact(); });
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const PHONE_RE = /^\d{6,14}$/;
+
+  async function submitAddContact() {
+    const debtorEl = document.getElementById('ac-debtor'), nameEl = document.getElementById('ac-name');
+    const emailEl = document.getElementById('ac-email'), phoneEl = document.getElementById('ac-phone');
+    const phoneCodeEl = document.getElementById('ac-phone-code');
+    let valid = true;
+    if (!debtorEl.value)      { debtorEl.classList.add('error'); valid = false; } else debtorEl.classList.remove('error');
+    if (!nameEl.value.trim()) { nameEl.classList.add('error');   valid = false; } else nameEl.classList.remove('error');
+    const emailVal = emailEl.value.trim();
+    if (emailVal && !EMAIL_RE.test(emailVal)) { emailEl.classList.add('error'); valid = false; } else emailEl.classList.remove('error');
+    const phoneDigits = phoneEl.value.trim().replace(/[\s-]/g, '');
+    if (phoneDigits && !PHONE_RE.test(phoneDigits)) { phoneEl.classList.add('error'); valid = false; } else phoneEl.classList.remove('error');
+    if (!valid) { showToast('Please check the highlighted fields.', 'error'); return; }
+    const btn = document.getElementById('ac-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    const fd = new FormData();
+    fd.append('debtor_id', debtorEl.value); fd.append('name', nameEl.value.trim());
+    fd.append('contact_type', document.getElementById('ac-type').value);
+    fd.append('email', emailVal);
+    fd.append('phone', phoneDigits ? `${phoneCodeEl.value} ${phoneDigits}` : '');
+    fd.append('enabled', document.getElementById('ac-enabled').value);
+    try {
+      const res = await fetch('{% url "debtor_contact_create" %}', { method:'POST', headers:{'X-CSRFToken':csrfToken}, body:fd });
+      const data = await res.json();
+      closeAddContact(); showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 900);
+    } catch { showToast('Network error.', 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = 'SUBMIT <i class="fas fa-paper-plane"></i>'; }
+  }
+</script>
+{% endblock %}

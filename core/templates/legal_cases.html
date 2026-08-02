@@ -1,0 +1,821 @@
+{% extends "base.html" %}
+{% load core_filters %}
+
+{% block title %}Legal Cases{% endblock %}
+
+{% block extra_styles %}
+  /* Legal section adopts the "legal" colour from the selected theme combo. */
+  :root {
+    --primary: var(--legal) !important;
+    --primary-dark: var(--legal-dark) !important;
+    --primary-light: var(--legal-light) !important;
+  }
+
+  /* Filter panel */
+  .filter-panel { background: white; border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+  .filter-panel-title { font-size: 14px; font-weight: 700; color: var(--text-dark); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-panel-title i { color: var(--primary); }
+  .filter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .filter-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .filter-group { display: flex; flex-direction: column; gap: 5px; }
+  .filter-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .filter-input { padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; width: 100%; }
+  .filter-input:focus { border-color: var(--primary); }
+  .filter-actions { display: flex; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); justify-content: flex-end; }
+  .btn-filter-submit { background: var(--primary); color: white; border: none; padding: 10px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-submit:hover { background: var(--primary-dark); }
+  .btn-filter-reset { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 28px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; gap: 8px; align-items: center; }
+  .btn-filter-reset:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* Table toolbar */
+  .panel-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .panel-title-bar h3 { font-size: 17px; font-weight: 700; }
+  .table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .table-toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .show-select { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+  .show-select select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px; }
+
+  /* Sortable columns + per-column filter row + column toggles (mirrors cases.html) */
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: var(--primary-dark); }
+  th.sortable .sort-ic { margin-left: 5px; opacity: 0.5; font-size: 10px; }
+  th.sortable.asc .sort-ic, th.sortable.desc .sort-ic { opacity: 1; }
+  #lg-filter-row td { padding: 4px 6px; background: #f1f5f9; border-bottom: 2px solid #e2e8f0; }
+  .col-fi { width: 100%; padding: 4px 8px; border: 1.5px solid #e2e8f0; border-radius: 5px; font-size: 12px; outline: none; font-family: inherit; color: var(--text-dark); background: white; }
+  .col-fi:focus { border-color: var(--primary); }
+  .col-toggle-wrap { position: relative; }
+  .btn-col-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-col-toggle:hover { border-color: var(--primary); color: var(--primary); }
+  .col-panel { display: none; position: absolute; right: 0; top: calc(100% + 6px); background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 200; min-width: 180px; }
+  .col-panel.open { display: block; }
+  .col-panel-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 14px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  .col-panel label { display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text-dark); transition: background 0.12s; }
+  .col-panel label:hover { background: #f8fafc; }
+  .col-panel label input { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+  .btn-filter-cols { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 13px; font-weight: 600; color: var(--text-dark); cursor: pointer; transition: all 0.15s; }
+  .btn-filter-cols:hover, .btn-filter-cols.active { border-color: var(--primary); color: var(--primary); background: #eff6ff; }
+
+  /* Legal Case Details modal */
+  .det-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 6px; }
+  .det-item { display: flex; flex-direction: column; gap: 3px; }
+  .det-item.det-full { grid-column: 1 / -1; }
+  .det-label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .det-value { font-size: 13px; color: var(--text-dark); font-weight: 500; word-break: break-word; }
+
+  .clickable { color: var(--primary); text-decoration: none; font-weight: 500; }
+  .clickable:hover { text-decoration: underline; }
+
+  .btn-group { display: flex; gap: 10px; }
+  .btn-danger { background: #dc2626; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Legal status badges */
+  .lstatus { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+  .lstatus.pending { background: #f1f5f9; color: #64748b; }
+  .lstatus.under_execution { background: #fef9e7; color: #92400e; border: 1px solid #fbbf24; }
+  .lstatus.in_court_hearing { background: #ede9fe; color: #5b21b6; border: 1px solid #a78bfa; }
+  .lstatus.closed_payment_done { background: #d1fae5; color: #065f46; border: 1px solid #34d399; }
+  .lstatus.closed { background: #e5e7eb; color: #475569; }
+  .lstatus.other { background: #f0f9ff; color: #0369a1; }
+  .lstatus i { font-size: 10px; }
+  .lstatus-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .lstatus-dates { display: flex; flex-direction: column; gap: 3px; }
+  .lstatus-meta { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: #7c3aed; background: #f5f3ff; border: 1px solid #ede9fe; padding: 2px 8px 2px 6px; border-radius: 20px; }
+  .lstatus-meta i { font-size: 9px; color: #a78bfa; }
+  .lstatus-meta .lstatus-meta-label { color: #8b7cb8; font-weight: 500; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: white; border-radius: 16px; padding: 32px; max-width: 600px; width: 94%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; max-height: 90vh; overflow-y: auto; }
+  @keyframes modalIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-hdr h3 { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .modal-hdr h3 i { color: var(--primary); }
+  .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); padding: 2px 8px; border-radius: 6px; }
+  .modal-close:hover { background: #f1f5f9; }
+  .m-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .m-group { display: flex; flex-direction: column; gap: 6px; }
+  .m-group.full { grid-column: 1 / -1; }
+  .m-group label { font-size: 13px; font-weight: 600; color: var(--text-dark); }
+  .m-group label .req { color: #dc2626; }
+  .m-input { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; font-family: inherit; color: var(--text-dark); width: 100%; }
+  .m-input:focus { border-color: var(--primary); }
+  .m-input.err { border-color: #dc2626; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+  .btn-cancel { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 13px; }
+  .btn-cancel:hover { border-color: #94a3b8; color: var(--text-dark); }
+
+  /* Delete confirm modal */
+  .del-modal { background: white; border-radius: 16px; padding: 30px; max-width: 420px; width: 90%; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: modalIn 0.2s; }
+  .del-modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .del-modal h3 i { color: #dc2626; }
+  .del-modal p { color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
+
+  .toast { position: fixed; bottom: 30px; right: 30px; background: #0f172a; color: white; padding: 14px 22px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 1100; font-size: 14px; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { background: #059669; }
+  .toast.error { background: #dc2626; }
+{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <div class="breadcrumb">Legal Cases</div>
+      <div class="breadcrumb-sub"><span id="selectedCount">0</span> of {{ legal_cases|length }} selected</div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="openAddModal()">
+        <i class="fas fa-plus"></i> Add Legal Case
+      </button>
+      <button id="deleteBtn" class="btn-danger" disabled onclick="openDeleteModal()">
+        <i class="fas fa-trash"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <div class="filter-panel-title"><i class="fas fa-filter"></i> Filter Results</div>
+    <form method="get">
+      <div class="filter-grid">
+        <div class="filter-group">
+          <label>Lawyer Name</label>
+          <select name="lawyer" class="filter-input">
+            <option value="">Select Lawyer</option>
+            {% for name in all_lawyers %}
+            <option value="{{ name }}" {% if filter_lawyer == name %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Debtor</label>
+          <select name="debtor" class="filter-input">
+            <option value="">Select Debtor</option>
+            {% for d in all_debtors %}
+            <option value="{{ d.id }}" {% if filter_debtor == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Client</label>
+          <select name="client" class="filter-input">
+            <option value="">Select Client</option>
+            {% for c in all_clients %}
+            <option value="{{ c.id }}" {% if filter_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Agency</label>
+          <select name="agency" class="filter-input">
+            <option value="">Select Agency</option>
+            {% for a in all_agencies %}
+            <option value="{{ a.id }}" {% if filter_agency == a.id|stringformat:"s" %}selected{% endif %}>{{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="filter-grid-3">
+        <div class="filter-group">
+          <label>Legal Approved Date</label>
+          <input type="date" name="approved_date" class="filter-input" value="{{ filter_approved_date }}">
+        </div>
+        <div class="filter-group">
+          <label>Search By Account No</label>
+          <input type="text" name="account_no" class="filter-input" placeholder="Select Account Number" value="{{ filter_account_no }}">
+        </div>
+        <div class="filter-group">
+          <label>Case Legal Status</label>
+          <select name="legal_status" class="filter-input">
+            <option value="">Select Case Status</option>
+            {% for s in status_choices %}
+            <option value="{{ s.name }}" {% if filter_legal_status == s.name %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <a href="{% url 'legal_cases' %}" class="btn-filter-reset"><i class="fas fa-undo"></i> Reset</a>
+        <button type="submit" class="btn-filter-submit"><i class="fas fa-search"></i> Submit</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="data-card">
+    <div class="panel-title-bar">
+      <h3>Cases Details</h3>
+    </div>
+
+    <div class="filter-controls" style="margin-bottom:14px;">
+      <div class="filter-search-box">
+        <i class="fas fa-search"></i>
+        <input type="text" id="legalSearch" placeholder="Search by case ID, client, debtor..." autocomplete="off" oninput="liveSearch(this.value)">
+      </div>
+    </div>
+
+    <div class="table-toolbar">
+      <div class="table-toolbar-left">
+        <div class="show-select">
+          Show: <select id="pageSize" onchange="applyAllFilters()"><option>10</option><option>25</option><option>50</option><option>100</option></select>
+        </div>
+        <button class="btn-filter-cols" id="lgFilterBtn" onclick="toggleColFilter()"><i class="fas fa-filter"></i> Filter</button>
+        <div class="col-toggle-wrap">
+          <button class="btn-col-toggle" onclick="toggleColPanel()"><i class="fas fa-table-columns"></i> Columns</button>
+          <div class="col-panel" id="lgColPanel">
+            <div class="col-panel-title">Toggle Columns</div>
+            <label><input type="checkbox" checked onchange="toggleCol(1,this)"> Case ID</label>
+            <label><input type="checkbox" checked onchange="toggleCol(2,this)"> Client</label>
+            <label><input type="checkbox" checked onchange="toggleCol(3,this)"> Debtor</label>
+            <label><input type="checkbox" checked onchange="toggleCol(4,this)"> Agency</label>
+            <label><input type="checkbox" checked onchange="toggleCol(5,this)"> Outstanding Amt</label>
+            <label><input type="checkbox" checked onchange="toggleCol(6,this)"> Collector</label>
+            <label><input type="checkbox" checked onchange="toggleCol(7,this)"> Lawyer</label>
+            <label><input type="checkbox" checked onchange="toggleCol(8,this)"> Status</label>
+            <label><input type="checkbox" checked onchange="toggleCol(9,this)"> Created By</label>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div class="export-dropdown">
+          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+          <div class="export-drop-menu">
+            <button class="exp-copy" onclick="copyTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+            <button class="exp-excel" onclick="exportCSV();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="exp-pdf" onclick="printTable();this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-file-pdf"></i> PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if legal_cases %}
+    <table class="data-table" id="legalTable">
+      <thead>
+        <tr id="lg-col-headers">
+          <th data-col="0"><input type="checkbox" id="selectAll"></th>
+          <th data-col="1" class="sortable" onclick="sortCol(1)">Case ID <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="2" class="sortable" onclick="sortCol(2)">Client <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="3" class="sortable" onclick="sortCol(3)">Debtor <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="4" class="sortable" onclick="sortCol(4)">Agency <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="5" class="sortable" onclick="sortCol(5)">Outstanding Amt <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="6" class="sortable" onclick="sortCol(6)">Collector <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="7" class="sortable" onclick="sortCol(7)">Lawyer <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="8" class="sortable" onclick="sortCol(8)">Status <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="9" class="sortable" onclick="sortCol(9)">Created By <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="10">Actions</th>
+        </tr>
+        <tr id="lg-filter-row" style="display:none;">
+          <td></td>
+          <td><input class="col-fi" data-col="1" placeholder="Case ID…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="2" placeholder="Client…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="3" placeholder="Debtor…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="4" placeholder="Agency…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="5" placeholder="Amount…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="6" placeholder="Collector…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="7" placeholder="Lawyer…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="8" placeholder="Status…" oninput="applyColFilters()"></td>
+          <td><input class="col-fi" data-col="9" placeholder="Created By…" oninput="applyColFilters()"></td>
+          <td></td>
+        </tr>
+      </thead>
+      <tbody id="legalTbody">
+        {% for lc in legal_cases %}
+        <tr data-id="{{ lc.id }}" oncontextmenu="legalRowCtx(event, this)">
+          <td><input type="checkbox" class="row-checkbox" value="{{ lc.id }}"></td>
+          <td><a href="{% url 'case_detail' lc.case.pk %}" class="clickable" style="font-size:12px;">{{ lc.case.case_id }}</a></td>
+          <td><span class="clickable">{{ lc.case.client.name }}</span></td>
+          <td><a href="{% url 'debtor_detail' lc.case.debtor.pk %}" class="clickable">{{ lc.case.debtor.name }}</a></td>
+          <td>{% if lc.case.agency %}{{ lc.case.agency.name }}{% else %}<span style="color:var(--text-muted); font-size:12px;">—</span>{% endif %}</td>
+          <td class="num">{{ lc.case.remaining_amount|omr }}</td>
+          <td>{% if lc.case.collector %}{{ lc.case.collector.get_full_name|default:lc.case.collector.username }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+          <td>{% if lc.lawyer_display %}{{ lc.lawyer_display }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+          <td>
+            <div class="lstatus-cell">
+              <span class="lstatus" style="background:#f1f5f9;color:#334155;">
+                <i class="fas fa-circle" style="color:{{ lc.status_color|default:'#8b5cf6' }};"></i>
+                {{ lc.status_label }}
+              </span>
+              {% if lc.last_follow_up or lc.next_hearing %}
+              <div class="lstatus-dates">
+                {% if lc.last_follow_up %}
+                <span class="lstatus-meta"><i class="fas fa-phone-alt"></i> <span class="lstatus-meta-label">Follow Up:</span> {{ lc.last_follow_up|date:'d/m/Y' }}</span>
+                {% endif %}
+                {% if lc.next_hearing %}
+                <span class="lstatus-meta"><i class="fas fa-gavel"></i> <span class="lstatus-meta-label">Hearing:</span> {{ lc.next_hearing|date:'d/m/Y' }}</span>
+                {% endif %}
+              </div>
+              {% endif %}
+            </div>
+          </td>
+          <td>{% if lc.created_by %}{{ lc.created_by.get_full_name|default:lc.created_by.username }}{% else %}<span style="color:var(--text-muted);">—</span>{% endif %}</td>
+          <td class="actions">
+            <button class="row-action-btn" title="Actions"
+              data-id="{{ lc.id }}"
+              data-case="{{ lc.case.case_id }}"
+              data-client="{{ lc.case.client.name|escape }}"
+              data-debtor="{{ lc.case.debtor.name|escape }}"
+              data-collector="{% if lc.case.collector %}{{ lc.case.collector.get_full_name|default:lc.case.collector.username|escape }}{% endif %}"
+              data-outstanding="{{ lc.case.remaining_amount|omr }}"
+              data-lawyer="{{ lc.lawyer_name|escape }}"
+              data-lawyer-display="{{ lc.lawyer_display|escape }}"
+              data-date="{{ lc.legal_approved_date|date:'Y-m-d' }}"
+              data-approved="{{ lc.legal_approved_date|date:'d/m/Y' }}"
+              data-status="{{ lc.legal_status }}"
+              data-status-label="{{ lc.status_label|escape }}"
+              data-hearing="{{ lc.next_hearing|date:'d/m/Y' }}"
+              data-followup="{{ lc.last_follow_up|date:'d/m/Y' }}"
+              data-created-by="{% if lc.created_by %}{{ lc.created_by.get_full_name|default:lc.created_by.username|escape }}{% endif %}"
+              data-notes="{{ lc.notes|escape }}"
+              data-detail="{% url 'case_detail' lc.case.pk %}"
+              onclick="openLegalMenu(event, this)"><i class="fas fa-ellipsis-v"></i></button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state">
+        <i class="fas fa-gavel"></i>
+        <p>No legal cases found. Click "Add Legal Case" to create one.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Add Legal Case Modal -->
+  <div class="modal-overlay" id="addModal">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <h3><i class="fas fa-gavel"></i> Add Legal Case</h3>
+        <button class="modal-close" onclick="closeAddModal()">&times;</button>
+      </div>
+
+      <div class="m-row">
+        <div class="m-group full">
+          <label>Case <span class="req">*</span></label>
+          <select id="lc-case" class="m-input">
+            <option value="">— Select Case —</option>
+            {% for c in all_cases %}
+            <option value="{{ c.id }}">{{ c.case_id }} — {{ c.debtor.name }} / {{ c.client.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-group">
+          <label>Lawyer Name</label>
+          <select id="lc-lawyer" class="m-input">
+            <option value="">— Select Lawyer —</option>
+            {% for name in all_lawyers %}
+            <option value="{{ name }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="m-group">
+          <label>Legal Approved Date</label>
+          <input type="date" id="lc-date" class="m-input">
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-group">
+          <label>Legal Status</label>
+          <select id="lc-status" class="m-input">
+            {% for s in status_choices %}
+            <option value="{{ s.name }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-group full">
+          <label>Notes</label>
+          <textarea id="lc-notes" class="m-input" rows="3" placeholder="Optional notes..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeAddModal()">Cancel</button>
+        <button class="btn-primary" id="addSubmitBtn" onclick="submitAdd()">
+          <i class="fas fa-paper-plane"></i> Create Legal Case
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Legal Case Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <h3><i class="fas fa-gavel"></i> Edit Legal Case <span id="edit-case-label" style="font-weight:600;color:var(--text-muted);font-size:14px;"></span></h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+
+      <input type="hidden" id="edit-id">
+      <div class="m-row">
+        <div class="m-group">
+          <label>Lawyer Name</label>
+          <select id="edit-lawyer" class="m-input">
+            <option value="">— Select Lawyer —</option>
+            {% for name in all_lawyers %}
+            <option value="{{ name }}">{{ name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="m-group">
+          <label>Legal Approved Date</label>
+          <input type="date" id="edit-date" class="m-input">
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-group">
+          <label>Legal Status</label>
+          <select id="edit-status" class="m-input">
+            {% for s in status_choices %}
+            <option value="{{ s.name }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="m-row">
+        <div class="m-group full">
+          <label>Notes</label>
+          <textarea id="edit-notes" class="m-input" rows="3" placeholder="Optional notes..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+        <button class="btn-primary" id="editSubmitBtn" onclick="submitEdit()">
+          <i class="fas fa-save"></i> Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="del-modal">
+      <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+      <p id="deleteMsg">Are you sure you want to delete the selected legal case(s)?</p>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-cancel" onclick="closeModal('deleteModal')">Cancel</button>
+        <button class="btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legal Case Details Modal -->
+  <div class="modal-overlay" id="detailsModal">
+    <div class="modal-box" style="max-width:560px;">
+      <div class="modal-hdr">
+        <h3><i class="fas fa-gavel"></i> Legal Case Details <span id="det-case-label" style="font-weight:600;color:var(--text-muted);font-size:14px;"></span></h3>
+        <button class="modal-close" onclick="closeModal('detailsModal')">&times;</button>
+      </div>
+      <div class="det-grid">
+        <div class="det-item"><span class="det-label">Client</span><span class="det-value" id="det-client">—</span></div>
+        <div class="det-item"><span class="det-label">Debtor</span><span class="det-value" id="det-debtor">—</span></div>
+        <div class="det-item"><span class="det-label">Collector</span><span class="det-value" id="det-collector">—</span></div>
+        <div class="det-item"><span class="det-label">Lawyer</span><span class="det-value" id="det-lawyer">—</span></div>
+        <div class="det-item"><span class="det-label">Outstanding Amt</span><span class="det-value" id="det-outstanding">—</span></div>
+        <div class="det-item"><span class="det-label">Legal Status</span><span class="det-value" id="det-status">—</span></div>
+        <div class="det-item"><span class="det-label">Legal Approved Date</span><span class="det-value" id="det-date">—</span></div>
+        <div class="det-item"><span class="det-label">Last Follow Up</span><span class="det-value" id="det-followup">—</span></div>
+        <div class="det-item"><span class="det-label">Next Hearing</span><span class="det-value" id="det-hearing">—</span></div>
+        <div class="det-item"><span class="det-label">Created By</span><span class="det-value" id="det-created-by">—</span></div>
+        <div class="det-item det-full"><span class="det-label">Notes</span><span class="det-value" id="det-notes">—</span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('detailsModal')">Close</button>
+        <a class="btn-primary" id="det-case-link" href="#" style="text-decoration:none;"><i class="fas fa-folder-open"></i> Open Case File</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row Action Menu -->
+  <div class="row-ctx-menu" id="legalCtxMenu">
+    <button class="ctx-item" onclick="legalCtxDetails()"><i class="fas fa-folder-open"></i> Open Case File</button>
+    <button class="ctx-item" onclick="legalCtxStatus()"><i class="fas fa-exchange-alt"></i> Change Status</button>
+    <div class="ctx-divider"></div>
+    <button class="ctx-item danger" onclick="legalCtxDelete()"><i class="fas fa-trash-alt"></i> Delete</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const csrfToken = '{{ csrf_token }}';
+  const selectedCount = document.getElementById('selectedCount');
+  const deleteBtn = document.getElementById('deleteBtn');
+
+  function getSelectedIds() {
+    return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => cb.value);
+  }
+
+  function updateButtons() {
+    const ids = getSelectedIds();
+    selectedCount.textContent = ids.length;
+    deleteBtn.disabled = ids.length === 0;
+  }
+
+  document.getElementById('selectAll')?.addEventListener('change', e => {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+    updateButtons();
+  });
+
+  document.addEventListener('change', e => {
+    if (e.target.classList.contains('row-checkbox')) updateButtons();
+  });
+
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  function openDeleteModal() {
+    const ids = getSelectedIds();
+    document.getElementById('deleteMsg').textContent =
+      `Are you sure you want to delete ${ids.length} legal case(s)? This cannot be undone.`;
+    document.getElementById('deleteModal').classList.add('show');
+  }
+
+  function quickDelete(id) {
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = cb.value == id);
+    updateButtons();
+    openDeleteModal();
+  }
+
+  async function confirmDelete() {
+    const ids = getSelectedIds();
+    const fd = new FormData();
+    ids.forEach(id => fd.append('ids[]', id));
+    const res = await fetch('{% url "legal_case_delete" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+    const data = await res.json();
+    closeModal('deleteModal');
+    showToast(data.message, data.success ? 'success' : 'error');
+    if (data.success) setTimeout(() => location.reload(), 800);
+  }
+
+  function openAddModal() {
+    document.getElementById('lc-case').value = '';
+    document.getElementById('lc-lawyer').value = '';
+    document.getElementById('lc-date').value = '';
+    document.getElementById('lc-status').value = 'New Legal Case';
+    document.getElementById('lc-notes').value = '';
+    document.getElementById('addModal').classList.add('show');
+  }
+
+  function closeAddModal() { document.getElementById('addModal').classList.remove('show'); }
+
+  async function submitAdd() {
+    const caseEl = document.getElementById('lc-case');
+    if (!caseEl.value) {
+      caseEl.classList.add('err'); caseEl.focus();
+      showToast('Please select a case.', 'error'); return;
+    }
+    caseEl.classList.remove('err');
+
+    const btn = document.getElementById('addSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    const fd = new FormData();
+    fd.append('case_id', caseEl.value);
+    fd.append('lawyer_name', document.getElementById('lc-lawyer').value.trim());
+    fd.append('legal_approved_date', document.getElementById('lc-date').value);
+    fd.append('legal_status', document.getElementById('lc-status').value);
+    fd.append('notes', document.getElementById('lc-notes').value.trim());
+
+    try {
+      const res = await fetch('{% url "legal_case_create" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      closeAddModal();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 900);
+    } catch {
+      showToast('An error occurred.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Create Legal Case';
+    }
+  }
+
+  document.getElementById('addModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeAddModal();
+  });
+
+  // ---- Edit Legal Case ----
+  function openEditModal(btn) {
+    document.getElementById('edit-id').value = btn.dataset.id;
+    document.getElementById('edit-case-label').textContent = btn.dataset.case ? '— ' + btn.dataset.case : '';
+    // Default to the lawyer shown in the table row (FK name or legacy text);
+    // if that name isn't in the dropdown (e.g. inactive lawyer), add it.
+    const lawyerSel = document.getElementById('edit-lawyer');
+    const lawyerName = btn.dataset.lawyerDisplay || btn.dataset.lawyer || '';
+    if (lawyerName && ![...lawyerSel.options].some(o => o.value === lawyerName)) {
+      lawyerSel.add(new Option(lawyerName, lawyerName));
+    }
+    lawyerSel.value = lawyerName;
+    document.getElementById('edit-date').value = btn.dataset.date || '';
+    document.getElementById('edit-status').value = btn.dataset.status || 'New Legal Case';
+    document.getElementById('edit-notes').value = btn.dataset.notes || '';
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  function closeEditModal() { document.getElementById('editModal').classList.remove('show'); }
+
+  async function submitEdit() {
+    const btn = document.getElementById('editSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    const fd = new FormData();
+    fd.append('id', document.getElementById('edit-id').value);
+    fd.append('lawyer_name', document.getElementById('edit-lawyer').value.trim());
+    fd.append('legal_approved_date', document.getElementById('edit-date').value);
+    fd.append('legal_status', document.getElementById('edit-status').value);
+    fd.append('notes', document.getElementById('edit-notes').value.trim());
+
+    try {
+      const res = await fetch('{% url "legal_case_update" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      closeEditModal();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 900);
+    } catch {
+      showToast('An error occurred.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+    }
+  }
+
+  document.getElementById('editModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeEditModal();
+  });
+
+  // ---- Row action menu (Details / Change Status / Delete) ----
+  let _legalBtn = null, _legalId = null, _legalDetail = null;
+  const _legalMenu = document.getElementById('legalCtxMenu');
+
+  function openLegalMenu(e, btn) {
+    e.preventDefault();
+    e.stopPropagation();
+    _legalBtn = btn;
+    _legalId = btn.dataset.id;
+    _legalDetail = btn.dataset.detail;
+    // Position at the cursor (right-click) or below the ⋮ button (left-click)
+    let x, y;
+    if (e.type === 'contextmenu') {
+      x = e.clientX + 2;
+      y = e.clientY + 2;
+    } else {
+      const r = btn.getBoundingClientRect();
+      x = r.right - 182;
+      y = r.bottom + 4;
+    }
+    if (x + 190 > window.innerWidth - 8) x = window.innerWidth - 198;
+    if (y + 150 > window.innerHeight - 8) y = (e.type === 'contextmenu' ? e.clientY : btn.getBoundingClientRect().top) - 150;
+    if (x < 8) x = 8;
+    _legalMenu.style.left = x + 'px';
+    _legalMenu.style.top = y + 'px';
+    _legalMenu.classList.add('open');
+  }
+
+  // Right-click anywhere on a row opens the same actions menu as its ⋮ button.
+  function legalRowCtx(e, row) {
+    const btn = row.querySelector('.row-action-btn');
+    if (btn) openLegalMenu(e, btn);
+  }
+
+  function legalCtxDetails() {
+    // Skip the details pop-up — go straight to the case file.
+    _legalMenu.classList.remove('open');
+    if (_legalDetail) window.location.href = _legalDetail;
+  }
+  function legalCtxStatus() {
+    _legalMenu.classList.remove('open');
+    if (_legalBtn) openEditModal(_legalBtn);
+  }
+  function legalCtxDelete() {
+    _legalMenu.classList.remove('open');
+    if (_legalId) quickDelete(_legalId);
+  }
+
+  document.addEventListener('click', e => {
+    if (!_legalMenu.contains(e.target) && !e.target.closest('.row-action-btn')) _legalMenu.classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') _legalMenu.classList.remove('open');
+  });
+  document.addEventListener('contextmenu', e => {
+    if (!e.target.closest('tr[oncontextmenu]')) _legalMenu.classList.remove('open');
+  });
+
+  function _exportRows() {
+    return Array.from(document.querySelectorAll('#legalTable tr'))
+      .filter(r => r.id !== 'lg-filter-row' && r.style.display !== 'none');
+  }
+
+  function copyTable() {
+    const text = _exportRows().map(row =>
+      Array.from(row.querySelectorAll('th, td')).slice(1, -1).map(c => c.textContent.trim()).join('\t')
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard'));
+  }
+
+  // ── Live search, per-column filters, column toggles & sorting ──
+  let _globalQ = '';
+  function liveSearch(q) { _globalQ = q.trim().toLowerCase(); applyAllFilters(); }
+  function applyColFilters() { applyAllFilters(); }
+
+  function applyAllFilters() {
+    const tbody = document.getElementById('legalTbody');
+    if (!tbody) return;
+    const inputs = Array.from(document.querySelectorAll('#lg-filter-row .col-fi'));
+    const colFilters = inputs.map(i => ({ col: parseInt(i.dataset.col), val: i.value.trim().toLowerCase() })).filter(f => f.val);
+    const limit = parseInt(document.getElementById('pageSize')?.value) || Infinity;
+    let shown = 0;
+    Array.from(tbody.querySelectorAll('tr')).forEach(row => {
+      const rowText = Array.from(row.cells).slice(1, -1).map(c => c.textContent.trim().toLowerCase()).join(' ');
+      const globalMatch = !_globalQ || rowText.includes(_globalQ);
+      const colMatch = colFilters.every(f => { const cell = row.cells[f.col]; return cell && cell.textContent.trim().toLowerCase().includes(f.val); });
+      const visible = globalMatch && colMatch && shown < limit;
+      if (globalMatch && colMatch) shown++;
+      row.style.display = visible ? '' : 'none';
+    });
+  }
+
+  function toggleColFilter() {
+    const row = document.getElementById('lg-filter-row');
+    const btn = document.getElementById('lgFilterBtn');
+    const visible = row.style.display !== 'none';
+    row.style.display = visible ? 'none' : '';
+    btn.classList.toggle('active', !visible);
+    if (visible) { document.querySelectorAll('#lg-filter-row .col-fi').forEach(i => i.value = ''); applyAllFilters(); }
+  }
+
+  function toggleColPanel() { document.getElementById('lgColPanel').classList.toggle('open'); }
+  function toggleCol(col, cb) {
+    const tbl = document.getElementById('legalTable');
+    tbl.querySelectorAll(`th[data-col="${col}"], td:nth-child(${col + 1})`).forEach(el => el.style.display = cb.checked ? '' : 'none');
+  }
+  document.addEventListener('click', e => {
+    const wrap = document.querySelector('.col-toggle-wrap');
+    if (wrap && !wrap.contains(e.target)) document.getElementById('lgColPanel')?.classList.remove('open');
+  });
+
+  function sortCol(col) {
+    const tbl = document.getElementById('legalTable');
+    const tbody = document.getElementById('legalTbody');
+    let next = 'asc';
+    tbl.querySelectorAll('th.sortable').forEach(th => {
+      const c = parseInt(th.getAttribute('onclick').match(/\d+/)[0]);
+      if (c === col) { next = th.classList.contains('asc') ? 'desc' : 'asc'; th.classList.toggle('asc', next === 'asc'); th.classList.toggle('desc', next === 'desc'); }
+      else th.classList.remove('asc', 'desc');
+    });
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const DATE_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    rows.sort((a, b) => {
+      const va = (a.cells[col] || {}).textContent?.trim() || '';
+      const vb = (b.cells[col] || {}).textContent?.trim() || '';
+      const da = va.match(DATE_RE), db = vb.match(DATE_RE);
+      if (da && db) {
+        const cmp = (da[3] + da[2] + da[1]).localeCompare(db[3] + db[2] + db[1]);
+        return next === 'asc' ? cmp : -cmp;
+      }
+      const na = parseFloat(va.replace(/[^0-9.-]/g, '')), nb = parseFloat(vb.replace(/[^0-9.-]/g, ''));
+      const cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+      return next === 'asc' ? cmp : -cmp;
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    applyAllFilters();
+  }
+  applyAllFilters();
+  // ── End live search ──
+
+  function exportCSV() {
+    const csv = _exportRows().map(row =>
+      Array.from(row.querySelectorAll('th, td')).slice(1, -1)
+        .map(c => '"' + c.textContent.trim().replace(/"/g, '""') + '"').join(',')
+    ).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'legal_cases.csv'; a.click();
+  }
+
+  function printTable() {
+    const title = 'Legal Cases';
+    const rows = document.querySelector('#legalTable').outerHTML;
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>${title}</title>
+      <style>body{font-family:sans-serif;font-size:12px;}table{border-collapse:collapse;width:100%;}th,td{border:1px solid #ccc;padding:6px 10px;text-align:left;}th{background:#1a6b3c;color:white;}</style>
+      </head><body><h2>${title}</h2>${rows}</body></html>`);
+    win.document.close(); win.print();
+  }
+</script>
+{% endblock %}

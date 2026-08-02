@@ -1,0 +1,268 @@
+{# Floating staff chat widget — client↔staff per-case messaging. #}
+<style>
+  .chatw-launcher { position: fixed; bottom: 24px; right: 24px; width: 58px; height: 58px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--chat), var(--chat-dark)); color: #fff; border: none; cursor: pointer;
+    box-shadow: 0 10px 28px rgba(15,74,41,0.4); display: flex; align-items: center; justify-content: center; font-size: 22px;
+    z-index: 3000; transition: transform 0.15s; }
+  .chatw-launcher:hover { transform: scale(1.06); }
+  .chatw-badge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+    background: #ef4444; color: #fff; font-size: 11px; font-weight: 700; display: none; align-items: center; justify-content: center;
+    border: 2px solid #fff; }
+  .chatw-badge.show { display: flex; }
+
+  .chatw-panel { position: fixed; bottom: 24px; right: 24px; width: 380px; max-width: calc(100vw - 32px); height: 560px; max-height: calc(100vh - 48px);
+    background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0,0,0,0.28); z-index: 3001; display: none; flex-direction: column; overflow: hidden;
+    animation: chatwIn 0.18s ease; }
+  .chatw-panel.show { display: flex; }
+  @keyframes chatwIn { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+  .chatw-head { background: linear-gradient(135deg, var(--chat), var(--chat-dark)); color: #fff; padding: 16px 18px; display: flex; align-items: center; gap: 12px; }
+  .chatw-head .t { font-weight: 700; font-size: 15px; flex: 1; line-height: 1.2; }
+  .chatw-head .t small { display: block; font-weight: 500; font-size: 11.5px; opacity: 0.85; }
+  .chatw-hbtn { background: rgba(255,255,255,0.16); border: none; color: #fff; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .chatw-hbtn:hover { background: rgba(255,255,255,0.28); }
+  .chatw-body { flex: 1; overflow-y: auto; background: #f8fafc; }
+
+  /* conversation list */
+  .chatw-conv { display: flex; gap: 12px; padding: 13px 16px; cursor: pointer; border-bottom: 1px solid #eef2f6; align-items: center; transition: background 0.1s; }
+  .chatw-conv:hover { background: #eef2ff; }
+  .chatw-ava { width: 42px; height: 42px; border-radius: 50%; background: #e2e8f0; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; overflow: hidden; }
+  .chatw-ava img, .chatw-mava img, .chatw-havatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .chatw-conv-main { flex: 1; min-width: 0; }
+  .chatw-conv-top { display: flex; justify-content: space-between; gap: 8px; }
+  .chatw-conv-name { font-weight: 700; font-size: 13.5px; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chatw-conv-time { font-size: 10.5px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
+  .chatw-conv-debtor { font-size: 12px; color: #dc2626; font-weight: 600; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chatw-conv-ref { font-size: 11px; color: var(--chat); font-weight: 600; margin-top: 1px; }
+  .chatw-conv-last { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .chatw-uc { background: #ef4444; color: #fff; font-size: 10.5px; font-weight: 700; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; }
+  .chatw-empty { text-align: center; color: #94a3b8; padding: 48px 24px; font-size: 13px; }
+  .chatw-empty i { font-size: 30px; display: block; margin-bottom: 12px; opacity: 0.5; }
+
+  /* header avatar + online */
+  .chatw-havatar { width: 38px; height: 38px; border-radius: 50%; background: rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; position: relative; }
+  .chatw-havatar .dot { position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid var(--chat-dark); }
+
+  /* thread */
+  .chatw-thread { padding: 16px 14px; display: flex; flex-direction: column; gap: 3px; }
+  .chatw-row { display: flex; align-items: flex-end; gap: 8px; margin-top: 9px; }
+  .chatw-row.me { justify-content: flex-end; }
+  .chatw-row.grouped { margin-top: 2px; }
+  .chatw-mava { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; color: #fff; }
+  .chatw-mava.them { background: linear-gradient(135deg, #94a3b8, #64748b); }
+  .chatw-mava.me { background: linear-gradient(135deg, var(--chat), var(--chat-dark)); }
+  .chatw-mava.hidden { visibility: hidden; }
+  .chatw-msg { max-width: 74%; padding: 9px 13px; border-radius: 16px; font-size: 13px; line-height: 1.45; word-wrap: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .chatw-msg .mt { font-size: 10px; margin-top: 4px; opacity: 0.7; }
+  .chatw-msg { position: relative; }
+  .chatw-msg.them { background: #fff; border: 1px solid #e5e9ef; color: #0f172a; border-bottom-left-radius: 5px; }
+  .chatw-msg.me { background: linear-gradient(135deg, var(--chat), var(--chat-dark)); color: #fff; border-bottom-right-radius: 5px; }
+  .chatw-mact { position: absolute; top: 3px; right: 5px; opacity: 0; background: rgba(255,255,255,0.22); border: none; color: #fff; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 9px; display: flex; align-items: center; justify-content: center; transition: opacity .12s; }
+  .chatw-msg.me:hover .chatw-mact { opacity: 1; }
+  .chatw-msg.me .chatw-mbody { padding-right: 14px; }
+  .chatw-msgmenu { position: fixed; background: #fff; border: 1px solid #e2e8f0; border-radius: 11px; box-shadow: 0 10px 28px rgba(0,0,0,0.16); padding: 5px 0; z-index: 3002; display: none; min-width: 140px; }
+  .chatw-msgmenu.show { display: block; }
+  .chatw-msgmenu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; padding: 9px 15px; font-size: 13px; font-weight: 500; cursor: pointer; color: #334155; }
+  .chatw-msgmenu button:hover { background: #f1f5f9; }
+  .chatw-msgmenu button.danger { color: #dc2626; }
+  .chatw-msgmenu button.danger:hover { background: #fef2f2; }
+  .chatw-date { text-align: center; margin: 12px 0 4px; }
+  .chatw-date span { background: #e2e8f0; color: #64748b; font-size: 10.5px; font-weight: 600; padding: 3px 12px; border-radius: 10px; }
+  .chatw-sysmsg { align-self: center; text-align: center; max-width: 90%; background: #eef2f6; color: #475569; font-size: 11.5px; padding: 8px 14px; border-radius: 12px; margin: 8px auto; line-height: 1.45; }
+  .chatw-sysmsg i { color: var(--chat); margin-right: 4px; }
+  .chatw-quick { display: flex; gap: 7px; padding: 9px 12px; overflow-x: auto; background: #fff; border-top: 1px solid #eef2f6; scrollbar-width: thin; }
+  .chatw-quick button { flex-shrink: 0; white-space: nowrap; background: #eef2ff; color: var(--chat); border: 1px solid #c7d2fe; border-radius: 16px; padding: 6px 13px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all .12s; }
+  .chatw-quick button:hover { background: var(--chat); color: #fff; border-color: var(--chat); }
+  .chatw-foot { padding: 10px 12px; border-top: 1px solid #eef2f6; background: #fff; display: flex; gap: 8px; align-items: flex-end; }
+  .chatw-foot textarea { flex: 1; border: 1.5px solid var(--border); border-radius: 20px; padding: 9px 14px; font-size: 13px; font-family: inherit; resize: none; outline: none; max-height: 90px; line-height: 1.4; }
+  .chatw-foot textarea:focus { border-color: var(--chat); }
+  .chatw-send { width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--chat); color: #fff; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+  .chatw-send:hover { background: var(--chat-dark); }
+  .chatw-casebtn { background: #ef4444; color: #fff; border: none; padding: 5px 11px; border-radius: 7px; font-size: 11.5px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .chatw-casebtn:hover { background: #dc2626; }
+</style>
+
+<button class="chatw-launcher" id="chatwLauncher" onclick="chatwToggle()" title="Chats">
+  <i class="fas fa-comments"></i>
+  <span class="chatw-badge" id="chatwBadge">0</span>
+</button>
+
+<div class="chatw-panel" id="chatwPanel">
+  <!-- List view -->
+  <div id="chatwListView" style="display:flex;flex-direction:column;height:100%;">
+    <div class="chatw-head">
+      <i class="fas fa-comments" style="font-size:18px;"></i>
+      <div class="t">Chats <small>Client conversations</small></div>
+      <button class="chatw-hbtn" onclick="chatwToggle()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="chatw-body" id="chatwList"></div>
+  </div>
+  <!-- Thread view -->
+  <div id="chatwThreadView" style="display:none;flex-direction:column;height:100%;">
+    <div class="chatw-head">
+      <button class="chatw-hbtn" onclick="chatwBackToList()"><i class="fas fa-arrow-left"></i></button>
+      <div class="chatw-havatar" id="chatwHeadAva">C<span class="dot"></span></div>
+      <div class="t" id="chatwThreadTitle">—<small id="chatwThreadSub"></small></div>
+      <a class="chatw-casebtn" id="chatwCaseBtn" href="#"><i class="fas fa-folder-open"></i> Case</a>
+    </div>
+    <div class="chatw-body chatw-thread" id="chatwThread"></div>
+    <div class="chatw-quick">
+      <button onclick="chatwSend(this.textContent)">Hi dear, how can I assist you?</button>
+      <button onclick="chatwSend(this.textContent)">Thanks for reaching out — we're reviewing your case.</button>
+      <button onclick="chatwSend(this.textContent)">We've contacted the debtor and will update you shortly.</button>
+      <button onclick="chatwSend(this.textContent)">Could you please share a bit more detail?</button>
+      <button onclick="chatwSend(this.textContent)">Your case is being handled — please allow us some time.</button>
+      <button onclick="chatwSend(this.textContent)">Thank you for your patience. 🙏</button>
+    </div>
+    <div class="chatw-foot">
+      <textarea id="chatwInput" rows="1" placeholder="Type a message..." onkeydown="chatwKey(event)" oninput="chatwGrow(this)"></textarea>
+      <button class="chatw-send" onclick="chatwSend()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<div class="chatw-msgmenu" id="chatwMsgMenu">
+  <button onclick="chatwEditMsg()"><i class="fas fa-pen" style="width:14px;"></i> Edit</button>
+  <button class="danger" onclick="chatwUnsend()"><i class="fas fa-rotate-left" style="width:14px;"></i> Unsend</button>
+</div>
+
+<script>
+(function () {
+  var CSRF = '{{ csrf_token }}';
+  var open = false, view = 'list', cur = null;   // cur = {case_pk, access_id, case_ref, client_name}
+  var panel = document.getElementById('chatwPanel');
+  var badge = document.getElementById('chatwBadge');
+
+  window.chatwToggle = function () {
+    open = !open;
+    panel.classList.toggle('show', open);
+    if (open) { chatwBackToList(); }
+  };
+  window.chatwBackToList = function () {
+    view = 'list'; cur = null;
+    document.getElementById('chatwListView').style.display = 'flex';
+    document.getElementById('chatwThreadView').style.display = 'none';
+    chatwLoadList();
+  };
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  // Generated avatar (DiceBear) — people style for staff, abstract for client companies.
+  function avatarUrl(name, kind){
+    var seed = encodeURIComponent((name||'user').trim() || 'user');
+    if (kind === 'staff') return 'https://api.dicebear.com/9.x/notionists/svg?seed='+seed+'&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf&radius=50';
+    return 'https://api.dicebear.com/9.x/shapes/svg?seed='+seed+'&radius=50';
+  }
+  function avaImg(name, kind){ return '<img src="'+avatarUrl(name,kind)+'" alt="" loading="lazy">'; }
+  var curMsgId = null, curEditBody = '';
+
+  function chatwBubble(m, mine){
+    var timeShort = m.time.split(',').slice(1).join(',').trim() || m.time;
+    var meta = esc(timeShort);
+    if (m.edited) meta += ' · edited';
+    if (mine) meta += m.read ? ' · <b>Seen</b>' : ' · Sent';
+    var act = mine ? '<button class="chatw-mact" onclick="chatwMenu(event,'+m.id+')"><i class="fas fa-ellipsis-h"></i></button>' : '';
+    return '<div class="chatw-msg '+(mine?'me':'them')+'" data-id="'+m.id+'">'+act+'<div class="chatw-mbody">'+esc(m.body)+'</div><div class="mt">'+meta+'</div></div>';
+  }
+  window.chatwMenu = function(e, id){
+    e.stopPropagation();
+    curMsgId = id;
+    var el = document.querySelector('.chatw-msg[data-id="'+id+'"] .chatw-mbody');
+    curEditBody = el ? el.textContent : '';
+    var menu = document.getElementById('chatwMsgMenu');
+    var x = Math.min(e.clientX, window.innerWidth - 150), y = Math.min(e.clientY, window.innerHeight - 100);
+    menu.style.left = x + 'px'; menu.style.top = y + 'px'; menu.classList.add('show');
+  };
+  window.chatwEditMsg = function(){
+    document.getElementById('chatwMsgMenu').classList.remove('show');
+    var nv = prompt('Edit message', curEditBody);
+    if (nv == null) return; nv = nv.trim(); if (!nv) return;
+    var fd = new FormData(); fd.append('id', curMsgId); fd.append('body', nv); fd.append('csrfmiddlewaretoken', CSRF);
+    fetch('{% url "staff_chat_edit" %}', {method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(r=>r.json()).then(d=>{ if(d.success) chatwLoadThread(false); });
+  };
+  window.chatwUnsend = function(){
+    document.getElementById('chatwMsgMenu').classList.remove('show');
+    if (!confirm('Unsend this message? It will be removed for both you and the client.')) return;
+    var fd = new FormData(); fd.append('id', curMsgId); fd.append('csrfmiddlewaretoken', CSRF);
+    fetch('{% url "staff_chat_delete" %}', {method:'POST',headers:{'X-CSRFToken':CSRF},body:fd}).then(r=>r.json()).then(d=>{ if(d.success) chatwLoadThread(false); });
+  };
+  document.addEventListener('click', function(){ var m=document.getElementById('chatwMsgMenu'); if(m) m.classList.remove('show'); });
+
+  var _convs = [];
+  function chatwLoadList() {
+    fetch('{% url "staff_chat_conversations" %}').then(r=>r.json()).then(d=>{
+      if (!d.success) return;
+      _convs = d.conversations;
+      var box = document.getElementById('chatwList');
+      if (!_convs.length) { box.innerHTML = '<div class="chatw-empty"><i class="fas fa-comment-slash"></i>No conversations yet.<br>Messages from clients on your cases appear here.</div>'; return; }
+      box.innerHTML = _convs.map(function(c, i){
+        return '<div class="chatw-conv" onclick="chatwOpen('+i+')">'
+          + '<div class="chatw-ava">'+avaImg(c.client_name,'client')+'</div>'
+          + '<div class="chatw-conv-main">'
+          +   '<div class="chatw-conv-top"><span class="chatw-conv-name">'+esc(c.client_name)
+          +     (c.unread? '<span class="chatw-uc">'+c.unread+'</span>':'') + '</span><span class="chatw-conv-time">'+esc(c.last_time)+'</span></div>'
+          +   (c.debtor? '<div class="chatw-conv-debtor">'+esc(c.debtor)+'</div>':'')
+          +   '<div class="chatw-conv-ref">'+esc(c.case_ref)+'</div>'
+          +   '<div class="chatw-conv-last">'+esc(c.last_body)+'</div>'
+          + '</div></div>';
+      }).join('');
+    });
+  }
+
+  window.chatwOpen = function (i) {
+    var c = _convs[i]; if (!c) return;
+    cur = { case_pk: c.case_pk, access_id: c.access_id, case_ref: c.case_ref, client_name: c.client_name, debtor: c.debtor };
+    view = 'thread';
+    document.getElementById('chatwListView').style.display = 'none';
+    document.getElementById('chatwThreadView').style.display = 'flex';
+    document.getElementById('chatwThreadTitle').childNodes[0].nodeValue = c.client_name + ' ';
+    document.getElementById('chatwThreadSub').textContent = (c.debtor ? c.debtor + ' · ' : '') + c.case_ref;
+    document.getElementById('chatwCaseBtn').href = '/cases/' + c.case_pk + '/';
+    document.getElementById('chatwHeadAva').innerHTML = avaImg(c.client_name, 'client') + '<span class="dot"></span>';
+    chatwLoadThread(true);
+  };
+
+  function chatwLoadThread(scroll) {
+    if (!cur) return;
+    fetch('{% url "staff_chat_thread" %}?case_id='+cur.case_pk+'&access_id='+cur.access_id).then(r=>r.json()).then(d=>{
+      if (!d.success) return;
+      var t = document.getElementById('chatwThread');
+      var prevSender = null, prevDate = null, html = '';
+      d.messages.forEach(function(m){
+        var mine = m.sender === 'staff';
+        var name = mine ? (m.staff || 'You') : (cur.client_name || 'Client');
+        var datePart = (m.time.split(',')[0] || '').trim();
+        if (datePart !== prevDate) { html += '<div class="chatw-date"><span>'+esc(datePart)+'</span></div>'; prevDate = datePart; prevSender = null; }
+        if (m.auto) { html += '<div class="chatw-sysmsg"><i class="fas fa-headset"></i> '+esc(m.body)+'</div>'; prevSender = null; return; }
+        var grouped = (m.sender === prevSender);
+        var ava = '<div class="chatw-mava '+(mine?'me':'them')+(grouped?' hidden':'')+'">'+avaImg(name, mine?'staff':'client')+'</div>';
+        var bubble = chatwBubble(m, mine);
+        html += '<div class="chatw-row '+(mine?'me':'them')+(grouped?' grouped':'')+'">'+(mine? bubble+ava : ava+bubble)+'</div>';
+        prevSender = m.sender;
+      });
+      t.innerHTML = html || '<div class="chatw-empty" style="padding:30px;"><i class="fas fa-comments"></i>Say hello 👋</div>';
+      if (scroll) t.scrollTop = t.scrollHeight;
+    });
+  }
+
+  window.chatwSend = function (preset) {
+    var el = document.getElementById('chatwInput');
+    var body = (preset != null ? preset : el.value).trim();
+    if (!body || !cur) return;
+    if (preset == null) { el.value = ''; chatwGrow(el); }
+    var fd = new FormData(); fd.append('case_id', cur.case_pk); fd.append('access_id', cur.access_id); fd.append('body', body); fd.append('csrfmiddlewaretoken', CSRF);
+    fetch('{% url "staff_chat_send" %}', { method:'POST', headers:{'X-CSRFToken':CSRF}, body:fd }).then(r=>r.json()).then(d=>{ if (d.success) chatwLoadThread(true); });
+  };
+  window.chatwKey = function (e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); chatwSend(); } };
+  window.chatwGrow = function (el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; };
+
+  function chatwPoll() {
+    fetch('{% url "staff_chat_poll" %}').then(r=>r.json()).then(d=>{
+      if (!d.success) return;
+      badge.textContent = d.total; badge.classList.toggle('show', d.total>0);
+      if (open && view==='list') chatwLoadList();
+      if (open && view==='thread') chatwLoadThread(false);
+    }).catch(function(){});
+  }
+  chatwPoll();
+  setInterval(chatwPoll, 5000);
+})();
+</script>
