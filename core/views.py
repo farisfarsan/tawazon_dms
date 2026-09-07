@@ -1,13 +1,14 @@
 import csv
 import io
 import json
+import os
 import re
 from decimal import Decimal, InvalidOperation
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db.models import Sum, Count, Q, Max, Prefetch
 from django.db.models.functions import Lower
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -15,6 +16,7 @@ from django.contrib.auth.models import User
 from django.views.decorators.http import require_POST
 from django.core.validators import validate_email as django_validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.cache import cache
 from .models import Client, ClientContact, Debtor, DebtorContact, Case, Payment, FollowUp, CaseGroup, LegalCase, UserProfile, UserGroup, Country, State, Currency, CaseType, CaseStatus, LegalCaseStatus, LegalFeeType, FollowupType, PaymentMode, ClientType, ContractType, ContactType, AttachmentType, Agency, Lawyer, ContactDirectory, ActivityLog, ClientLoginAccess, ClientLoginOTP, ClientCaseAccess, ClientLoginLog, Reminder, Todo, DebtorStatusOption, DebtorRelatedCompany, CaseAttachment, CaseHistory, AttendanceSession, LegalFee, ChatMessage, PERMISSION_MODULES, PERMISSION_ACTIONS, _clean_perm_map, user_has_perm
 from .forms import ClientForm, ClientContactForm
 from .currencies import enabled_currencies
@@ -188,8 +190,23 @@ def _close_open_sessions(user, logout_type):
 # ---------- DASHBOARD ----------
 @login_required
 def dashboard(request):
-    # Staff only see data tied to cases they collect; admins see everything.
+    # This view runs ~10 aggregates plus full case/debtor scans. It's the same
+    # for a given user until case data changes, so cache the computed context
+    # for a short window (settings.DASHBOARD_CACHE_SECONDS) — staff won't notice
+    # a slightly stale total, and it keeps the dashboard from re-hitting the DB
+    # on every load even while client-portal traffic is coming in.
     is_admin = request.user.is_superuser
+    cache_key = f'dashboard:v1:{request.user.pk}:{"admin" if is_admin else "staff"}'
+    context = cache.get(cache_key)
+    if context is None:
+        context = _build_dashboard_context(request, is_admin)
+        cache.set(cache_key, context, settings.DASHBOARD_CACHE_SECONDS)
+    context = {**context, 'active_page': 'dashboard'}
+    return render(request, 'dashboard.html', context)
+
+
+def _build_dashboard_context(request, is_admin):
+    # Staff only see data tied to cases they collect; admins see everything.
     case_q = Q() if is_admin else Q(collector=request.user)
     case_count_filter = None if is_admin else Q(cases__collector=request.user)
 
@@ -286,8 +303,7 @@ def dashboard(request):
         })
         cases_total_outstanding += case.remaining_amount or 0
 
-    return render(request, 'dashboard.html', {
-        'active_page': 'dashboard',
+    return {
         'total_active_cases': total_active_cases,
         'total_approved': total_approved,
         'total_received': total_received,
@@ -315,7 +331,7 @@ def dashboard(request):
         # Cases tab
         'cases_rows': cases_rows,
         'cases_total_outstanding': cases_total_outstanding,
-    })
+    }
 
 
 # ---------- CLIENTS ----------
@@ -3372,16 +3388,63 @@ def payment_export(request, format):
 
 
 # ---------- EXPORT HELPERS ----------
+#
+# Every export in the app funnels through these three functions. The row cap
+# below is the single guard that stops one huge "export everything" click from
+# tying up a gunicorn worker (and its RAM) for many seconds while it serializes
+# a spreadsheet/PDF — which is what would make the dashboard feel slow for
+# everyone else. Over the cap we refuse with a clear message instead of
+# silently truncating (a partial export the user thinks is complete is worse
+# than no export). Raise EXPORT_MAX_ROWS via env var if a bigger box can
+# afford it; better still, filter the list before exporting.
+_EXPORT_MAX_ROWS = int(os.environ.get('EXPORT_MAX_ROWS', '25000'))
+# PDF layout is much heavier per row than CSV/Excel, so it gets a tighter cap.
+_EXPORT_PDF_MAX_ROWS = int(os.environ.get('EXPORT_PDF_MAX_ROWS', '5000'))
+
+
+def _export_too_big(rows, limit):
+    """Return an HttpResponse to send back if `rows` is over `limit`, else None."""
+    n = len(rows)
+    if n <= limit:
+        return None
+    resp = HttpResponse(
+        f"This export has {n:,} rows, over the {limit:,}-row limit.\n\n"
+        f"Filter the list first (by status, client, date, collector, …) and "
+        f"export the smaller result. This keeps the dashboard fast for everyone "
+        f"while a big file is being built.",
+        content_type='text/plain',
+        status=413,
+    )
+    return resp
+
+
+class _Echo:
+    """A file-like object that just returns what's written — lets csv.writer
+    feed StreamingHttpResponse row by row instead of buffering the whole file."""
+    def write(self, value):
+        return value
+
+
 def _export_csv(filename, headers, rows):
-    response = HttpResponse(content_type='text/csv')
+    too_big = _export_too_big(rows, _EXPORT_MAX_ROWS)
+    if too_big:
+        return too_big
+    writer = csv.writer(_Echo())
+
+    def _stream():
+        yield writer.writerow(headers)
+        for row in rows:
+            yield writer.writerow(row)
+
+    response = StreamingHttpResponse(_stream(), content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-    writer = csv.writer(response)
-    writer.writerow(headers)
-    writer.writerows(rows)
     return response
 
 
 def _export_excel(sheet_name, headers, rows):
+    too_big = _export_too_big(rows, _EXPORT_MAX_ROWS)
+    if too_big:
+        return too_big
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -3423,6 +3486,9 @@ def _export_excel(sheet_name, headers, rows):
 
 
 def _export_pdf(title, headers, rows, col_widths=None):
+    too_big = _export_too_big(rows, _EXPORT_PDF_MAX_ROWS)
+    if too_big:
+        return too_big
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import landscape, A4
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer

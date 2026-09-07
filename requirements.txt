@@ -1,0 +1,44 @@
+# Core
+Django==6.0.5
+asgiref==3.11.1
+sqlparse==0.5.5
+typing_extensions==4.16.0
+
+# API
+django-cors-headers==4.9.0
+djangorestframework==3.17.1
+djangorestframework_simplejwt==5.5.1
+PyJWT==2.13.0
+
+# Excel import/export
+openpyxl==3.1.5
+et_xmlfile==2.0.0
+
+# Images
+pillow==12.2.0
+
+# Receipts: PDF generation, Arabic text shaping, QR codes
+reportlab==4.5.1
+arabic-reshaper==3.0.1
+python-bidi==0.6.11
+qrcode==8.2
+
+# Production server
+gunicorn==26.1.0
+
+# Production database (Postgres) — falls back to SQLite locally if DATABASE_URL isn't set
+psycopg[binary]==3.3.4
+dj-database-url==3.1.2
+
+# Production static files
+whitenoise==6.12.0
+
+# Cache + session store (set REDIS_URL to enable; optional for local dev)
+redis==5.2.1
+
+# Error + slow-request monitoring (set SENTRY_DSN to enable; no-op without it)
+sentry-sdk==2.20.0
+
+# Production media storage (S3-compatible: Cloudflare R2, AWS S3, DO Spaces)
+django-storages==1.14.6
+boto3==1.43.75

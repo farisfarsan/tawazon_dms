@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,9 +26,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-CHANGE-ME-for-local-dev-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Defaults to True to match local dev as it's always been. On a real deploy,
+# set:  export DJANGO_DEBUG=0
+DEBUG = os.environ.get('DJANGO_DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = ['*']
+# Comma-separated list of allowed hostnames, e.g.:
+#   export DJANGO_ALLOWED_HOSTS="app.tawazonoman.com,www.tawazonoman.com"
+# Defaults to '*' so nothing already running breaks — narrow this on a real
+# deploy so the app only answers to your real domain.
+_allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '').strip()
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()] or ['*']
 
 
 # Application definition
@@ -44,6 +52,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Serves static files directly from the app process — no separate static
+    # file host/CDN needed to get a working production deploy.
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -77,13 +88,53 @@ WSGI_APPLICATION = 'dashboard.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+#
+# Set DATABASE_URL to point at a real Postgres instance, e.g.:
+#   export DATABASE_URL="postgres://user:password@host:5432/dbname"
+# Falls back to the local SQLite file when it's not set (local dev only —
+# SQLite is not safe for concurrent multi-user production use).
+import dj_database_url
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
+
+
+# ---------------------------------------------------------------------------
+# Cache.
+#
+# Set REDIS_URL to a running Redis instance for a real shared cache, e.g.:
+#   export REDIS_URL="redis://127.0.0.1:6379/1"
+# Used to cache the expensive dashboard summary view and to hold sessions, so
+# heavy staff pages and client-portal traffic don't keep re-hitting the DB.
+# With no REDIS_URL set it falls back to a per-process in-memory cache, which
+# is fine for local dev / a single worker but not shared between workers.
+# ---------------------------------------------------------------------------
+_redis_url = os.environ.get('REDIS_URL', '').strip()
+if _redis_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': _redis_url,
+        }
+    }
+    # Read sessions from cache, write through to the DB so they survive a
+    # Redis restart. Keeps a DB round-trip off the hot path for every request.
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'tawazon-locmem',
+        }
+    }
+
+# How long (seconds) the cached dashboard summary stays fresh. Staff won't
+# notice a slightly stale total; this removes the dashboard as a load source.
+DASHBOARD_CACHE_SECONDS = int(os.environ.get('DASHBOARD_CACHE_SECONDS', '90'))
 
 
 # Password validation
@@ -121,6 +172,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -154,6 +206,11 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
+# Add your real production domain(s), comma-separated, e.g.:
+#   export DJANGO_CSRF_TRUSTED_ORIGINS="https://app.tawazonoman.com"
+CSRF_TRUSTED_ORIGINS += [
+    o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()
+]
 
 # Trust ngrok's forwarded HTTPS headers
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -175,6 +232,42 @@ SESSION_COOKIE_SAMESITE = 'None' if _secure_cookies else 'Lax'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# ---------------------------------------------------------------------------
+# File storage backends.
+#
+# Static files (CSS/JS/images bundled with the app) are always served by
+# WhiteNoise straight from the app process — no separate config needed.
+#
+# Uploaded media (case attachments, logos, etc.) stay on local disk by
+# default. Set these env vars to instead store them in an S3-compatible
+# bucket (Cloudflare R2, AWS S3, DigitalOcean Spaces) — required once running
+# on more than one app instance, since local disk isn't shared/durable there:
+#   export AWS_STORAGE_BUCKET_NAME="tawazon-media"
+#   export AWS_ACCESS_KEY_ID="..."
+#   export AWS_SECRET_ACCESS_KEY="..."
+#   export AWS_S3_ENDPOINT_URL="https://<account-id>.r2.cloudflarestorage.com"   # R2 only; omit for real AWS S3
+#   export AWS_S3_CUSTOM_DOMAIN="media.tawazonoman.com"                          # optional public CDN domain
+# ---------------------------------------------------------------------------
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+_media_bucket = os.environ.get('AWS_STORAGE_BUCKET_NAME', '').strip()
+if _media_bucket:
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
+    AWS_STORAGE_BUCKET_NAME = _media_bucket
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL') or None
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME') or None
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN') or None
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+else:
+    STORAGES['default'] = {'BACKEND': 'django.core.files.storage.FileSystemStorage'}
 
 # ---------------------------------------------------------------------------
 # Email (used for the client OTP login). Fill these in with your real SMTP
@@ -213,3 +306,27 @@ else:
 
 # How long an OTP code stays valid, in minutes.
 CLIENT_OTP_TTL_MINUTES = int(os.environ.get('CLIENT_OTP_TTL_MINUTES', '10'))
+
+
+# ---------------------------------------------------------------------------
+# Error + performance monitoring (Sentry).
+#
+# Set SENTRY_DSN in the environment to turn it on — get the DSN free at
+# sentry.io (create a project, type "Django"). With it enabled you get an
+# alert with the exact traceback for any 500, and a "slow transactions" list
+# showing which view/query is dragging — so "the dashboard feels slow" turns
+# into a specific line to fix instead of a guess. Without SENTRY_DSN set this
+# block does nothing.
+#   SENTRY_TRACES_SAMPLE_RATE — fraction of requests traced for timing data
+#                               (0.1 = 10%). Keep low so it adds no overhead.
+# ---------------------------------------------------------------------------
+_sentry_dsn = os.environ.get('SENTRY_DSN', '').strip()
+if _sentry_dsn:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+        send_default_pii=False,
+    )
