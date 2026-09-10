@@ -4307,25 +4307,15 @@ def user_group_delete(request):
 
 
 def countries_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-
-    qs = Country.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(code__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
+    # Small fixed reference list (~200 rows) — load all of them and let the
+    # template filter/sort client-side, so the filter box works instantly on
+    # every column (name, code, dial code, status) without a page reload.
+    countries = Country.objects.all().order_by('name')
     return render(request, 'settings_countries.html', {
         'active_page': 'settings_localisation',
         'active_sub':  'settings_countries',
-        'page_obj':    page_obj,
-        'search':      search,
-        'page_size':   page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count': qs.count(),
+        'countries':   countries,
+        'total_count': countries.count(),
     })
 
 

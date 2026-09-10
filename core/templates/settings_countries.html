@@ -82,25 +82,17 @@
 <div class="data-card">
   <div class="section-title">Countries</div>
 
-  <form method="get" id="filterForm">
-    <div class="filter-row">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="filter-label">Filter:</span>
-        <div class="filter-search">
-          <input type="text" name="q" id="filterInput" value="{{ search }}" placeholder="Type to filter..." oninput="liveFilter()" autocomplete="off">
-          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()" title="Search all pages"></i>
-        </div>
-      </div>
-      <div class="show-select">
-        Show:
-        <select name="show" onchange="document.getElementById('filterForm').submit()">
-          {% for opt in page_size_options %}
-          <option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
+  <div class="filter-row">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="filter-label">Filter:</span>
+      <div class="filter-search">
+        <input type="text" id="filterInput" placeholder="Type to filter..." oninput="liveFilter()" autocomplete="off"
+               onkeydown="if(event.key==='Enter')event.preventDefault();">
+        <i class="fas fa-search"></i>
       </div>
     </div>
-  </form>
+    <div class="show-select" id="countCounter">{{ total_count }} countr{{ total_count|pluralize:"y,ies" }}</div>
+  </div>
 
   <div class="bulk-bar" id="bulkBar">
     <span><span class="bulk-count" id="bulkCount">0</span> selected</span>
@@ -121,7 +113,7 @@
       </tr>
     </thead>
     <tbody>
-      {% for country in page_obj %}
+      {% for country in countries %}
       <tr data-cid="{{ country.pk }}">
         <td><input type="checkbox" class="row-check"></td>
         <td></td>
@@ -155,27 +147,11 @@
       {% empty %}
       <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">No countries found.</td></tr>
       {% endfor %}
+      <tr id="noMatchRow" style="display:none;"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">No countries match your filter.</td></tr>
     </tbody>
   </table>
 
-  {% if page_obj.paginator.num_pages > 1 %}
-  <div class="pagination">
-    <span class="page-info">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }}</span>
-    {% if page_obj.has_previous %}
-      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
-    {% endif %}
-    {% for num in page_obj.paginator.page_range %}
-      {% if num == page_obj.number %}
-        <span class="page-btn active">{{ num }}</span>
-      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-        <a href="?q={{ search }}&show={{ page_size }}&page={{ num }}" class="page-btn">{{ num }}</a>
-      {% endif %}
-    {% endfor %}
-    {% if page_obj.has_next %}
-      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
-    {% endif %}
-  </div>
-  {% endif %}
+  <div class="pagination"><span class="page-info" id="filterInfo"></span></div>
 </div>
 
 <!-- Add Country Modal -->
@@ -259,13 +235,21 @@ function bulkDelete() {
   });
 }
 
-/* ---------- live filter (current page) ---------- */
+/* ---------- live filter (all rows, client-side) ---------- */
+const allRows = () => [...tbody.querySelectorAll('tr[data-cid]')];
 function liveFilter() {
   const q = document.getElementById('filterInput').value.trim().toLowerCase();
-  tbody.querySelectorAll('tr[data-cid]').forEach(tr => {
-    const txt = tr.innerText.toLowerCase();
-    tr.style.display = (!q || txt.indexOf(q) !== -1) ? '' : 'none';
+  let shown = 0;
+  allRows().forEach(tr => {
+    const match = !q || tr.innerText.toLowerCase().indexOf(q) !== -1;
+    tr.style.display = match ? '' : 'none';
+    if (match) shown++;
   });
+  const noMatch = document.getElementById('noMatchRow');
+  if (noMatch) noMatch.style.display = shown === 0 ? '' : 'none';
+  const info = document.getElementById('filterInfo');
+  const total = allRows().length;
+  info.textContent = q ? ('Showing ' + shown + ' of ' + total) : '';
   refreshBulkBar();
 }
 
