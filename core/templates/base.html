@@ -621,6 +621,15 @@
 
   </style>
   {% status_color_css %}
+
+  <!-- Tom Select: searchable dropdowns (any <select class="js-search">) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+  <style>
+    .ts-wrapper.single .ts-control { border: 1.5px solid var(--border, #d9dfe7); border-radius: 6px; min-height: 38px; font-size: 13px; background: #fff; }
+    .ts-wrapper.single.input-active .ts-control { border-color: var(--primary, #e11d48); }
+    .ts-dropdown { border: 1.5px solid var(--border, #d9dfe7); border-radius: 6px; font-size: 13px; z-index: 10000; }
+    .ts-dropdown .active { background: var(--primary, #e11d48); color: #fff; }
+  </style>
 </head>
 <body>
 
@@ -1026,6 +1035,30 @@
 </script>
 
 {% block extra_scripts %}{% endblock %}
+
+<!-- Tom Select: turn every <select class="js-search"> into a type-to-search dropdown -->
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+  (function initSearchableSelects(root){
+    (root || document).querySelectorAll('select.js-search').forEach(function(el){
+      if (el.tomselect) return;
+      new TomSelect(el, {
+        maxOptions: null,
+        sortField: false,           // keep server order (e.g. Oman first)
+        allowEmptyOption: true,
+        placeholder: el.querySelector('option[value=""]') ? '— Select Country —' : undefined
+      });
+    });
+  })();
+
+  // Set a <select> value from JS and keep a Tom Select widget (if any) in sync.
+  window.setSelectValue = function(el, v){
+    if (!el) return;
+    el.value = v;
+    if (el.tomselect) el.tomselect.setValue(v, true);
+    else el.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+</script>
 
 <!-- ===== CURRENCY CONVERTER MODAL ===== -->
 <div id="currencyModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9000;align-items:center;justify-content:center;">

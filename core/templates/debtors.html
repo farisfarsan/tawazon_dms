@@ -518,23 +518,9 @@
           </div>
           <div class="wiz-group">
             <label>Country</label>
-            <select id="w-country" class="wiz-input" onchange="updateDebtorStates(this.value)">
+            <select id="w-country" class="wiz-input js-search" onchange="updateDebtorStates(this.value)">
               <option value="">— Select Country —</option>
-              <option value="Oman">Oman</option>
-              <option value="Afghanistan">Afghanistan</option>
-              <option value="Bahrain">Bahrain</option>
-              <option value="Egypt">Egypt</option>
-              <option value="India">India</option>
-              <option value="Jordan">Jordan</option>
-              <option value="Kuwait">Kuwait</option>
-              <option value="Lebanon">Lebanon</option>
-              <option value="Pakistan">Pakistan</option>
-              <option value="Qatar">Qatar</option>
-              <option value="Saudi Arabia">Saudi Arabia</option>
-              <option value="UAE">United Arab Emirates</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United States">United States</option>
-              <option value="Other">Other</option>
+              {% for c in all_countries %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
             </select>
           </div>
         </div>
@@ -1148,7 +1134,7 @@
     document.getElementById('w-is-org').checked = false;
     document.getElementById('w-gender').value = '';
     document.getElementById('w-dob').value = '';
-    document.getElementById('w-country').value = '';
+    setSelectValue(document.getElementById('w-country'), '');
     ['w-phone-code', 'w-telephone-code'].forEach(id => {
       const el = document.getElementById(id);
       if (el && el.querySelector('option[value="+968"]')) el.value = '+968';

@@ -515,24 +515,10 @@
         </div>
         <div class="wiz-group">
           <label>Country</label>
-          <select id="w-country" class="wiz-input" onchange="updateDebtorStates(this.value)">
-            <option value="">— Select Country —</option>
-            <option value="Oman" {% if debtor.country == 'Oman' %}selected{% endif %}>Oman</option>
-            <option value="Afghanistan" {% if debtor.country == 'Afghanistan' %}selected{% endif %}>Afghanistan</option>
-            <option value="Bahrain" {% if debtor.country == 'Bahrain' %}selected{% endif %}>Bahrain</option>
-            <option value="Egypt" {% if debtor.country == 'Egypt' %}selected{% endif %}>Egypt</option>
-            <option value="India" {% if debtor.country == 'India' %}selected{% endif %}>India</option>
-            <option value="Jordan" {% if debtor.country == 'Jordan' %}selected{% endif %}>Jordan</option>
-            <option value="Kuwait" {% if debtor.country == 'Kuwait' %}selected{% endif %}>Kuwait</option>
-            <option value="Lebanon" {% if debtor.country == 'Lebanon' %}selected{% endif %}>Lebanon</option>
-            <option value="Pakistan" {% if debtor.country == 'Pakistan' %}selected{% endif %}>Pakistan</option>
-            <option value="Qatar" {% if debtor.country == 'Qatar' %}selected{% endif %}>Qatar</option>
-            <option value="Saudi Arabia" {% if debtor.country == 'Saudi Arabia' %}selected{% endif %}>Saudi Arabia</option>
-            <option value="UAE" {% if debtor.country == 'UAE' %}selected{% endif %}>United Arab Emirates</option>
-            <option value="United Kingdom" {% if debtor.country == 'United Kingdom' %}selected{% endif %}>United Kingdom</option>
-            <option value="United States" {% if debtor.country == 'United States' %}selected{% endif %}>United States</option>
-            <option value="Other" {% if debtor.country == 'Other' %}selected{% endif %}>Other</option>
-          </select>
+          <select id="w-country" class="wiz-input js-search" onchange="updateDebtorStates(this.value)">
+              <option value="">— Select Country —</option>
+              {% for c in all_countries %}<option value="{{ c.name }}"{% if debtor.country == c.name %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
         </div>
       </div>
       <div class="wiz-row-full">

@@ -744,23 +744,9 @@
           </div>
           <div class="wiz-group">
             <label>Country</label>
-            <select id="nd-country" class="wiz-input" onchange="ndUpdateDebtorStates(this.value)">
+            <select id="nd-country" class="wiz-input js-search" onchange="ndUpdateDebtorStates(this.value)">
               <option value="">— Select Country —</option>
-              <option value="Oman">Oman</option>
-              <option value="Afghanistan">Afghanistan</option>
-              <option value="Bahrain">Bahrain</option>
-              <option value="Egypt">Egypt</option>
-              <option value="India">India</option>
-              <option value="Jordan">Jordan</option>
-              <option value="Kuwait">Kuwait</option>
-              <option value="Lebanon">Lebanon</option>
-              <option value="Pakistan">Pakistan</option>
-              <option value="Qatar">Qatar</option>
-              <option value="Saudi Arabia">Saudi Arabia</option>
-              <option value="UAE">United Arab Emirates</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United States">United States</option>
-              <option value="Other">Other</option>
+              {% for c in all_countries %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
             </select>
           </div>
         </div>
@@ -953,21 +939,8 @@
         <div class="wiz-row">
           <div class="wiz-group"><label>City</label><input type="text" id="nc-w-city" class="wiz-input" placeholder="City"></div>
           <div class="wiz-group"><label>Country</label>
-            <select id="nc-w-country" class="wiz-input" onchange="ncUpdateStates(this.value)">
-              <option value="Oman" selected>Oman</option>
-              <option value="Bahrain">Bahrain</option>
-              <option value="Egypt">Egypt</option>
-              <option value="India">India</option>
-              <option value="Jordan">Jordan</option>
-              <option value="Kuwait">Kuwait</option>
-              <option value="Lebanon">Lebanon</option>
-              <option value="Pakistan">Pakistan</option>
-              <option value="Qatar">Qatar</option>
-              <option value="Saudi Arabia">Saudi Arabia</option>
-              <option value="UAE">United Arab Emirates</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United States">United States</option>
-              <option value="Other">Other</option>
+            <select id="nc-w-country" class="wiz-input js-search" onchange="ncUpdateStates(this.value)">
+              {% for c in all_countries %}<option value="{{ c.name }}"{% if c.name == 'Oman' %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
             </select>
           </div>
         </div>
@@ -1145,7 +1118,7 @@
           </div>
           <div class="wiz-group">
             <label class="req">Case Country <span class="req-star">*</span></label>
-            <select id="w-country" class="wiz-input">
+            <select id="w-country" class="wiz-input js-search">
               <option value="">— Select Country —</option>
               {% for c in all_countries %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
             </select>
@@ -1575,7 +1548,7 @@
     document.getElementById('w-account').value = '';
     document.getElementById('w-status').value = 'active';
     document.getElementById('w-collector').value = '';
-    document.getElementById('w-country').value = '';
+    setSelectValue(document.getElementById('w-country'), '');
     document.getElementById('w-is-agency').checked = false;
     document.getElementById('w-agency').value = '';
     wizToggleAgency();
@@ -1790,7 +1763,7 @@
       const el = document.getElementById(id);
       if (el && el.querySelector('option[value="+968"]')) el.value = '+968';
     });
-    document.getElementById('nc-w-country').value = 'Oman';
+    setSelectValue(document.getElementById('nc-w-country'), 'Oman');
     ncUpdateStates('Oman');
     document.getElementById('nc-w-client-type').value = 'agency';
     document.getElementById('nc-w-contract-type').value = '';
@@ -2005,7 +1978,7 @@
     document.getElementById('nd-is-org').checked = false;
     document.getElementById('nd-gender').value = '';
     document.getElementById('nd-dob').value = '';
-    document.getElementById('nd-country').value = '';
+    setSelectValue(document.getElementById('nd-country'), '');
     ['nd-phone-code', 'nd-telephone-code', 'nd-emp-phone-code', 'nd-contact-phone-code'].forEach(id => {
       const el = document.getElementById(id);
       if (el && el.querySelector('option[value="+968"]')) el.value = '+968';

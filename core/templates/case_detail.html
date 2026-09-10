@@ -387,7 +387,7 @@
           <div class="cd-field">
             <label>Case Country <span class="req">*</span></label>
             <div class="cd-view-val {% if not case.case_country %}empty{% endif %}">{{ case.case_country|default:"—" }}</div>
-            <select name="case_country" class="cd-select">
+            <select name="case_country" class="cd-select js-search">
               <option value="">— Select Country —</option>
               {% for c in countries %}<option value="{{ c.name }}" {% if case.case_country == c.name %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
             </select>

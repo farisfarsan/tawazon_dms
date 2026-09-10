@@ -487,7 +487,7 @@
           </div>
           <div class="wiz-group">
             <label>Country:</label>
-            <select id="w-country" class="wiz-input">
+            <select id="w-country" class="wiz-input js-search">
               {% for c in all_countries %}
               <option value="{{ c.name }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.name }}</option>
               {% endfor %}
@@ -1210,7 +1210,7 @@
     });
     const omanCode = document.querySelector('#w-phone-code option[value="+968"]') ? '+968' : '';
     if (omanCode) { document.getElementById('w-phone-code').value = omanCode; document.getElementById('w-mobile-code').value = omanCode; }
-    document.getElementById('w-country').value = 'Oman';
+    setSelectValue(document.getElementById('w-country'), 'Oman');
     updateStates('Oman');
     document.getElementById('w-state').value = '';
     document.getElementById('w-client-type').value = 'agency';
