@@ -511,6 +511,11 @@
 
     .data-table td.actions { text-align: center; width: 52px; padding: 0 4px; }
 
+    /* Case ID rendered compact: wraps at the slashes onto ~2 lines so the
+       column stays narrow. Used with the |caseid_break filter. */
+    .caseid-2l { display: inline-block; max-width: 82px; white-space: normal; word-break: break-word; line-height: 1.25; }
+    .data-table th.caseid-col { width: 92px; }
+
     /* ── Unified row action button + floating menu (shared across all tables) ── */
     .row-action-btn { background: none; border: none; cursor: pointer; padding: 6px 9px; border-radius: 6px; color: var(--text-muted); font-size: 15px; line-height: 1; transition: background 0.15s, color 0.15s; }
     .row-action-btn:hover { background: #f1f5f9; color: var(--text-dark); }

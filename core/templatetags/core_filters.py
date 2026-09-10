@@ -1,7 +1,19 @@
 from django import template
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 register = template.Library()
+
+
+@register.filter
+def caseid_break(value):
+    """Insert <wbr> break opportunities after each slash in a case id
+    (e.g. TWZ/2026/08/0001) so it can wrap onto ~2 lines in a narrow column
+    instead of forcing the column wide. Pair with the .caseid-2l CSS class."""
+    if value is None:
+        return ''
+    return mark_safe(escape(str(value)).replace('/', '/<wbr>'))
 
 
 @register.filter

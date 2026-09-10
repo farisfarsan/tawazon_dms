@@ -377,7 +377,7 @@
         <tr id="cas-col-headers">
           <th data-col="0"><input type="checkbox" id="selectAll"></th>
           <th data-col="1">#</th>
-          <th data-col="2" class="sortable" onclick="sortCol(2)">Case ID <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="2" class="sortable caseid-col" onclick="sortCol(2)">Case ID <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="3" class="sortable" onclick="sortCol(3)">Client <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="4" class="sortable" onclick="sortCol(4)">Debtor <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="5" class="sortable" onclick="sortCol(5)">Agency <i class="fas fa-sort sort-ic"></i></th>
@@ -417,7 +417,7 @@
         {% endif %}
           <td style="color:var(--text-muted);">{{ forloop.counter0|add:page_obj.start_index }}</td>
           <td>
-            <a href="{% url 'debtor_detail' case.debtor.pk %}" class="clickable" style="font-size:12px;">{{ case.case_id }}</a>
+            <a href="{% url 'debtor_detail' case.debtor.pk %}" class="clickable caseid-2l" style="font-size:12px;">{{ case.case_id|caseid_break }}</a>
             {% if case.id in grouped_case_ids %}<span class="group-tag"><i class="fas fa-layer-group"></i> Grouped</span>{% endif %}
           </td>
           <td><a href="{% url 'client_edit' case.client.pk %}" class="clickable">{{ case.client.name }}</a></td>

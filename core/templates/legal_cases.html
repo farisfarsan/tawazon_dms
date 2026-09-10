@@ -254,7 +254,7 @@
       <thead>
         <tr id="lg-col-headers">
           <th data-col="0"><input type="checkbox" id="selectAll"></th>
-          <th data-col="1" class="sortable" onclick="sortCol(1)">Case ID <i class="fas fa-sort sort-ic"></i></th>
+          <th data-col="1" class="sortable caseid-col" onclick="sortCol(1)">Case ID <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="2" class="sortable" onclick="sortCol(2)">Client <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="3" class="sortable" onclick="sortCol(3)">Debtor <i class="fas fa-sort sort-ic"></i></th>
           <th data-col="4" class="sortable" onclick="sortCol(4)">Agency <i class="fas fa-sort sort-ic"></i></th>
@@ -283,7 +283,7 @@
         {% for lc in legal_cases %}
         <tr data-id="{{ lc.id }}" oncontextmenu="legalRowCtx(event, this)">
           <td><input type="checkbox" class="row-checkbox" value="{{ lc.id }}"></td>
-          <td><a href="{% url 'case_detail' lc.case.pk %}" class="clickable" style="font-size:12px;">{{ lc.case.case_id }}</a></td>
+          <td><a href="{% url 'case_detail' lc.case.pk %}" class="clickable caseid-2l" style="font-size:12px;">{{ lc.case.case_id|caseid_break }}</a></td>
           <td><span class="clickable">{{ lc.case.client.name }}</span></td>
           <td><a href="{% url 'debtor_detail' lc.case.debtor.pk %}" class="clickable">{{ lc.case.debtor.name }}</a></td>
           <td>{% if lc.case.agency %}{{ lc.case.agency.name }}{% else %}<span style="color:var(--text-muted); font-size:12px;">—</span>{% endif %}</td>
