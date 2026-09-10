@@ -4370,39 +4370,48 @@ def country_delete(request):
 
 
 def states_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-
-    qs = State.objects.select_related('country')
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(country__name__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
+    # States only exist for countries still in the system; load them all and
+    # let the template filter/sort/paginate client-side.
+    states = State.objects.select_related('country').order_by('country__name', 'name')
     return render(request, 'settings_states.html', {
         'active_page': 'settings_localisation',
         'active_sub':  'settings_states',
-        'page_obj':    page_obj,
-        'search':      search,
-        'page_size':   page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count': qs.count(),
+        'states':      states,
+        'total_count': states.count(),
         'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
     })
 
 
+def _country_from_post(request):
+    cid = request.POST.get('country', '').strip()
+    return Country.objects.filter(pk=cid).first() if cid.isdigit() else None
+
+
 @require_POST
 def state_create(request):
-    name       = request.POST.get('name', '').strip()
-    country_id = request.POST.get('country', '').strip()
+    name = request.POST.get('name', '').strip()
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
-    country = Country.objects.filter(pk=country_id).first()
+    country = _country_from_post(request)
     if State.objects.filter(name__iexact=name, country=country).exists():
         return JsonResponse({'ok': False, 'error': 'State already exists for this country.'})
     s = State.objects.create(name=name, country=country, is_enabled=True)
+    return JsonResponse({'ok': True, 'id': s.pk, 'name': s.name,
+                         'country': s.country.name if s.country else '—'})
+
+
+@require_POST
+def state_update(request):
+    s = get_object_or_404(State, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    country = _country_from_post(request)
+    if State.objects.filter(name__iexact=name, country=country).exclude(pk=s.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'That state already exists for this country.'})
+    s.name = name
+    s.country = country
+    s.save()
     return JsonResponse({'ok': True, 'id': s.pk, 'name': s.name,
                          'country': s.country.name if s.country else '—'})
 
@@ -4423,25 +4432,12 @@ def state_delete(request):
 
 
 def currencies_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-
-    qs = Currency.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(code__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
+    currencies = Currency.objects.all().order_by('name')
     return render(request, 'settings_currencies.html', {
         'active_page': 'settings_localisation',
         'active_sub':  'settings_currencies',
-        'page_obj':    page_obj,
-        'search':      search,
-        'page_size':   page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count': qs.count(),
+        'currencies':  currencies,
+        'total_count': currencies.count(),
     })
 
 
@@ -4462,6 +4458,28 @@ def currency_create(request):
         value = 1.0
     c = Currency.objects.create(name=name, code=code, symbol_left=sym_l,
                                 symbol_right=sym_r, value=value, is_enabled=True)
+    return JsonResponse({'ok': True, 'id': c.pk})
+
+
+@require_POST
+def currency_update(request):
+    c = get_object_or_404(Currency, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    code = request.POST.get('code', '').strip().upper()
+    if not name or not code:
+        return JsonResponse({'ok': False, 'error': 'Name and code are required.'})
+    if Currency.objects.filter(name__iexact=name).exclude(pk=c.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another currency already has that name.'})
+    try:
+        value = float(request.POST.get('value', '1').strip())
+    except ValueError:
+        value = 1.0
+    c.name = name
+    c.code = code
+    c.symbol_left = request.POST.get('symbol_left', '').strip()
+    c.symbol_right = request.POST.get('symbol_right', '').strip()
+    c.value = value
+    c.save()
     return JsonResponse({'ok': True, 'id': c.pk})
 
 

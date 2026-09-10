@@ -18,6 +18,17 @@
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:#f8fafc;}
   .data-table input[type=checkbox]{cursor:pointer;width:15px;height:15px;accent-color:var(--primary);}
+  .data-table thead th.sortable{cursor:pointer;user-select:none;}
+  .data-table thead th.sortable:hover{color:var(--primary);}
+  .sort-icon{font-size:10px;margin-left:4px;color:#cbd5e1;}
+  .sort-icon.active{color:var(--primary);}
+  .bulk-bar{display:none;align-items:center;gap:14px;background:var(--primary-light);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text-dark);}
+  .bulk-bar.open{display:flex;}
+  .bulk-bar .bulk-count{font-weight:700;color:var(--primary);}
+  .bulk-bar button{border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .bulk-bar .bulk-del{background:#dc2626;color:white;}
+  .bulk-bar .bulk-del:hover{background:#b91c1c;}
+  .bulk-bar .bulk-clear{background:white;color:var(--text-muted);border:1px solid var(--border);}
   .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
   .status-badge.enabled{background:#dbeafe;color:var(--primary);}
   .status-badge.disabled{background:#f1f5f9;color:#64748b;}
@@ -61,39 +72,46 @@
 <div class="data-card">
   <div class="section-title">States</div>
 
-  <form method="get" id="filterForm">
-    <div class="filter-row">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="filter-label">Filter:</span>
-        <div class="filter-search">
-          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter...">
-          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()"></i>
-        </div>
-      </div>
-      <div class="show-select">
-        Show:
-        <select name="show" onchange="document.getElementById('filterForm').submit()">
-          {% for opt in page_size_options %}
-          <option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
+  <div class="filter-row">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="filter-label">Filter:</span>
+      <div class="filter-search">
+        <input type="text" id="filterInput" placeholder="Filter by state or country..." oninput="applyView()" autocomplete="off"
+               onkeydown="if(event.key==='Enter')event.preventDefault();">
+        <i class="fas fa-search"></i>
       </div>
     </div>
-  </form>
+    <div class="show-select">
+      Show:
+      <select id="showSelect" onchange="applyView()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar">
+    <span><span class="bulk-count" id="bulkCount">0</span> selected</span>
+    <button class="bulk-del" onclick="bulkDelete()"><i class="fas fa-trash"></i> Delete Selected</button>
+    <button class="bulk-clear" onclick="clearSelection()">Clear</button>
+  </div>
 
   <table class="data-table">
     <thead>
       <tr>
         <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
-        <th>Name</th>
-        <th>Country</th>
-        <th>Status</th>
+        <th class="sortable" onclick="sortRows(1,this)">Name <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortRows(2,this)">Country <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortRows(3,this)">Status <i class="fas fa-sort sort-icon"></i></th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for state in page_obj %}
-      <tr data-sid="{{ state.pk }}">
+      {% for state in states %}
+      <tr data-id="{{ state.pk }}">
         <td><input type="checkbox" class="row-check"></td>
         <td>{{ state.name }}</td>
         <td>{{ state.country.name|default:"—" }}</td>
@@ -110,6 +128,9 @@
               <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
             </button>
             <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="openEditModal({{ state.pk }}, '{{ state.name|escapejs }}', '{{ state.country_id|default:'' }}')">
+                <i class="fas fa-pen"></i> Edit
+              </button>
               <button class="dropdown-item" onclick="toggleState({{ state.pk }})">
                 <i class="fas fa-{% if state.is_enabled %}ban{% else %}check{% endif %}"></i>
                 {% if state.is_enabled %}Disable{% else %}Enable{% endif %}
@@ -124,36 +145,21 @@
       {% empty %}
       <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">No states found.</td></tr>
       {% endfor %}
+      <tr id="noMatchRow" style="display:none;"><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">No states match your filter.</td></tr>
     </tbody>
   </table>
 
-  {% if page_obj.paginator.num_pages > 1 %}
-  <div class="pagination">
-    <span class="page-info">{{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ total_count }}</span>
-    {% if page_obj.has_previous %}
-      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
-    {% endif %}
-    {% for num in page_obj.paginator.page_range %}
-      {% if num == page_obj.number %}
-        <span class="page-btn active">{{ num }}</span>
-      {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-        <a href="?q={{ search }}&show={{ page_size }}&page={{ num }}" class="page-btn">{{ num }}</a>
-      {% endif %}
-    {% endfor %}
-    {% if page_obj.has_next %}
-      <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
-    {% endif %}
-  </div>
-  {% endif %}
+  <div style="margin-top:14px;"><span class="page-info" id="filterInfo"></span></div>
 </div>
 
-<!-- Add State Modal -->
+<!-- Add / Edit State Modal -->
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Add State</span>
+      <span class="modal-title" id="modalTitle">Add State</span>
       <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
+    <input type="hidden" id="s_id">
     <div class="form-group">
       <label>State / Province Name *</label>
       <input class="form-control" id="s_name" placeholder="e.g. Muscat">
@@ -170,7 +176,7 @@
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="submitAdd()">Add State</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="submitState()">Add State</button>
     </div>
   </div>
 </div>
@@ -179,15 +185,73 @@
 {% block extra_scripts %}
 <script>
 const CSRF = '{{ csrf_token }}';
+const tbody = document.querySelector('.data-table tbody');
+const allRows = () => [...tbody.querySelectorAll('tr[data-id]')];
+function visibleRows() { return allRows().filter(r => r.style.display !== 'none'); }
+function selectedIds() { return [...tbody.querySelectorAll('.row-check:checked')].map(c => c.closest('tr').dataset.id); }
 
+function refreshBulkBar() {
+  const n = selectedIds().length;
+  document.getElementById('bulkCount').textContent = n;
+  document.getElementById('bulkBar').classList.toggle('open', n > 0);
+  const vis = visibleRows(), sa = document.getElementById('selectAll');
+  const chk = vis.filter(r => r.querySelector('.row-check').checked).length;
+  sa.checked = vis.length > 0 && chk === vis.length;
+  sa.indeterminate = chk > 0 && chk < vis.length;
+}
 document.getElementById('selectAll').addEventListener('change', function() {
-  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+  visibleRows().forEach(r => r.querySelector('.row-check').checked = this.checked);
+  refreshBulkBar();
 });
+tbody.addEventListener('change', e => { if (e.target.classList.contains('row-check')) refreshBulkBar(); });
+function clearSelection() { tbody.querySelectorAll('.row-check').forEach(c => c.checked = false); refreshBulkBar(); }
+function bulkDelete() {
+  const ids = selectedIds();
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' selected state' + (ids.length === 1 ? '' : 's') + '?')) return;
+  const body = new URLSearchParams();
+  ids.forEach(id => body.append('ids[]', id));
+  fetch('{% url "state_delete" %}', {
+    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){ ids.forEach(id => { const tr = tbody.querySelector('tr[data-id="'+id+'"]'); if(tr) tr.remove(); }); refreshBulkBar(); }
+    else alert(d.error || 'Delete failed.');
+  });
+}
+
+function applyView() {
+  const q = document.getElementById('filterInput').value.trim().toLowerCase();
+  const limit = parseInt(document.getElementById('showSelect').value) || 0;
+  const total = allRows().length;
+  let matched = 0, shown = 0;
+  allRows().forEach(tr => {
+    const isMatch = !q || tr.innerText.toLowerCase().indexOf(q) !== -1;
+    if (isMatch) matched++;
+    const vis = isMatch && (limit === 0 || shown < limit);
+    tr.style.display = vis ? '' : 'none';
+    if (vis) shown++;
+  });
+  const nm = document.getElementById('noMatchRow');
+  if (nm) nm.style.display = matched === 0 ? '' : 'none';
+  document.getElementById('filterInfo').textContent =
+    'Showing ' + shown + ' of ' + (q ? matched + ' matched · ' + total + ' total' : total);
+  refreshBulkBar();
+}
+
+let sortState = { col: null, dir: 1 };
+function sortRows(col, th) {
+  sortState.dir = (sortState.col === col) ? -sortState.dir : 1;
+  sortState.col = col;
+  document.querySelectorAll('.data-table thead .sort-icon').forEach(i => i.className = 'fas fa-sort sort-icon');
+  th.querySelector('.sort-icon').className = 'fas fa-sort-' + (sortState.dir === 1 ? 'up' : 'down') + ' sort-icon active';
+  const rows = allRows();
+  rows.sort((a, b) => a.children[col].innerText.trim().localeCompare(b.children[col].innerText.trim(), undefined, { numeric:true }) * sortState.dir);
+  rows.forEach(r => tbody.appendChild(r));
+  applyView();
+}
 
 function toggleMenu(btn) {
-  document.querySelectorAll('.dropdown-menu.open').forEach(m => {
-    if (m !== btn.nextElementSibling) m.classList.remove('open');
-  });
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => { if (m !== btn.nextElementSibling) m.classList.remove('open'); });
   btn.nextElementSibling.classList.toggle('open');
 }
 document.addEventListener('click', e => {
@@ -197,22 +261,32 @@ document.addEventListener('click', e => {
 
 function toggleState(sid) {
   fetch('{% url "state_toggle" %}', {
-    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body:'id='+sid
+    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'}, body:'id='+sid
   }).then(r=>r.json()).then(d=>{ if(d.ok) location.reload(); });
 }
-
 function deleteState(sid, name) {
   if (!confirm('Delete "'+name+'"?')) return;
   fetch('{% url "state_delete" %}', {
-    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body:'id='+sid
-  }).then(r=>r.json()).then(d=>{
-    if(d.ok) document.querySelector('tr[data-sid="'+sid+'"]').remove();
-  });
+    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'}, body:'id='+sid
+  }).then(r=>r.json()).then(d=>{ if(d.ok){ const tr = tbody.querySelector('tr[data-id="'+sid+'"]'); if(tr) tr.remove(); refreshBulkBar(); } });
 }
 
 function openAddModal() {
+  document.getElementById('s_id').value = '';
+  document.getElementById('s_name').value = '';
+  document.getElementById('s_country').value = '';
+  document.getElementById('modalTitle').textContent = 'Add State';
+  document.getElementById('modalSaveBtn').textContent = 'Add State';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('s_name').focus(), 100);
+}
+function openEditModal(id, name, countryId) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.getElementById('s_id').value = id;
+  document.getElementById('s_name').value = name;
+  document.getElementById('s_country').value = countryId || '';
+  document.getElementById('modalTitle').textContent = 'Edit State';
+  document.getElementById('modalSaveBtn').textContent = 'Save Changes';
   document.getElementById('addModal').classList.add('open');
   setTimeout(() => document.getElementById('s_name').focus(), 100);
 }
@@ -220,26 +294,26 @@ function closeModal() {
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('addError').style.display='none';
 }
-
-function submitAdd() {
+function submitState() {
+  const id = document.getElementById('s_id').value;
   const name = document.getElementById('s_name').value.trim();
   if (!name) { showErr('State name is required.'); return; }
-  const body = new URLSearchParams({ name, country: document.getElementById('s_country').value });
-  fetch('{% url "state_create" %}', {
+  const params = { name, country: document.getElementById('s_country').value };
+  if (id) params.id = id;
+  const url = id ? '{% url "state_update" %}' : '{% url "state_create" %}';
+  fetch(url, {
     method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body: body.toString()
+    body: new URLSearchParams(params).toString()
   }).then(r=>r.json()).then(d=>{
     if(d.ok) { closeModal(); location.reload(); }
     else showErr(d.error);
   });
 }
-
 function showErr(msg) {
   const e = document.getElementById('addError'); e.textContent=msg; e.style.display='block';
 }
+document.getElementById('addModal').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
 
-document.getElementById('addModal').addEventListener('click', function(e) {
-  if(e.target===this) closeModal();
-});
+applyView();
 </script>
 {% endblock %}

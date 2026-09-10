@@ -149,12 +149,14 @@ urlpatterns = [
     # Settings – Localisation: States
     path('settings/localisation/states/', views.states_list, name='states_list'),
     path('settings/localisation/states/create/', views.state_create, name='state_create'),
+    path('settings/localisation/states/update/', views.state_update, name='state_update'),
     path('settings/localisation/states/toggle/', views.state_toggle, name='state_toggle'),
     path('settings/localisation/states/delete/', views.state_delete, name='state_delete'),
 
     # Settings – Localisation: Currencies
     path('settings/localisation/currencies/', views.currencies_list, name='currencies_list'),
     path('settings/localisation/currencies/create/', views.currency_create, name='currency_create'),
+    path('settings/localisation/currencies/update/', views.currency_update, name='currency_update'),
     path('settings/localisation/currencies/toggle/', views.currency_toggle, name='currency_toggle'),
     path('settings/localisation/currencies/delete/', views.currency_delete, name='currency_delete'),
 
