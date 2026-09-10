@@ -333,7 +333,7 @@
       <tbody>
         {% for case in cases %}
         <tr>
-          <td><span class="case-badge">{{ case.case_id }}</span></td>
+          <td><span class="case-badge caseid-2l">{{ case.case_id|caseid_break }}</span></td>
           <td style="font-weight:600;">{{ case.client.name }}</td>
           <td class="num"><span class="amount blue">{{ case.approved_amount|omr }}</span></td>
           <td class="num"><span class="amount green">{{ case.received_amount|omr }}</span></td>

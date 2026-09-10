@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_filters %}
 
 {% block title %}Follow Ups{% endblock %}
 
@@ -204,7 +205,7 @@
       <tbody>
         {% for fu in follow_ups %}
         <tr>
-          <td><a href="{% url 'case_detail' fu.case.pk %}" class="clickable" style="font-size:12px;">{{ fu.case.case_id }}</a></td>
+          <td><a href="{% url 'case_detail' fu.case.pk %}" class="clickable caseid-2l" style="font-size:12px;">{{ fu.case.case_id|caseid_break }}</a></td>
           <td><span class="clickable">{{ fu.case.client.name }}</span></td>
           <td><a href="{% url 'debtor_detail' fu.case.debtor.pk %}" class="clickable">{{ fu.case.debtor.name }}</a></td>
           <td>{{ fu.case.account_no|default:"—" }}</td>

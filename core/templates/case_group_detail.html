@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_filters %}
 
 {% block title %}Case Group — {{ group.name }}{% endblock %}
 
@@ -106,7 +107,7 @@
         <tbody>
           {% for r in fin_rows %}
           <tr>
-            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link">{{ r.case.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link caseid-2l">{{ r.case.case_id|caseid_break }}</a></td>
             <td>{{ r.case.account_no|default:"—" }}</td>
             <td>{{ r.case.case_type.name|default:"—" }}</td>
             <td><span class="badge {{ r.case.status }}">{{ r.case.get_status_display }}</span></td>
@@ -158,7 +159,7 @@
         <tbody>
           {% for f in follow_ups %}
           <tr>
-            <td><a href="{% url 'case_detail' f.case.pk %}" class="case-id-link">{{ f.case.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' f.case.pk %}" class="case-id-link caseid-2l">{{ f.case.case_id|caseid_break }}</a></td>
             <td style="white-space:nowrap;">{{ f.follow_up_date|date:"d/m/Y" }}</td>
             <td>{{ f.get_follow_up_type_display }}</td>
             <td>{% if f.followed_by %}{{ f.followed_by.get_full_name|default:f.followed_by.username }}{% else %}—{% endif %}</td>
@@ -191,7 +192,7 @@
         <tbody>
           {% for r in reminders %}
           <tr>
-            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link">{{ r.case.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' r.case.pk %}" class="case-id-link caseid-2l">{{ r.case.case_id|caseid_break }}</a></td>
             <td style="font-weight:500;">{{ r.title }}</td>
             <td style="white-space:nowrap;">{{ r.reminder_date|date:"d/m/Y" }}</td>
             <td>{% if r.created_by %}{{ r.created_by.get_full_name|default:r.created_by.username }}{% else %}—{% endif %}</td>
@@ -224,7 +225,7 @@
         <tbody>
           {% for h in history %}
           <tr>
-            <td><a href="{% url 'case_detail' h.case.pk %}" class="case-id-link">{{ h.case.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' h.case.pk %}" class="case-id-link caseid-2l">{{ h.case.case_id|caseid_break }}</a></td>
             <td>{{ h.action }}</td>
             <td>{% if h.action_by %}{{ h.action_by.get_full_name|default:h.action_by.username }}{% else %}—{% endif %}</td>
             <td style="white-space:nowrap;">{{ h.created_at|date:"d/m/Y H:i" }}</td>

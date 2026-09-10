@@ -162,7 +162,7 @@
           <td>{{ forloop.counter }}</td>
           <td>{{ p.payment_date }}</td>
           <td>{{ p.receipt_no }}</td>
-          <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+          <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable caseid-2l">{{ p.case.case_id|caseid_break }}</a></td>
           <td>{{ p.payment_mode.name|default:"—" }}</td>
           <td>{{ p.case.debtor.name }}</td>
           <td>{{ p.case.client.name }}</td>

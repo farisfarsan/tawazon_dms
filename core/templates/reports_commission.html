@@ -448,7 +448,7 @@
             <td>{{ p.case.client.name }}</td>
             <td>{{ p.case.debtor.name }}</td>
             <td>{{ p.case.client.alias_name|default:"—" }}</td>
-            <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+            <td><a href="{% url 'debtor_detail' p.case.debtor.pk %}" class="clickable caseid-2l">{{ p.case.case_id|caseid_break }}</a></td>
             <td>0.000</td>
             <td>{{ p.payment_date }}</td>
             <td>{{ p.created_at|date:"Y-m-d" }}</td>

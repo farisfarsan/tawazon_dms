@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_filters %}
 {% block title %}Edit Client Login Access{% endblock %}
 
 {% block extra_styles %}
@@ -123,7 +124,7 @@
         <tbody>
           {% for row in rows %}
           <tr>
-            <td class="txt"><span class="case-id">{{ row.case.case_id }}</span>
+            <td class="txt"><span class="case-id caseid-2l">{{ row.case.case_id|caseid_break }}</span>
               <input type="hidden" name="case_ids" value="{{ row.case.pk }}"></td>
             <td class="txt">{{ row.case.debtor.name }}</td>
             <td><input type="checkbox" data-col="status"          name="perm_{{ row.case.pk }}_status"          value="1" {% if row.perm.can_status %}checked{% endif %}></td>

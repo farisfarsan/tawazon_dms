@@ -167,7 +167,7 @@
           {% for c in cases %}
           <tr>
             <td><input type="checkbox" class="row-chk" style="accent-color:var(--primary);width:14px;height:14px;cursor:pointer;"></td>
-            <td><a href="{% url 'case_detail' c.pk %}" class="clickable" style="font-weight:600;white-space:nowrap;">{{ c.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' c.pk %}" class="clickable caseid-2l" style="font-weight:600;">{{ c.case_id|caseid_break }}</a></td>
             <td>{{ c.client.name }}</td>
             <td>{{ c.debtor.name }}</td>
             <td class="num">{{ c.remaining_amount|omr }}</td>

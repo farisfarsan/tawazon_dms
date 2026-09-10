@@ -209,7 +209,7 @@
         <tbody id="allocBody">
           {% for c in cases %}
           <tr>
-            <td><a href="{% url 'case_detail' c.pk %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ c.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' c.pk %}" class="caseid-2l" style="color:var(--primary);font-weight:600;text-decoration:none;">{{ c.case_id|caseid_break }}</a></td>
             <td>{{ c.received_date|date:"d-M-Y"|default:"—" }}</td>
             <td>{{ c.client.name }}</td>
             <td>{{ c.debtor.name }}</td>

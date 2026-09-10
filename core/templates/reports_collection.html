@@ -245,7 +245,7 @@
             <td>{{ p.case.client.name }}</td>
             <td>{{ p.case.debtor.name }}</td>
             <td>{{ p.case.account_no|default:"—" }}</td>
-            <td><a href="{% url 'case_detail' p.case.pk %}" class="clickable">{{ p.case.case_id }}</a></td>
+            <td><a href="{% url 'case_detail' p.case.pk %}" class="clickable caseid-2l">{{ p.case.case_id|caseid_break }}</a></td>
             <td class="num">{{ p.amount|omr }}</td>
             <td>{{ p.payment_date|date:"d-M-Y" }}</td>
             <td>{% if p.case.collector %}{{ p.case.collector.get_full_name|default:p.case.collector.username }}{% else %}—{% endif %}</td>

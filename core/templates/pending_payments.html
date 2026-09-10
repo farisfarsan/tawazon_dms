@@ -154,7 +154,7 @@
         {% for payment in payments %}
         <tr id="pp-row-{{ payment.pk }}">
           <td class="pp-serial" style="color:var(--text-muted);">{{ forloop.counter }}</td>
-          <td><a href="{% url 'debtor_detail' payment.case.debtor.pk %}" class="clickable" style="font-size:12px;">{{ payment.case.case_id }}</a></td>
+          <td><a href="{% url 'debtor_detail' payment.case.debtor.pk %}" class="clickable caseid-2l" style="font-size:12px;">{{ payment.case.case_id|caseid_break }}</a></td>
           <td><span class="clickable">{{ payment.case.client.name }}</span></td>
           <td><a href="{% url 'debtor_detail' payment.case.debtor.pk %}" class="clickable">{{ payment.case.debtor.name }}</a></td>
           <td>{% if payment.case.collector %}{{ payment.case.collector.get_full_name|default:payment.case.collector.username }}{% else %}—{% endif %}</td>

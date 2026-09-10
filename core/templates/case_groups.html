@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_filters %}
 
 {% block title %}Case Groups{% endblock %}
 
@@ -186,7 +187,7 @@
           <td>{{ row.case.client.name }}</td>
           <td>{{ row.case.debtor.name }}</td>
           <td>
-            <a href="{% url 'case_detail' row.case.pk %}" class="case-id-link">{{ row.case.case_id }}</a>
+            <a href="{% url 'case_detail' row.case.pk %}" class="case-id-link caseid-2l">{{ row.case.case_id|caseid_break }}</a>
           </td>
           <td>{{ row.case.case_type.name|default:"—" }}</td>
           {% if row.is_first %}

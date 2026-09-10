@@ -235,7 +235,7 @@
           {% for row in rows %}
           <tr>
             <td class="serial">{{ forloop.counter }}</td>
-            <td class="case-id">{{ row.case.case_id }}</td>
+            <td class="case-id"><span class="caseid-2l">{{ row.case.case_id|caseid_break }}</span></td>
             <td class="ref">{{ row.case.account_no|default:"—" }}</td>
             <td class="debtor">{{ row.case.debtor.name }}</td>
             <td class="num" data-label="Approved">{% if row.perm.can_financial %}{{ row.case.approved_amount|omr }}{% else %}—{% endif %}</td>
