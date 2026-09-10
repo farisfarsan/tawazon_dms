@@ -250,6 +250,7 @@
     </div>
 
     {% if legal_cases %}
+    <div class="table-scroll">
     <table class="data-table" id="legalTable">
       <thead>
         <tr id="lg-col-headers">
@@ -334,6 +335,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
       <div class="empty-state">
         <i class="fas fa-gavel"></i>
