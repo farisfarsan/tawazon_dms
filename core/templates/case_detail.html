@@ -1203,14 +1203,14 @@
         </div>
         <div class="pay-field">
           <label class="pay-label">Currency</label>
-          <select id="pay-col-currency" class="pay-input">
+          <select id="pay-col-currency" class="pay-input" onchange="syncReceivedCurrency()">
             <option value="">— Currency —</option>
             {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
           </select>
         </div>
         <div class="pay-field">
           <label class="pay-label">Amount <span class="pay-req">*</span></label>
-          <input type="number" id="pay-amount" class="pay-input" placeholder="0.000" step="0.001" min="0">
+          <input type="number" id="pay-amount" class="pay-input" placeholder="0.000" step="0.001" min="0" oninput="syncReceivedAmount()">
         </div>
       </div>
 
@@ -1227,14 +1227,14 @@
         </div>
         <div class="pay-field">
           <label class="pay-label">Currency</label>
-          <select id="pay-recv-currency" class="pay-input">
+          <select id="pay-recv-currency" class="pay-input" onchange="markReceivedCurrencyTouched()">
             <option value="">— Currency —</option>
             {% for c in currencies %}<option value="{{ c.pk }}">{{ c.code }}</option>{% endfor %}
           </select>
         </div>
         <div class="pay-field">
           <label class="pay-label">Amount</label>
-          <input type="number" id="pay-received-amount" class="pay-input" placeholder="0.000" step="0.001" min="0">
+          <input type="number" id="pay-received-amount" class="pay-input" placeholder="0.000" step="0.001" min="0" oninput="markReceivedAmountTouched()">
         </div>
       </div>
 
@@ -1722,6 +1722,10 @@
     await cdPost('{% url "reminder_create" %}', fd);
   }
 
+  // Case base currency (from Financials) — used to pre-select the payment
+  // modal's Collection/Received currency dropdowns.
+  const CASE_CURRENCY_ID = "{{ case.currency_id|default:'' }}";
+
   // Payment data for edit pre-fill
   const PAYMENTS_DATA = {
     {% for p in payments %}
@@ -1773,14 +1777,31 @@
 
   function payDateChanged() { setPayDateMin(true); }
 
+  // While the Received amount/currency haven't been edited by hand, they
+  // mirror the Collection amount/currency. Any manual change stops the mirror.
+  let _recvAmtTouched = false, _recvCcyTouched = false;
+  function markReceivedAmountTouched()   { _recvAmtTouched = true; }
+  function markReceivedCurrencyTouched() { _recvCcyTouched = true; }
+  function syncReceivedAmount() {
+    if (!_recvAmtTouched)
+      document.getElementById('pay-received-amount').value = document.getElementById('pay-amount').value;
+  }
+  function syncReceivedCurrency() {
+    if (!_recvCcyTouched)
+      document.getElementById('pay-recv-currency').value = document.getElementById('pay-col-currency').value;
+  }
+
   function resetPaymentModal() {
     document.getElementById('pay-edit-pk').value = '';
     document.getElementById('pay-from-installment').value = '';
     ['pay-date','pay-amount','pay-transfer-date','pay-received-date','pay-received-amount',
      'pay-confirm-date','pay-notes'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('pay-mode').value = '';
-    document.getElementById('pay-col-currency').value = '';
-    document.getElementById('pay-recv-currency').value = '';
+    // Default both currency dropdowns to the case's base currency.
+    document.getElementById('pay-col-currency').value = CASE_CURRENCY_ID;
+    document.getElementById('pay-recv-currency').value = CASE_CURRENCY_ID;
+    _recvAmtTouched = false;
+    _recvCcyTouched = false;
     document.getElementById('pay-error').style.display = 'none';
     document.getElementById('pay-amount').style.borderColor = '';
     document.getElementById('pay-date').style.borderColor = '';
@@ -1808,6 +1829,9 @@
     document.getElementById('pay-received-amount').value = d.received_amount;
     document.getElementById('pay-confirm-date').value   = d.confirm_date;
     document.getElementById('pay-notes').value          = d.notes;
+    // Existing payment already has its own received values — don't auto-mirror.
+    _recvAmtTouched = true;
+    _recvCcyTouched = true;
     setPayDateMin();
     document.getElementById('pay-modal-title').textContent = 'Edit Payment';
     document.getElementById('pay-modal-sub').textContent = 'Update this payment record';
@@ -1892,6 +1916,7 @@
     setPayDateMin();
     document.getElementById('pay-from-installment').value = pk;
     document.getElementById('pay-amount').value = d.amount;
+    syncReceivedAmount();   // pre-fill Received amount to match
     document.getElementById('pay-modal-title').textContent = 'Move to Payment';
     document.getElementById('pay-modal-sub').textContent = 'Record the actual payment for this installment';
     openModal('addPaymentModal');
