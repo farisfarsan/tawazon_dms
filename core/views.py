@@ -1419,8 +1419,8 @@ def case_detail(request, pk):
     # derived from it (Remaining Amount, etc.). Both still stay listed in the
     # table above for the record, just excluded from the sums.
     fin_total_payment     = sum(float(p.amount or 0) for p in payments if p.status == 'cleared')
-    fin_total_received    = sum(float(p.received_amount or 0) for p in payments)         # received-currency total
-    fin_total_received_omr = sum(_to_omr(p.received_amount, p.received_currency) for p in payments)
+    fin_total_received    = sum(float(p.received_amount or 0) for p in payments if p.status == 'cleared')   # received-currency total
+    fin_total_received_omr = sum(_to_omr(p.received_amount, p.received_currency) for p in payments if p.status == 'cleared')
     fin_total_payment_omr = sum(_to_omr(p.amount, p.collection_currency) for p in payments if p.status == 'cleared')
     fin_last_payment_omr  = _to_omr(last_payment.amount, last_payment.collection_currency) if last_payment else 0
     fin_approved_omr      = float(case.approved_amount) / _case_rate if _case_rate else float(case.approved_amount)
@@ -2941,6 +2941,20 @@ def payments(request):
     })
 
 
+def _recalc_case_received(case):
+    """Refresh the denormalised case.received_amount from payments.
+
+    Only APPROVED (status='cleared') payments count as money received —
+    pending and rejected payments stay listed on the case but are excluded
+    from the total (and from everything derived from it: dashboards, case
+    lists, remaining-amount, reports)."""
+    from django.db.models import Sum as _S
+    case.received_amount = (
+        case.payments.filter(status='cleared').aggregate(t=_S('received_amount'))['t'] or 0
+    )
+    case.save(update_fields=['received_amount'])
+
+
 @require_POST
 def payment_create_modal(request):
     case_id      = request.POST.get('case_id', '').strip()
@@ -3011,10 +3025,7 @@ def payment_create_modal(request):
         payment.created_by = request.user
     payment.save()
 
-    # Sync case totals from all payments
-    from django.db.models import Sum as _S
-    case.received_amount = case.payments.aggregate(t=_S('received_amount'))['t'] or 0
-    case.save(update_fields=['received_amount'])
+    _recalc_case_received(case)
 
     action = 'Installment Moved to Payment' if moved else 'Case Payment Added'
     _log_case(request, case, f'{action} ({payment.payment_id})')
@@ -3090,8 +3101,7 @@ def group_payment_create(request):
             created_by=request.user if request.user.is_authenticated else None,
         )
         p.save()
-        case.received_amount = case.payments.aggregate(t=_S('received_amount'))['t'] or 0
-        case.save(update_fields=['received_amount'])
+        _recalc_case_received(case)
         _log_case(request, case, f'Case Payment Added ({p.payment_id}) — group payment')
         created.append(p.payment_id)
 
@@ -3151,9 +3161,7 @@ def payment_update(request):
     payment.save()
 
     case = payment.case
-    from django.db.models import Sum as _S
-    case.received_amount = case.payments.aggregate(t=_S('received_amount'))['t'] or 0
-    case.save(update_fields=['received_amount'])
+    _recalc_case_received(case)
 
     _log_case(request, case, f'Case Payment Updated ({payment.payment_id})')
 
@@ -3330,11 +3338,8 @@ def payment_delete(request):
     case_ids = list(qs.values_list('case_id', flat=True).distinct())
     count = qs.count()
     qs.delete()
-    from django.db.models import Sum as _S
     for cid in case_ids:
-        c = Case.objects.get(pk=cid)
-        c.received_amount = c.payments.aggregate(t=_S('received_amount'))['t'] or 0
-        c.save(update_fields=['received_amount'])
+        _recalc_case_received(Case.objects.get(pk=cid))
     return JsonResponse({'success': True, 'message': f'{count} payment(s) deleted successfully.'})
 
 
@@ -3359,6 +3364,8 @@ def payment_confirm(request):
         payment.confirmation_date = timezone.localdate()
         update_fields.append('confirmation_date')
     payment.save(update_fields=update_fields)
+    # Approving/rejecting changes what counts as received — refresh the total.
+    _recalc_case_received(payment.case)
     label = 'Approved' if action == 'approve' else 'Rejected'
     _log_case(request, payment.case, f'Payment {label} ({payment.payment_id})')
     return JsonResponse({'success': True, 'message': f'Payment {payment.payment_id} {label.lower()}.'})
