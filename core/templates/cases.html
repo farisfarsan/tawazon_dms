@@ -202,6 +202,18 @@
   .data-table tbody tr.in-group { background: #e0f2fe !important; }
   .data-table tbody tr.in-group:hover { background: #bae6fd !important; }
   .group-tag { display: inline-flex; align-items: center; gap: 4px; background: #0ea5e9; color: white; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+
+  /* Scrollable cases table: horizontal for the wide columns, vertical with a
+     pinned header so column titles stay visible while scrolling rows. */
+  .table-scroll { overflow: auto; max-height: 65vh; border: 1px solid #dde3ea; border-radius: 8px; }
+  .table-scroll #casesTable { min-width: 1080px; }
+  .table-scroll #casesTable thead th { position: sticky; top: 0; z-index: 4; background: var(--primary); }
+  .table-scroll #casesTable #cas-filter-row td { position: sticky; top: 39px; z-index: 3; background: #fff; }
+  .table-scroll #casesTable tfoot .tbl-total-row td { position: sticky; bottom: 0; z-index: 3; background: #f1f5f9; }
+  .table-scroll::-webkit-scrollbar { width: 11px; height: 11px; }
+  .table-scroll::-webkit-scrollbar-thumb { background: #c2cad6; border-radius: 6px; border: 2px solid #f1f5f9; }
+  .table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
 {% endblock %}
 
 {% block content %}
@@ -359,6 +371,7 @@
     </div>
 
     {% if cases %}
+    <div class="table-scroll">
     <table class="data-table" id="casesTable">
       <thead>
         <tr id="cas-col-headers">
@@ -451,6 +464,7 @@
         </tr>
       </tfoot>
     </table>
+    </div>
     <div class="table-footer">
       <span class="page-info">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</span>
     </div>
