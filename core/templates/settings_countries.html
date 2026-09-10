@@ -105,10 +105,10 @@
       <tr>
         <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
         <th style="width:28px;"></th>
-        <th class="sortable" onclick="sortTable(2,'str',this)">Name <i class="fas fa-sort sort-icon"></i></th>
-        <th class="sortable" onclick="sortTable(3,'str',this)">Code <i class="fas fa-sort sort-icon"></i></th>
-        <th class="sortable" onclick="sortTable(4,'num',this)">Country Code <i class="fas fa-sort sort-icon"></i></th>
-        <th class="sortable" onclick="sortTable(5,'str',this)">Status <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortCountries(2,'str',this)">Name <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortCountries(3,'str',this)">Code <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortCountries(4,'num',this)">Country Code <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortCountries(5,'str',this)">Status <i class="fas fa-sort sort-icon"></i></th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -255,7 +255,7 @@ function liveFilter() {
 
 /* ---------- column sort (current page) ---------- */
 let sortState = { col: null, dir: 1 };
-function sortTable(col, type, th) {
+function sortCountries(col, type, th) {
   sortState.dir = (sortState.col === col) ? -sortState.dir : 1;
   sortState.col = col;
   document.querySelectorAll('.data-table thead .sort-icon').forEach(i => {
