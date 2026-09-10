@@ -4565,25 +4565,14 @@ def case_status_delete(request):
 
 
 def legal_case_status_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-
-    qs = LegalCaseStatus.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(color__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
+    # Small fixed reference list — load all rows; the template does the
+    # filtering, sorting and "Show N" client-side.
+    statuses = LegalCaseStatus.objects.all().order_by('name')
     return render(request, 'settings_legal_case_status.html', {
         'active_page': 'settings_case',
         'active_sub':  'settings_legal_case_status',
-        'page_obj':    page_obj,
-        'search':      search,
-        'page_size':   page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count': qs.count(),
+        'statuses':    statuses,
+        'total_count': statuses.count(),
     })
 
 
@@ -4596,6 +4585,20 @@ def legal_case_status_create(request):
     if LegalCaseStatus.objects.filter(name__iexact=name).exists():
         return JsonResponse({'ok': False, 'error': 'Status already exists.'})
     s = LegalCaseStatus.objects.create(name=name, color=color, is_enabled=True)
+    return JsonResponse({'ok': True, 'id': s.pk, 'name': s.name, 'color': s.color})
+
+
+@require_POST
+def legal_case_status_update(request):
+    s = get_object_or_404(LegalCaseStatus, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if LegalCaseStatus.objects.filter(name__iexact=name).exclude(pk=s.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another status already has that name.'})
+    s.name = name
+    s.color = request.POST.get('color', '').strip()
+    s.save()
     return JsonResponse({'ok': True, 'id': s.pk, 'name': s.name, 'color': s.color})
 
 

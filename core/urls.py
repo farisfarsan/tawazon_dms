@@ -173,6 +173,7 @@ urlpatterns = [
     # Settings – Legal Case Status
     path('settings/case/legal-case-status/', views.legal_case_status_list, name='legal_case_status_list'),
     path('settings/case/legal-case-status/create/', views.legal_case_status_create, name='legal_case_status_create'),
+    path('settings/case/legal-case-status/update/', views.legal_case_status_update, name='legal_case_status_update'),
     path('settings/case/legal-case-status/toggle/', views.legal_case_status_toggle, name='legal_case_status_toggle'),
     path('settings/case/legal-case-status/delete/', views.legal_case_status_delete, name='legal_case_status_delete'),
 

@@ -18,7 +18,17 @@
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:#f8fafc;}
   .data-table input[type=checkbox]{cursor:pointer;width:15px;height:15px;accent-color:var(--primary);}
+  .data-table thead th.sortable{cursor:pointer;user-select:none;}
+  .data-table thead th.sortable:hover{color:var(--primary);}
   .sort-icon{font-size:10px;margin-left:4px;color:#cbd5e1;}
+  .sort-icon.active{color:var(--primary);}
+  .bulk-bar{display:none;align-items:center;gap:14px;background:var(--primary-light);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text-dark);}
+  .bulk-bar.open{display:flex;}
+  .bulk-bar .bulk-count{font-weight:700;color:var(--primary);}
+  .bulk-bar button{border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .bulk-bar .bulk-del{background:#dc2626;color:white;}
+  .bulk-bar .bulk-del:hover{background:#b91c1c;}
+  .bulk-bar .bulk-clear{background:white;color:var(--text-muted);border:1px solid var(--border);}
   .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
   .status-badge.enabled{background:#dbeafe;color:var(--primary);}
   .status-badge.disabled{background:#f1f5f9;color:#64748b;}
@@ -65,44 +75,52 @@
 <div class="data-card">
   <div class="section-title">Legal Case Status</div>
 
-  <form method="get" id="filterForm">
-    <div class="filter-row">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="filter-label">Filter:</span>
-        <div class="filter-search">
-          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter...">
-          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()"></i>
-        </div>
-      </div>
-      <div class="show-select">
-        Show:
-        <select name="show" onchange="document.getElementById('filterForm').submit()">
-          {% for opt in page_size_options %}
-          <option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
+  <div class="filter-row">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="filter-label">Filter:</span>
+      <div class="filter-search">
+        <input type="text" id="filterInput" placeholder="Type to filter..." oninput="applyView()" autocomplete="off"
+               onkeydown="if(event.key==='Enter')event.preventDefault();">
+        <i class="fas fa-search"></i>
       </div>
     </div>
-  </form>
+    <div class="show-select">
+      Show:
+      <select id="showSelect" onchange="applyView()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar">
+    <span><span class="bulk-count" id="bulkCount">0</span> selected</span>
+    <button class="bulk-del" onclick="bulkDelete()"><i class="fas fa-trash"></i> Delete Selected</button>
+    <button class="bulk-clear" onclick="clearSelection()">Clear</button>
+  </div>
 
   <table class="data-table">
     <thead>
       <tr>
         <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
-        <th>Name <i class="fas fa-sort sort-icon"></i></th>
-        <th>Color <i class="fas fa-sort sort-icon"></i></th>
-        <th>Status <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortLcs(1,'str',this)">Name <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortLcs(2,'str',this)">Color <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortLcs(3,'str',this)">Status <i class="fas fa-sort sort-icon"></i></th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for s in page_obj %}
-      <tr data-id="{{ s.pk }}">
+      {% for s in statuses %}
+      <tr data-id="{{ s.pk }}" data-name="{{ s.name }}" data-color="{{ s.color }}">
         <td><input type="checkbox" class="row-check"></td>
         <td>{{ s.name }}</td>
         <td>
           {% if s.color %}
           <span style="display:inline-block;width:26px;height:16px;border-radius:4px;background:{{ s.color }};border:1px solid rgba(0,0,0,0.15);vertical-align:middle;" title="{{ s.color }}"></span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:6px;">{{ s.color }}</span>
           {% else %}
           <span style="color:var(--text-muted);">—</span>
           {% endif %}
@@ -120,6 +138,9 @@
               <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
             </button>
             <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="openEditModal({{ s.pk }}, '{{ s.name|escapejs }}', '{{ s.color|escapejs }}')">
+                <i class="fas fa-pen"></i> Edit
+              </button>
               <button class="dropdown-item" onclick="toggleItem({{ s.pk }})">
                 <i class="fas fa-{% if s.is_enabled %}ban{% else %}check{% endif %}"></i>
                 {% if s.is_enabled %}Disable{% else %}Enable{% endif %}
@@ -134,38 +155,23 @@
       {% empty %}
       <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">No statuses found.</td></tr>
       {% endfor %}
+      <tr id="noMatchRow" style="display:none;"><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);">No statuses match your filter.</td></tr>
     </tbody>
   </table>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap;gap:8px;">
-    <span class="table-footer">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</span>
-    {% if page_obj.paginator.num_pages > 1 %}
-    <div class="pagination">
-      {% if page_obj.has_previous %}
-        <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.previous_page_number }}" class="page-btn"><i class="fas fa-chevron-left"></i></a>
-      {% endif %}
-      {% for num in page_obj.paginator.page_range %}
-        {% if num == page_obj.number %}
-          <span class="page-btn active">{{ num }}</span>
-        {% elif num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
-          <a href="?q={{ search }}&show={{ page_size }}&page={{ num }}" class="page-btn">{{ num }}</a>
-        {% endif %}
-      {% endfor %}
-      {% if page_obj.has_next %}
-        <a href="?q={{ search }}&show={{ page_size }}&page={{ page_obj.next_page_number }}" class="page-btn"><i class="fas fa-chevron-right"></i></a>
-      {% endif %}
-    </div>
-    {% endif %}
+  <div style="margin-top:14px;">
+    <span class="table-footer" id="filterInfo"></span>
   </div>
 </div>
 
-<!-- Add Modal -->
+<!-- Add / Edit Modal -->
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Add Legal Case Status</span>
+      <span class="modal-title" id="modalTitle">Add Legal Case Status</span>
       <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
+    <input type="hidden" id="s_id">
     <div class="form-group">
       <label>Name *</label>
       <input class="form-control" id="s_name" placeholder="e.g. In Court Hearing">
@@ -182,7 +188,7 @@
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="submitAdd()">Add Status</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="submitStatus()">Add Status</button>
     </div>
   </div>
 </div>
@@ -192,9 +198,80 @@
 <script>
 const CSRF = '{{ csrf_token }}';
 
+/* ---------- multi-select + bulk delete ---------- */
+const tbody = document.querySelector('.data-table tbody');
+const allRows = () => [...tbody.querySelectorAll('tr[data-id]')];
+function visibleRows() { return allRows().filter(r => r.style.display !== 'none'); }
+function selectedIds() { return [...tbody.querySelectorAll('.row-check:checked')].map(c => c.closest('tr').dataset.id); }
+function refreshBulkBar() {
+  const n = selectedIds().length;
+  document.getElementById('bulkCount').textContent = n;
+  document.getElementById('bulkBar').classList.toggle('open', n > 0);
+  const vis = visibleRows();
+  const sa = document.getElementById('selectAll');
+  const chk = vis.filter(r => r.querySelector('.row-check').checked).length;
+  sa.checked = vis.length > 0 && chk === vis.length;
+  sa.indeterminate = chk > 0 && chk < vis.length;
+}
 document.getElementById('selectAll').addEventListener('change', function() {
-  document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+  visibleRows().forEach(r => r.querySelector('.row-check').checked = this.checked);
+  refreshBulkBar();
 });
+tbody.addEventListener('change', e => { if (e.target.classList.contains('row-check')) refreshBulkBar(); });
+function clearSelection() {
+  tbody.querySelectorAll('.row-check').forEach(c => c.checked = false);
+  refreshBulkBar();
+}
+function bulkDelete() {
+  const ids = selectedIds();
+  if (!ids.length) return;
+  if (!confirm('Delete ' + ids.length + ' selected status' + (ids.length === 1 ? '' : 'es') + '?')) return;
+  const body = new URLSearchParams();
+  ids.forEach(id => body.append('ids[]', id));
+  fetch('{% url "legal_case_status_delete" %}', {
+    method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){ ids.forEach(id => { const tr = tbody.querySelector('tr[data-id="'+id+'"]'); if(tr) tr.remove(); }); refreshBulkBar(); }
+    else alert(d.error || 'Delete failed.');
+  });
+}
+
+/* ---------- filter + "Show N" (client-side) ---------- */
+function applyView() {
+  const q = document.getElementById('filterInput').value.trim().toLowerCase();
+  const limit = parseInt(document.getElementById('showSelect').value) || 0;
+  const total = allRows().length;
+  let matched = 0, shown = 0;
+  allRows().forEach(tr => {
+    const isMatch = !q || tr.innerText.toLowerCase().indexOf(q) !== -1;
+    if (isMatch) matched++;
+    const vis = isMatch && (limit === 0 || shown < limit);
+    tr.style.display = vis ? '' : 'none';
+    if (vis) shown++;
+  });
+  const nm = document.getElementById('noMatchRow');
+  if (nm) nm.style.display = matched === 0 ? '' : 'none';
+  document.getElementById('filterInfo').textContent =
+    'Showing ' + shown + ' of ' + (q ? matched + ' matched · ' + total + ' total' : total);
+  refreshBulkBar();
+}
+
+/* ---------- column sort (client-side) ---------- */
+let sortState = { col: null, dir: 1 };
+function sortLcs(col, type, th) {
+  sortState.dir = (sortState.col === col) ? -sortState.dir : 1;
+  sortState.col = col;
+  document.querySelectorAll('.data-table thead .sort-icon').forEach(i => i.className = 'fas fa-sort sort-icon');
+  th.querySelector('.sort-icon').className = 'fas fa-sort-' + (sortState.dir === 1 ? 'up' : 'down') + ' sort-icon active';
+  const rows = allRows();
+  rows.sort((a, b) => {
+    const x = a.children[col].innerText.trim(), y = b.children[col].innerText.trim();
+    return x.localeCompare(y, undefined, { numeric:true }) * sortState.dir;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+  applyView();
+}
 
 function toggleMenu(btn) {
   document.querySelectorAll('.dropdown-menu.open').forEach(m => {
@@ -229,22 +306,48 @@ function syncColor(val) {
     document.getElementById('s_color_picker').value = val;
 }
 
+function setColorFields(hex) {
+  document.getElementById('s_color_hex').value = hex || '';
+  if (/^#[0-9a-fA-F]{6}$/.test(hex || '')) document.getElementById('s_color_picker').value = hex;
+}
+
 function openAddModal() {
+  document.getElementById('s_id').value = '';
+  document.getElementById('s_name').value = '';
+  setColorFields('');
+  document.getElementById('modalTitle').textContent = 'Add Legal Case Status';
+  document.getElementById('modalSaveBtn').textContent = 'Add Status';
   document.getElementById('addModal').classList.add('open');
   setTimeout(()=>document.getElementById('s_name').focus(),100);
 }
+
+function openEditModal(id, name, color) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.getElementById('s_id').value = id;
+  document.getElementById('s_name').value = name;
+  setColorFields(color);
+  document.getElementById('modalTitle').textContent = 'Edit Legal Case Status';
+  document.getElementById('modalSaveBtn').textContent = 'Save Changes';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(()=>document.getElementById('s_name').focus(),100);
+}
+
 function closeModal() {
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('addError').style.display='none';
 }
 
-function submitAdd() {
+function submitStatus() {
+  const id    = document.getElementById('s_id').value;
   const name  = document.getElementById('s_name').value.trim();
   const color = document.getElementById('s_color_hex').value.trim();
   if (!name) { showErr('Name is required.'); return; }
-  fetch('{% url "legal_case_status_create" %}', {
+  const params = { name, color };
+  if (id) params.id = id;
+  const url = id ? '{% url "legal_case_status_update" %}' : '{% url "legal_case_status_create" %}';
+  fetch(url, {
     method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({ name, color }).toString()
+    body: new URLSearchParams(params).toString()
   }).then(r=>r.json()).then(d=>{
     if(d.ok) { closeModal(); location.reload(); }
     else showErr(d.error);
@@ -258,5 +361,7 @@ function showErr(msg) {
 document.getElementById('addModal').addEventListener('click', function(e) {
   if(e.target===this) closeModal();
 });
+
+applyView();  // initial render
 </script>
 {% endblock %}
