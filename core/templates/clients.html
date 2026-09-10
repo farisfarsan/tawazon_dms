@@ -430,7 +430,7 @@
           <div class="wiz-group">
             <label class="req">Telephone *</label>
             <div style="display:flex; gap:6px;">
-              <select id="w-phone-code" class="wiz-input" style="flex:0 0 100px;">
+              <select id="w-phone-code" class="wiz-input" style="flex:0 0 120px;">
                 {% for c in all_countries %}
                 <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
                 {% endfor %}
@@ -441,7 +441,7 @@
           <div class="wiz-group">
             <label>Mobile</label>
             <div style="display:flex; gap:6px;">
-              <select id="w-mobile-code" class="wiz-input" style="flex:0 0 100px;">
+              <select id="w-mobile-code" class="wiz-input" style="flex:0 0 120px;">
                 {% for c in all_countries %}
                 <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
                 {% endfor %}

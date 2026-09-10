@@ -447,7 +447,7 @@
         <div class="wiz-group">
           <label>Phone (Primary)</label>
           <div style="display:flex; gap:6px;">
-            <select id="w-phone-code" class="wiz-input" style="flex:0 0 90px;">
+            <select id="w-phone-code" class="wiz-input" style="flex:0 0 120px;">
               {% for c in all_countries %}
               <option value="{{ c.country_code }}" {% if c.country_code == phone_code %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
               {% endfor %}
@@ -458,7 +458,7 @@
         <div class="wiz-group">
           <label>Telephone</label>
           <div style="display:flex; gap:6px;">
-            <select id="w-telephone-code" class="wiz-input" style="flex:0 0 90px;">
+            <select id="w-telephone-code" class="wiz-input" style="flex:0 0 120px;">
               {% for c in all_countries %}
               <option value="{{ c.country_code }}" {% if c.country_code == telephone_code %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
               {% endfor %}

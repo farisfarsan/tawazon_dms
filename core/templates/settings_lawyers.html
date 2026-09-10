@@ -129,7 +129,7 @@
     <div class="form-group">
       <label>Phone</label>
       <div style="display:flex; gap:6px;">
-        <select class="form-control" id="l_phone_code" style="flex:0 0 90px;">
+        <select class="form-control" id="l_phone_code" style="flex:0 0 120px;">
           {% for c in all_countries %}
           <option value="{{ c.country_code }}" {% if c.name == 'Oman' %}selected{% endif %}>{{ c.code|flag }} {{ c.country_code }}</option>
           {% endfor %}

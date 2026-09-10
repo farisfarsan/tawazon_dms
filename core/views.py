@@ -4382,7 +4382,7 @@ def states_list(request):
         'page_size':   page_size,
         'page_size_options': [10, 25, 50, 100],
         'total_count': qs.count(),
-        'all_countries': Country.objects.order_by('name'),
+        'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
     })
 
 
