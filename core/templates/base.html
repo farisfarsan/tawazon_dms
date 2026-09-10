@@ -1058,6 +1058,37 @@
     if (el.tomselect) el.tomselect.setValue(v, true);
     else el.dispatchEvent(new Event('change', { bubbles: true }));
   };
+
+  // Date bounds: <input type="date" data-no-future> can't be after today;
+  //              <input type="date" data-no-past>   can't be before today.
+  (function dateBounds(){
+    function todayISO(){
+      var d = new Date();
+      return d.getFullYear() + '-' +
+             String(d.getMonth() + 1).padStart(2, '0') + '-' +
+             String(d.getDate()).padStart(2, '0');
+    }
+    function apply(){
+      var t = todayISO();
+      document.querySelectorAll('input[type="date"][data-no-future]').forEach(function(el){
+        el.max = t;
+        if (el.value && el.value > t) el.value = t;
+      });
+      document.querySelectorAll('input[type="date"][data-no-past]').forEach(function(el){
+        el.min = t;
+        if (el.value && el.value < t) el.value = t;
+      });
+    }
+    apply();
+    // Re-clamp on edit and when a modal containing one is opened.
+    document.addEventListener('change', function(e){
+      var el = e.target;
+      if (!(el instanceof HTMLInputElement) || el.type !== 'date') return;
+      if (el.hasAttribute('data-no-future') && el.value && el.value > todayISO()) el.value = todayISO();
+      if (el.hasAttribute('data-no-past')   && el.value && el.value < todayISO()) el.value = todayISO();
+    }, true);
+    document.addEventListener('click', function(){ setTimeout(apply, 0); }, true);
+  })();
 </script>
 
 <!-- ===== CURRENCY CONVERTER MODAL ===== -->

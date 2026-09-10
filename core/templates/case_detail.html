@@ -334,7 +334,7 @@
           <div class="cd-field">
             <label>Received On <span class="req">*</span></label>
             <div class="cd-view-val {% if not case.received_date %}empty{% endif %}">{{ case.received_date|date:"d/m/Y"|default:"—" }}</div>
-            <input type="date" name="received_date" class="cd-input" value="{{ case.received_date|date:'Y-m-d'|default:'' }}">
+            <input type="date" name="received_date" class="cd-input" data-no-future value="{{ case.received_date|date:'Y-m-d'|default:'' }}">
           </div>
 
           <!-- Case Type -->
@@ -1145,7 +1145,7 @@
     </div>
     <div class="mo-field">
       <label>Date *</label>
-      <input type="date" id="rem-date" class="mo-input">
+      <input type="date" id="rem-date" class="mo-input" data-no-past>
     </div>
     <div class="mo-field">
       <label>Other User</label>
@@ -1274,7 +1274,7 @@
     </div>
     <div class="mo-field">
       <label>Date *</label>
-      <input type="date" id="fu-date" class="mo-input">
+      <input type="date" id="fu-date" class="mo-input" data-no-future>
     </div>
     <div class="mo-field">
       <label>Followed By</label>
