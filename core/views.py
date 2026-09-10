@@ -4333,6 +4333,21 @@ def country_create(request):
 
 
 @require_POST
+def country_update(request):
+    c = get_object_or_404(Country, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if Country.objects.filter(name__iexact=name).exclude(pk=c.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another country already has that name.'})
+    c.name = name
+    c.code = request.POST.get('code', '').strip().upper()
+    c.country_code = request.POST.get('country_code', '').strip()
+    c.save()
+    return JsonResponse({'ok': True, 'id': c.pk, 'name': c.name, 'code': c.code, 'country_code': c.country_code})
+
+
+@require_POST
 def country_toggle(request):
     c = get_object_or_404(Country, pk=request.POST.get('id'))
     c.is_enabled = not c.is_enabled

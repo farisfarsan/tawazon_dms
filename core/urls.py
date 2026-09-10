@@ -142,6 +142,7 @@ urlpatterns = [
     # Settings – Localisation: Countries
     path('settings/localisation/countries/', views.countries_list, name='countries_list'),
     path('settings/localisation/countries/create/', views.country_create, name='country_create'),
+    path('settings/localisation/countries/update/', views.country_update, name='country_update'),
     path('settings/localisation/countries/toggle/', views.country_toggle, name='country_toggle'),
     path('settings/localisation/countries/delete/', views.country_delete, name='country_delete'),
 

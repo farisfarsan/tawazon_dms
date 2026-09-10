@@ -91,7 +91,16 @@
         <i class="fas fa-search"></i>
       </div>
     </div>
-    <div class="show-select" id="countCounter">{{ total_count }} countr{{ total_count|pluralize:"y,ies" }}</div>
+    <div class="show-select">
+      Show:
+      <select id="showSelect" onchange="applyView()">
+        <option value="10">10</option>
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="0">All</option>
+      </select>
+    </div>
   </div>
 
   <div class="bulk-bar" id="bulkBar">
@@ -133,6 +142,9 @@
               <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
             </button>
             <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="openEditModal({{ country.pk }}, '{{ country.name|escapejs }}', '{{ country.code|escapejs }}', '{{ country.country_code|escapejs }}')">
+                <i class="fas fa-pen"></i> Edit
+              </button>
               <button class="dropdown-item" onclick="toggleCountry({{ country.pk }}, this)">
                 <i class="fas fa-{% if country.is_enabled %}ban{% else %}check{% endif %}"></i>
                 {% if country.is_enabled %}Disable{% else %}Enable{% endif %}
@@ -154,13 +166,14 @@
   <div class="pagination"><span class="page-info" id="filterInfo"></span></div>
 </div>
 
-<!-- Add Country Modal -->
+<!-- Add / Edit Country Modal -->
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Add Country</span>
+      <span class="modal-title" id="modalTitle">Add Country</span>
       <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
+    <input type="hidden" id="c_id">
     <div class="form-grid">
       <div class="form-group full">
         <label>Country Name *</label>
@@ -178,7 +191,7 @@
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="submitAdd()">Add Country</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="submitCountry()">Add Country</button>
     </div>
   </div>
 </div>
@@ -235,23 +248,28 @@ function bulkDelete() {
   });
 }
 
-/* ---------- live filter (all rows, client-side) ---------- */
+/* ---------- filter + "Show N" (all client-side) ---------- */
 const allRows = () => [...tbody.querySelectorAll('tr[data-cid]')];
-function liveFilter() {
+function liveFilter() { applyView(); }
+function applyView() {
   const q = document.getElementById('filterInput').value.trim().toLowerCase();
-  let shown = 0;
+  const limit = parseInt(document.getElementById('showSelect').value) || 0; // 0 = All
+  const total = allRows().length;
+  let matched = 0, shown = 0;
   allRows().forEach(tr => {
-    const match = !q || tr.innerText.toLowerCase().indexOf(q) !== -1;
-    tr.style.display = match ? '' : 'none';
-    if (match) shown++;
+    const isMatch = !q || tr.innerText.toLowerCase().indexOf(q) !== -1;
+    if (isMatch) matched++;
+    const visible = isMatch && (limit === 0 || shown < limit);
+    tr.style.display = visible ? '' : 'none';
+    if (visible) shown++;
   });
   const noMatch = document.getElementById('noMatchRow');
-  if (noMatch) noMatch.style.display = shown === 0 ? '' : 'none';
-  const info = document.getElementById('filterInfo');
-  const total = allRows().length;
-  info.textContent = q ? ('Showing ' + shown + ' of ' + total) : '';
+  if (noMatch) noMatch.style.display = matched === 0 ? '' : 'none';
+  document.getElementById('filterInfo').textContent =
+    'Showing ' + shown + ' of ' + (q ? matched + ' matched · ' + total + ' total' : total);
   refreshBulkBar();
 }
+applyView();  // initial render (respects the default "Show" value)
 
 /* ---------- column sort (current page) ---------- */
 let sortState = { col: null, dir: 1 };
@@ -276,6 +294,7 @@ function sortCountries(col, type, th) {
     return x.localeCompare(y, undefined, { numeric:true }) * sortState.dir;
   });
   rows.forEach(r => tbody.appendChild(r));
+  applyView();
 }
 
 function toggleMenu(btn) {
@@ -310,19 +329,45 @@ function deleteCountry(cid, name) {
 
 function openModal()  { document.getElementById('addModal').classList.add('open'); }
 function closeModal() { document.getElementById('addModal').classList.remove('open'); document.getElementById('addError').style.display='none'; }
-function openAddModal() { openModal(); setTimeout(()=>document.getElementById('c_name').focus(),100); }
 
-function submitAdd() {
+function openAddModal() {
+  document.getElementById('c_id').value = '';
+  document.getElementById('c_name').value = '';
+  document.getElementById('c_code').value = '';
+  document.getElementById('c_dial').value = '';
+  document.getElementById('modalTitle').textContent = 'Add Country';
+  document.getElementById('modalSaveBtn').textContent = 'Add Country';
+  openModal();
+  setTimeout(()=>document.getElementById('c_name').focus(),100);
+}
+
+function openEditModal(id, name, code, dial) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.getElementById('c_id').value = id;
+  document.getElementById('c_name').value = name;
+  document.getElementById('c_code').value = code;
+  document.getElementById('c_dial').value = dial;
+  document.getElementById('modalTitle').textContent = 'Edit Country';
+  document.getElementById('modalSaveBtn').textContent = 'Save Changes';
+  openModal();
+  setTimeout(()=>document.getElementById('c_name').focus(),100);
+}
+
+function submitCountry() {
+  const id   = document.getElementById('c_id').value;
   const name = document.getElementById('c_name').value.trim();
   if (!name) { showErr('Country name is required.'); return; }
-  const body = new URLSearchParams({
-    name, code: document.getElementById('c_code').value.trim(),
+  const params = {
+    name,
+    code: document.getElementById('c_code').value.trim(),
     country_code: document.getElementById('c_dial').value.trim()
-  });
-  fetch('{% url "country_create" %}', {
+  };
+  if (id) params.id = id;
+  const url = id ? '{% url "country_update" %}' : '{% url "country_create" %}';
+  fetch(url, {
     method:'POST',
     headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body: body.toString()
+    body: new URLSearchParams(params).toString()
   }).then(r=>r.json()).then(d=>{
     if(d.ok){ closeModal(); location.reload(); }
     else showErr(d.error);
