@@ -4851,29 +4851,57 @@ def contact_types_list(request):
         'type_choices': ContactType.TYPE_CHOICES,
     })
 
+def _split_valid_types(raw):
+    """Parse a 'client,debtor'-style POST value into the subset that are
+    real ContactType.TYPE_CHOICES keys, in the order given, de-duplicated."""
+    valid = dict(ContactType.TYPE_CHOICES)
+    seen, out = set(), []
+    for t in raw.split(','):
+        t = t.strip()
+        if t in valid and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 @require_POST
 def contact_type_create(request):
     name = request.POST.get('name', '').strip()
-    t    = request.POST.get('type', 'client')
+    types = _split_valid_types(request.POST.get('types', request.POST.get('type', 'client')))
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
-    if ContactType.objects.filter(name__iexact=name, type=t).exists():
-        return JsonResponse({'ok': False, 'error': 'Type already exists.'})
-    ct = ContactType.objects.create(name=name, type=t)
-    return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name, 'type': ct.get_type_display()})
+    if not types:
+        return JsonResponse({'ok': False, 'error': 'Select at least one type (Client and/or Debtor).'})
+    created = []
+    for t in types:
+        if ContactType.objects.filter(name__iexact=name, type=t).exists():
+            continue
+        created.append(ContactType.objects.create(name=name, type=t))
+    if not created:
+        return JsonResponse({'ok': False, 'error': 'That name already exists for the selected type(s).'})
+    return JsonResponse({'ok': True, 'id': created[0].pk, 'name': created[0].name,
+                         'created': len(created)})
 
 @require_POST
 def contact_type_update(request):
     ct = get_object_or_404(ContactType, pk=request.POST.get('id'))
     name = request.POST.get('name', '').strip()
-    t    = request.POST.get('type', 'client')
+    types = _split_valid_types(request.POST.get('types', request.POST.get('type', 'client')))
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
-    if ContactType.objects.filter(name__iexact=name, type=t).exclude(pk=ct.pk).exists():
+    if not types:
+        return JsonResponse({'ok': False, 'error': 'Select at least one type (Client and/or Debtor).'})
+    # This row becomes the first checked type; any other checked type gets
+    # its own row if one doesn't already exist for this name.
+    primary, extra = types[0], types[1:]
+    if ContactType.objects.filter(name__iexact=name, type=primary).exclude(pk=ct.pk).exists():
         return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
     ct.name = name
-    ct.type = t
+    ct.type = primary
     ct.save()
+    for t in extra:
+        if not ContactType.objects.filter(name__iexact=name, type=t).exists():
+            ContactType.objects.create(name=name, type=t)
     return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name, 'type': ct.get_type_display()})
 
 @require_POST
