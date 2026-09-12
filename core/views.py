@@ -121,16 +121,19 @@ def _client_ip(request):
 
 
 def _secure_client_ip(request):
-    """The real TCP peer address for this request.
+    """The real visitor IP for this request, for use in the staff IP-allowlist
+    security check and other security-sensitive log entries.
 
-    Unlike _client_ip(), this deliberately ignores X-Forwarded-For: that
-    header is set by the client and can be spoofed unless we know for
-    certain every request passes through a trusted, correctly-configured
-    reverse proxy that overwrites (rather than appends to) it. Used for the
-    staff IP-allowlist security check, where trusting a spoofable value
-    would defeat the point of the check.
+    This app is only ever reached through the platform's edge proxy (Railway)
+    — it has no public IP of its own — so that edge is a trusted single hop
+    that sets X-Forwarded-For to the real client IP on every request. Trusting
+    only REMOTE_ADDR here would be wrong in this deployment: it's the proxy's
+    own (internal, and not necessarily stable) address, not the visitor's, so
+    two tabs on the same machine could log different "IPs" and the allowlist
+    check would never see a real employee IP. Same logic as _client_ip(); kept
+    as a separate name since the two serve different purposes.
     """
-    return (request.META.get('REMOTE_ADDR', '') or '')[:50]
+    return _client_ip(request)
 
 
 def _format_hours(td):
