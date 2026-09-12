@@ -5183,12 +5183,19 @@ def import_view(request):
 
 
 # ---------- IMPORT NEW (bulk Case + Debtor import from Excel) ----------
-# Columns mirror the Add Case wizard's mandatory fields. A file is accepted
-# only when every required header is present (exact names, any order).
-CASE_IMPORT_REQUIRED = ['Client', 'Debtor', 'Received On', 'Case Type', 'Account No',
-                        'Case Status', 'Collector', 'Case Country', 'Outstanding Amount']
-CASE_IMPORT_OPTIONAL = ['Currency', 'Principal Amount', 'Discount Amount', 'Promise Date',
-                        'Debtor Phone', 'Creditor Name', 'Notes']
+# Columns mirror the client's reference export (debtorcase.xlsx). A file is
+# accepted only when every required header is present (exact names, any order).
+# "Debtor" is the lookup/creation key (matched case-insensitively against an
+# existing Debtor, or used to create one); "Name" is a second required column
+# that sets the new debtor's display name when one is created. The optional
+# debtor-profile columns (Is Company .. Phone Number) only apply when a new
+# debtor is being created — they never edit an existing one.
+CASE_IMPORT_REQUIRED = ['Client', 'Debtor', 'Name', 'Creditor Name', 'Received On', 'Case Type',
+                        'Account Number', 'Case Status', 'Collector', 'Case Country', 'Currency',
+                        'Outstanding Amount', 'Approved Amount']
+CASE_IMPORT_OPTIONAL = ['Is Company', 'Gender', 'Nationality', 'ID Number/CR Number', 'State',
+                        'Country', 'Due Date', 'Relationship Number', 'Shadow Account', 'CIF Number',
+                        'Agency Name', 'Phone Number', 'Notes', 'Principal Amount', 'Promise Date']
 
 
 def _parse_import_date(value):
@@ -5238,7 +5245,9 @@ def _import_cases_from_workbook(request, file):
 
     status_by_label = {label.strip().lower(): key for key, label in Case.all_status_choices()}
     status_keys = {key for key, _ in Case.all_status_choices()}
-    default_currency = Currency.objects.filter(code__iexact='OMR').first()
+    gender_by_label = {label.strip().lower(): key for key, label in Debtor.GENDER_CHOICES}
+    gender_keys = {key for key, _ in Debtor.GENDER_CHOICES}
+    truthy = {'yes', 'y', 'true', '1', 'company', 'organization', 'organisation'}
 
     results, created = [], 0
     for rownum, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
@@ -5248,11 +5257,15 @@ def _import_cases_from_workbook(request, file):
         def err(message):
             results.append({'row': rownum, 'ok': False, 'message': message})
 
-        client_name = str(cell(row, 'Client')).strip()
-        debtor_name = str(cell(row, 'Debtor')).strip()
-        account_no  = str(cell(row, 'Account No')).strip()
-        if not client_name or not debtor_name or not account_no:
-            err('Client, Debtor and Account No are required.'); continue
+        client_name    = str(cell(row, 'Client')).strip()
+        debtor_name    = str(cell(row, 'Debtor')).strip()
+        debtor_display = str(cell(row, 'Name')).strip()
+        account_no     = str(cell(row, 'Account Number')).strip()
+        creditor_name  = str(cell(row, 'Creditor Name')).strip()
+        if not client_name or not debtor_name or not debtor_display or not account_no:
+            err('Client, Debtor, Name and Account Number are required.'); continue
+        if not creditor_name:
+            err('Creditor Name is required.'); continue
 
         client = Client.objects.filter(name__iexact=client_name).first()
         if not client:
@@ -5284,6 +5297,11 @@ def _import_cases_from_workbook(request, file):
         if not country:
             err('Case Country is required.'); continue
 
+        currency_code = str(cell(row, 'Currency')).strip()
+        currency = Currency.objects.filter(code__iexact=currency_code).first() if currency_code else None
+        if not currency:
+            err(f'Currency "{currency_code}" not found — it is required.'); continue
+
         try:
             outstanding = float(cell(row, 'Outstanding Amount') or 0)
             if outstanding <= 0:
@@ -5291,32 +5309,51 @@ def _import_cases_from_workbook(request, file):
         except (TypeError, ValueError):
             err('Outstanding Amount must be a positive number.'); continue
 
+        try:
+            approved = float(cell(row, 'Approved Amount'))
+            if approved < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            err('Approved Amount must be a number.'); continue
+
         def num(header):
             try:
                 return float(cell(row, header) or 0)
             except (TypeError, ValueError):
                 return 0.0
         principal = num('Principal Amount')
-        discount  = num('Discount Amount')
 
         promise_date = _parse_import_date(cell(row, 'Promise Date'))
         if status in Case.DATE_REQUIRED_STATUSES and not promise_date:
             err('This Case Status requires a Promise Date column value.'); continue
 
         if Case.objects.filter(client=client, account_no__iexact=account_no).exists():
-            err(f'Account No "{account_no}" already exists for client "{client.name}".'); continue
+            err(f'Account Number "{account_no}" already exists for client "{client.name}".'); continue
 
-        currency_code = str(cell(row, 'Currency')).strip()
-        currency = Currency.objects.filter(code__iexact=currency_code).first() if currency_code else default_currency
-        if currency_code and not currency:
-            err(f'Currency "{currency_code}" not found.'); continue
+        agency_name = str(cell(row, 'Agency Name')).strip()
+        agency = None
+        if agency_name:
+            agency = Agency.objects.filter(name__iexact=agency_name, status='active').first()
+            if not agency:
+                err(f'Agency "{agency_name}" not found in Settings → Agencies.'); continue
 
         debtor = Debtor.objects.filter(name__iexact=debtor_name).first()
         debtor_created = False
         if not debtor:
+            is_company = str(cell(row, 'Is Company')).strip().lower() in truthy
+            gender_raw = str(cell(row, 'Gender')).strip().lower()
+            gender = gender_by_label.get(gender_raw) or (gender_raw if gender_raw in gender_keys else '')
+            id_or_cr = str(cell(row, 'ID Number/CR Number')).strip()
             debtor = Debtor.objects.create(
-                name=debtor_name,
-                phone=str(cell(row, 'Debtor Phone')).strip(),
+                name=debtor_display,
+                is_organization=is_company,
+                gender=gender,
+                nationality=str(cell(row, 'Nationality')).strip(),
+                cr_no=id_or_cr if is_company else '',
+                id_number=id_or_cr if not is_company else '',
+                state=str(cell(row, 'State')).strip(),
+                country=str(cell(row, 'Country')).strip(),
+                phone=str(cell(row, 'Phone Number')).strip(),
                 status='active',
                 created_by=request.user if request.user.is_authenticated else None,
             )
@@ -5327,19 +5364,23 @@ def _import_cases_from_workbook(request, file):
             debtor=debtor,
             case_type=case_type,
             account_no=account_no,
+            relationship_no=str(cell(row, 'Relationship Number')).strip(),
+            shadow_account_no=str(cell(row, 'Shadow Account')).strip(),
+            cif_no=str(cell(row, 'CIF Number')).strip(),
             status=status,
             collector=collector,
             received_date=received_date,
+            due_date=_parse_import_date(cell(row, 'Due Date')),
             case_country=country,
             outstanding_amount=outstanding,
             principal_amount=principal,
-            discount_amount=discount,
-            discount_given=discount > 0,
-            approved_amount=outstanding - discount,
+            approved_amount=approved,
             received_amount=0,
             currency=currency,
             promise_to_pay_date=promise_date,
-            creditor_name=str(cell(row, 'Creditor Name')).strip() or client.name,
+            creditor_name=creditor_name,
+            is_agency=bool(agency),
+            agency=agency,
             notes=str(cell(row, 'Notes')).strip(),
         )
         case.save()
@@ -5379,8 +5420,9 @@ def import_new_view(request):
 
 @admin_required
 def import_case_sample(request):
-    """Downloadable sample sheet with the exact headers the importer accepts,
-    one example row, and a Valid Values reference sheet."""
+    """Downloadable sample sheet with the exact headers the importer accepts
+    (mandatory columns filled red, matching the reference layout), one
+    example row, and a Valid Values reference sheet."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill
     wb = Workbook()
@@ -5388,39 +5430,67 @@ def import_case_sample(request):
     ws.title = 'Cases'
     headers = CASE_IMPORT_REQUIRED + CASE_IMPORT_OPTIONAL
     ws.append(headers)
-    fill = PatternFill('solid', fgColor='4F46E5')
-    for c in ws[1]:
+    required_fill = PatternFill('solid', fgColor='C00000')
+    optional_fill = PatternFill('solid', fgColor='808080')
+    for i, c in enumerate(ws[1]):
         c.font = Font(bold=True, color='FFFFFF')
-        c.fill = fill
+        c.fill = required_fill if headers[i] in CASE_IMPORT_REQUIRED else optional_fill
+
     sample_client = Client.objects.filter(status='active').first()
     sample_collector = User.objects.filter(is_active=True).first()
-    ws.append([
-        sample_client.name if sample_client else 'Client Name (must exist)',
-        'Ahmed Al Example', '2026-07-01',
-        CaseType.objects.filter(is_enabled=True).first().name if CaseType.objects.filter(is_enabled=True).exists() else 'Case Type',
-        'ACC-1001', 'Active',
-        (sample_collector.get_full_name() or sample_collector.username) if sample_collector else 'collector username',
-        'Oman', 1500.000, 'OMR', 1400.000, 100.000, '', '+968 91234567', '', 'Imported case',
-    ])
+    sample_case_type = CaseType.objects.filter(is_enabled=True).first()
+    sample_values = {
+        'Client': sample_client.name if sample_client else 'Client Name (must exist)',
+        'Debtor': 'Ahmed Al Example',
+        'Name': 'Ahmed Al Example',
+        'Creditor Name': sample_client.name if sample_client else 'Creditor Name',
+        'Received On': '2026-07-01',
+        'Case Type': sample_case_type.name if sample_case_type else 'Case Type',
+        'Account Number': 'ACC-1001',
+        'Case Status': 'Active',
+        'Collector': (sample_collector.get_full_name() or sample_collector.username) if sample_collector else 'collector username',
+        'Case Country': 'Oman',
+        'Currency': 'OMR',
+        'Outstanding Amount': 1500.000,
+        'Approved Amount': 1400.000,
+        'Is Company': 'No',
+        'Gender': 'Male',
+        'Nationality': 'Omani',
+        'ID Number/CR Number': '123456789',
+        'State': 'Muscat',
+        'Country': 'Oman',
+        'Due Date': '',
+        'Relationship Number': '',
+        'Shadow Account': '',
+        'CIF Number': '',
+        'Agency Name': '',
+        'Phone Number': '+968 91234567',
+        'Notes': 'Imported case',
+        'Principal Amount': 1500.000,
+        'Promise Date': '',
+    }
+    ws.append([sample_values.get(h, '') for h in headers])
     for i, h in enumerate(headers, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = max(14, len(h) + 4)
 
     ref = wb.create_sheet('Valid Values')
-    ref.append(['Case Statuses', 'Case Types', 'Collectors', 'Currencies'])
+    ref.append(['Case Statuses', 'Case Types', 'Collectors', 'Currencies', 'Agencies'])
     for c in ref[1]:
         c.font = Font(bold=True)
-    statuses = [label for _, label in Case.all_status_choices()]
-    types = list(CaseType.objects.filter(is_enabled=True).values_list('name', flat=True))
+    statuses   = [label for _, label in Case.all_status_choices()]
+    types      = list(CaseType.objects.filter(is_enabled=True).values_list('name', flat=True))
     collectors = [(u.get_full_name() or u.username) for u in User.objects.filter(is_active=True)]
     currencies = list(Currency.objects.values_list('code', flat=True))
-    for i in range(max(len(statuses), len(types), len(collectors), len(currencies))):
+    agencies   = list(Agency.objects.filter(status='active').values_list('name', flat=True))
+    for i in range(max(len(statuses), len(types), len(collectors), len(currencies), len(agencies))):
         ref.append([
             statuses[i] if i < len(statuses) else '',
             types[i] if i < len(types) else '',
             collectors[i] if i < len(collectors) else '',
             currencies[i] if i < len(currencies) else '',
+            agencies[i] if i < len(agencies) else '',
         ])
-    for col, width in zip('ABCD', (28, 24, 24, 12)):
+    for col, width in zip('ABCDE', (28, 24, 24, 12, 24)):
         ref.column_dimensions[col].width = width
 
     resp = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
