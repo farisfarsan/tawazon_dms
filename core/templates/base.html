@@ -1699,7 +1699,9 @@ document.addEventListener('click', function(e) {
 
   var lastActivity = Date.now();
   var activitySinceBeat = true;
-  var lastBeat = 0;
+  var lastAttempt = 0;      // last time we tried to send a heartbeat (success or not)
+  var lastBeatOk = true;    // whether the most recent attempt actually succeeded
+  var RETRY_EVERY = 5;      // seconds between retries after a failed heartbeat
   var warnShown = false;
 
   var overlay = document.getElementById('idleWarnOverlay');
@@ -1727,17 +1729,32 @@ document.addEventListener('click', function(e) {
     // Only beat when there's been real activity since the last one (so an
     // abandoned tab stops accruing worked hours server-side).
     if (!force && !activitySinceBeat) return;
-    if (!force && (now - lastBeat) < HEARTBEAT_EVERY * 1000) return;
-    lastBeat = now;
+    var gap = now - lastAttempt;
+    // Normal cadence once healthy; retry sooner if the last attempt failed
+    // (a dropped connection or a brief server hiccup must not cost up to a
+    // full minute of unrecorded — but genuinely worked — time).
+    if (!force && gap < (lastBeatOk ? HEARTBEAT_EVERY : RETRY_EVERY) * 1000) return;
+    lastAttempt = now;
+    var hadActivity = activitySinceBeat;
     activitySinceBeat = false;
     fetch(HEARTBEAT_URL, {
       method: 'POST',
       headers: { 'X-CSRFToken': CSRF },
       keepalive: true,
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    }).then(function (r) {
+      if (!r.ok) throw new Error('bad status');
+      return r.json();
+    }).then(function (d) {
+      lastBeatOk = true;
       if (d && d.idle_limit_seconds) IDLE_LIMIT = d.idle_limit_seconds;
       if (d && d.warning_seconds) WARN_BEFORE = d.warning_seconds;
-    }).catch(function () { /* offline / ignore */ });
+    }).catch(function () {
+      // Offline / server hiccup — don't treat this as "sent". Put the
+      // activity flag back so the next tick retries in RETRY_EVERY seconds
+      // instead of silently losing this stretch of worked time.
+      lastBeatOk = false;
+      if (hadActivity) activitySinceBeat = true;
+    });
   }
 
   // Main tick: every second evaluate idle state.

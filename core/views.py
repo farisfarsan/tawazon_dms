@@ -6898,15 +6898,17 @@ def attendance_heartbeat(request):
     the configured idle limit so the auto-logout countdown stays in sync."""
     sess_id = request.session.get(ATTENDANCE_SESSION_KEY)
     sess = AttendanceSession.objects.filter(id=sess_id, user=request.user).first() if sess_id else None
-    if sess is None:
-        # Session record lost (e.g. server restart) — re-open one so hours keep tracking.
+    if sess is None or not sess.is_open:
+        # No session record (e.g. server restart), or the stored one was
+        # already closed elsewhere (relogin/idle from another tab) — open a
+        # fresh one rather than silently doing nothing for the rest of the visit.
         now = timezone.now()
         sess = AttendanceSession.objects.create(
             user=request.user, login_at=now, last_activity=now,
             ip_address=_client_ip(request),
         )
         request.session[ATTENDANCE_SESSION_KEY] = sess.id
-    elif sess.is_open:
+    else:
         sess.last_activity = timezone.now()
         sess.save(update_fields=['last_activity'])
     return JsonResponse({
