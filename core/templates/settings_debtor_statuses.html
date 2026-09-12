@@ -129,7 +129,7 @@
     <div class="form-group"><label>Name *</label><input class="form-control" id="c_name" placeholder="e.g. Liquidated"></div>
     <div class="form-group">
       <label>Applies To</label>
-      <select class="form-control" id="c_type">
+      <select class="form-control js-search" id="c_type">
         {% for val, label in type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
@@ -199,7 +199,7 @@ function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% 
 function openAddModal(){
   document.getElementById('c_name_id').value='';
   document.getElementById('c_name').value='';
-  document.getElementById('c_type').value='{{ type_choices.0.0 }}';
+  setSelectValue(document.getElementById('c_type'), '{{ type_choices.0.0 }}');
   document.getElementById('modalTitle').textContent='Add Status';
   document.getElementById('modalSaveBtn').textContent='Add';
   document.getElementById('addModal').classList.add('open');
@@ -209,7 +209,7 @@ function openEditModal(id,name,type){
   document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
   document.getElementById('c_name_id').value=id;
   document.getElementById('c_name').value=name;
-  document.getElementById('c_type').value=type;
+  setSelectValue(document.getElementById('c_type'), type);
   document.getElementById('modalTitle').textContent='Edit';
   document.getElementById('modalSaveBtn').textContent='Save Changes';
   document.getElementById('addModal').classList.add('open');

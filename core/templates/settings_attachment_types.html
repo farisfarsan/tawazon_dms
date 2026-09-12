@@ -130,7 +130,7 @@
     <div class="form-group"><label>Name *</label><input class="form-control" id="at_name" placeholder="e.g. Agreement"></div>
     <div class="form-group">
       <label>Applies To</label>
-      <select class="form-control" id="at_type">
+      <select class="form-control js-search" id="at_type">
         {% for val, label in type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
       </select>
     </div>
@@ -200,7 +200,7 @@ function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% 
 function openAddModal(){
   document.getElementById('at_name_id').value='';
   document.getElementById('at_name').value='';
-  document.getElementById('at_type').value='{{ type_choices.0.0 }}';
+  setSelectValue(document.getElementById('at_type'), '{{ type_choices.0.0 }}');
   document.getElementById('modalTitle').textContent='Add Attachment Type';
   document.getElementById('modalSaveBtn').textContent='Add';
   document.getElementById('addModal').classList.add('open');
@@ -210,7 +210,7 @@ function openEditModal(id,name,type){
   document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
   document.getElementById('at_name_id').value=id;
   document.getElementById('at_name').value=name;
-  document.getElementById('at_type').value=type;
+  setSelectValue(document.getElementById('at_type'), type);
   document.getElementById('modalTitle').textContent='Edit';
   document.getElementById('modalSaveBtn').textContent='Save Changes';
   document.getElementById('addModal').classList.add('open');
