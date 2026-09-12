@@ -7004,7 +7004,7 @@ def client_otp_request(request):
         f'Your one-time login code for the Tawazon client portal is:\n\n'
         f'    {code}\n\n'
         f'This code expires in {ttl} minutes. If you did not request it, you can ignore this email.\n\n'
-        f'— Tawazon Collection Management'
+        f'— Tawazon Data Management System'
     )
     try:
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [acc.email], fail_silently=False)
