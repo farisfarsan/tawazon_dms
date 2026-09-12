@@ -4844,25 +4844,10 @@ def contract_type_delete(request):
 
 # ---------- CONTACT TYPES ----------
 def contact_types_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 25))
-
-    qs = ContactType.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(type__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
     return render(request, 'settings_contact_types.html', {
         'active_page':  'settings_contact_types',
         'active_sub':   'settings_contact_types',
-        'page_obj':     page_obj,
-        'search':       search,
-        'page_size':    page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count':  qs.count(),
+        'contact_types': ContactType.objects.all(),
         'type_choices': ContactType.TYPE_CHOICES,
     })
 
@@ -4875,6 +4860,20 @@ def contact_type_create(request):
     if ContactType.objects.filter(name__iexact=name, type=t).exists():
         return JsonResponse({'ok': False, 'error': 'Type already exists.'})
     ct = ContactType.objects.create(name=name, type=t)
+    return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name, 'type': ct.get_type_display()})
+
+@require_POST
+def contact_type_update(request):
+    ct = get_object_or_404(ContactType, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    t    = request.POST.get('type', 'client')
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if ContactType.objects.filter(name__iexact=name, type=t).exclude(pk=ct.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
+    ct.name = name
+    ct.type = t
+    ct.save()
     return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name, 'type': ct.get_type_display()})
 
 @require_POST
@@ -4892,25 +4891,10 @@ def contact_type_delete(request):
 
 
 def attachment_types_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 25))
-
-    qs = AttachmentType.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(type__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
-
     return render(request, 'settings_attachment_types.html', {
         'active_page':  'settings_attachment_types',
         'active_sub':   'settings_attachment_types',
-        'page_obj':     page_obj,
-        'search':       search,
-        'page_size':    page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count':  qs.count(),
+        'attachment_types': AttachmentType.objects.all(),
         'type_choices': AttachmentType.TYPE_CHOICES,
     })
 
@@ -4924,6 +4908,21 @@ def attachment_type_create(request):
     if AttachmentType.objects.filter(name__iexact=name).exists():
         return JsonResponse({'ok': False, 'error': 'Type already exists.'})
     at = AttachmentType.objects.create(name=name, type=t)
+    return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.get_type_display()})
+
+
+@require_POST
+def attachment_type_update(request):
+    at = get_object_or_404(AttachmentType, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    t    = request.POST.get('type', 'case')
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if AttachmentType.objects.filter(name__iexact=name).exclude(pk=at.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
+    at.name = name
+    at.type = t
+    at.save()
     return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.get_type_display()})
 
 
@@ -7343,25 +7342,10 @@ def profile_edit(request):
 
 
 def debtor_statuses_list(request):
-    from django.core.paginator import Paginator
-    search = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 25))
-
-    qs = DebtorStatusOption.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(debtor_type__icontains=search))
-
-    paginator = Paginator(qs, page_size)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
-
     return render(request, 'settings_debtor_statuses.html', {
         'active_page': 'settings',
         'active_sub': 'settings_debtor_statuses',
-        'page_obj': page_obj,
-        'search': search,
-        'page_size': page_size,
-        'page_size_options': [10, 25, 50, 100],
-        'total_count': qs.count(),
+        'debtor_statuses': DebtorStatusOption.objects.all(),
         'type_choices': DebtorStatusOption.TYPE_CHOICES,
     })
 
@@ -7375,6 +7359,21 @@ def debtor_status_create(request):
     if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=debtor_type).exists():
         return JsonResponse({'ok': False, 'error': 'Status already exists for this type.'})
     obj = DebtorStatusOption.objects.create(name=name, debtor_type=debtor_type)
+    return JsonResponse({'ok': True, 'id': obj.pk, 'name': obj.name, 'debtor_type': obj.get_debtor_type_display()})
+
+
+@require_POST
+def debtor_status_update(request):
+    obj = get_object_or_404(DebtorStatusOption, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    debtor_type = request.POST.get('debtor_type', 'individual')
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=debtor_type).exclude(pk=obj.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another status already has that name for this type.'})
+    obj.name = name
+    obj.debtor_type = debtor_type
+    obj.save()
     return JsonResponse({'ok': True, 'id': obj.pk, 'name': obj.name, 'debtor_type': obj.get_debtor_type_display()})
 
 

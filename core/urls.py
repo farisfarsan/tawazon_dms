@@ -215,17 +215,20 @@ urlpatterns = [
     # Settings – Contact Types
     path('settings/contact-types/', views.contact_types_list, name='contact_types_list'),
     path('settings/contact-types/create/', views.contact_type_create, name='contact_type_create'),
+    path('settings/contact-types/update/', views.contact_type_update, name='contact_type_update'),
     path('settings/contact-types/toggle/', views.contact_type_toggle, name='contact_type_toggle'),
     path('settings/contact-types/delete/', views.contact_type_delete, name='contact_type_delete'),
 
     path('settings/debtor-statuses/', views.debtor_statuses_list, name='debtor_statuses_list'),
     path('settings/debtor-statuses/create/', views.debtor_status_create, name='debtor_status_create'),
+    path('settings/debtor-statuses/update/', views.debtor_status_update, name='debtor_status_update'),
     path('settings/debtor-statuses/toggle/', views.debtor_status_toggle, name='debtor_status_toggle'),
     path('settings/debtor-statuses/delete/', views.debtor_status_delete, name='debtor_status_delete'),
 
     # Settings – Attachment Types
     path('settings/attachment-types/', views.attachment_types_list, name='attachment_types_list'),
     path('settings/attachment-types/create/', views.attachment_type_create, name='attachment_type_create'),
+    path('settings/attachment-types/update/', views.attachment_type_update, name='attachment_type_update'),
     path('settings/attachment-types/toggle/', views.attachment_type_toggle, name='attachment_type_toggle'),
     path('settings/attachment-types/delete/', views.attachment_type_delete, name='attachment_type_delete'),
 
