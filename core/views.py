@@ -4943,18 +4943,9 @@ def attachment_type_delete(request):
 
 # ---------- AGENCIES ----------
 def agencies_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-    qs = Agency.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(organisation__icontains=search) | Q(email__icontains=search))
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'settings_agencies.html', {
         'active_page': 'settings_agencies', 'active_sub': 'settings_agencies',
-        'page_obj': page_obj, 'search': search, 'page_size': page_size,
-        'page_size_options': [10, 25, 50, 100], 'total_count': qs.count(),
+        'agencies': Agency.objects.all(),
         'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
     })
 
@@ -4975,6 +4966,26 @@ def agency_create(request):
                          'phone': a.phone, 'email': a.email})
 
 @require_POST
+def agency_update(request):
+    a = get_object_or_404(Agency, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    phone = request.POST.get('phone', '').strip()
+    email = request.POST.get('email', '').strip()
+    if phone and not _valid_phone(phone):
+        return JsonResponse({'ok': False, 'error': 'Please enter a valid phone number (country code + number).'})
+    if email and not _valid_email(email):
+        return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'})
+    a.name = name
+    a.organisation = request.POST.get('organisation', '').strip()
+    a.phone = phone
+    a.email = email
+    a.save()
+    return JsonResponse({'ok': True, 'id': a.pk, 'name': a.name, 'organisation': a.organisation,
+                         'phone': a.phone, 'email': a.email})
+
+@require_POST
 def agency_toggle(request):
     a = get_object_or_404(Agency, pk=request.POST.get('id'))
     a.status = 'inactive' if a.status == 'active' else 'active'
@@ -4990,18 +5001,9 @@ def agency_delete(request):
 
 # ---------- LAWYERS ----------
 def lawyers_list(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
-    qs = Lawyer.objects.all()
-    if search:
-        qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search) | Q(phone__icontains=search))
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'settings_lawyers.html', {
         'active_page': 'settings_lawyers', 'active_sub': 'settings_lawyers',
-        'page_obj': page_obj, 'search': search, 'page_size': page_size,
-        'page_size_options': [10, 25, 50, 100], 'total_count': qs.count(),
+        'lawyers': Lawyer.objects.all(),
         'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
     })
 
@@ -5017,6 +5019,24 @@ def lawyer_create(request):
     if not _valid_email(email):
         return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'})
     l = Lawyer.objects.create(name=name, phone=phone, email=email)
+    return JsonResponse({'ok': True, 'id': l.pk, 'name': l.name, 'phone': l.phone, 'email': l.email})
+
+@require_POST
+def lawyer_update(request):
+    l = get_object_or_404(Lawyer, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    phone = request.POST.get('phone', '').strip()
+    email = request.POST.get('email', '').strip()
+    if phone and not _valid_phone(phone):
+        return JsonResponse({'ok': False, 'error': 'Please enter a valid phone number (country code + number).'})
+    if email and not _valid_email(email):
+        return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'})
+    l.name = name
+    l.phone = phone
+    l.email = email
+    l.save()
     return JsonResponse({'ok': True, 'id': l.pk, 'name': l.name, 'phone': l.phone, 'email': l.email})
 
 @require_POST

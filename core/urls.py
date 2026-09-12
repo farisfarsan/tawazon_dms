@@ -235,6 +235,7 @@ urlpatterns = [
     # Settings – Agencies
     path('settings/agencies/', views.agencies_list, name='agencies_list'),
     path('settings/agencies/create/', views.agency_create, name='agency_create'),
+    path('settings/agencies/update/', views.agency_update, name='agency_update'),
     path('settings/agencies/toggle/', views.agency_toggle, name='agency_toggle'),
     path('settings/agencies/delete/', views.agency_delete, name='agency_delete'),
     path('settings/agencies/export/<str:format>/', views.agency_export, name='agency_export'),
@@ -242,6 +243,7 @@ urlpatterns = [
     # Settings – Lawyers
     path('settings/lawyers/', views.lawyers_list, name='lawyers_list'),
     path('settings/lawyers/create/', views.lawyer_create, name='lawyer_create'),
+    path('settings/lawyers/update/', views.lawyer_update, name='lawyer_update'),
     path('settings/lawyers/toggle/', views.lawyer_toggle, name='lawyer_toggle'),
     path('settings/lawyers/delete/', views.lawyer_delete, name='lawyer_delete'),
     path('settings/lawyers/export/<str:format>/', views.lawyer_export, name='lawyer_export'),
