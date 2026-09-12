@@ -250,6 +250,8 @@ urlpatterns = [
 
     # Settings – Contact Directory
     path('settings/contact-directory/', views.contact_directory, name='contact_directory'),
+    path('settings/contact-directory/update/', views.contact_directory_update, name='contact_directory_update'),
+    path('settings/contact-directory/delete/', views.contact_directory_delete, name='contact_directory_delete'),
     path('settings/contact-directory/export/<str:format>/', views.contact_directory_export, name='contact_directory_export'),
 
     # Settings – Import

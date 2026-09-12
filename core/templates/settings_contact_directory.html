@@ -25,12 +25,45 @@
   .show-select select{border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:13px;outline:none;cursor:pointer;}
   .data-table{width:100%;border-collapse:collapse;font-size:12px;}
   .data-table thead th{background:#f8fafc;padding:9px 12px;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  .data-table thead th.sortable{cursor:pointer;user-select:none;}
+  .data-table thead th.sortable:hover{color:var(--primary);}
+  .sort-icon{font-size:10px;margin-left:4px;color:#cbd5e1;}
+  .sort-icon.active{color:var(--primary);}
   .data-table td{padding:9px 12px;border-bottom:1px solid #f1f5f9;color:var(--text-dark);vertical-align:middle;}
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:#f8fafc;}
   .no-data{text-align:center;padding:32px;color:var(--text-muted);font-size:13px;}
   .table-footer{font-size:12px;color:var(--text-muted);margin-top:12px;}
   .alert-success{background:#dbeafe;color:var(--primary);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px;}
+  .bulk-bar{display:none;align-items:center;gap:14px;background:var(--primary-light);border:1px solid var(--primary);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--text-dark);}
+  .bulk-bar.open{display:flex;}
+  .bulk-bar .bulk-count{font-weight:700;color:var(--primary);}
+  .bulk-bar button{border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .bulk-bar .bulk-del{background:#dc2626;color:white;}
+  .bulk-bar .bulk-del:hover{background:#b91c1c;}
+  .bulk-bar .bulk-clear{background:white;color:var(--text-muted);border:1px solid var(--border);}
+  .action-menu{position:relative;display:inline-block;}
+  .dropdown-menu{display:none;position:absolute;right:0;top:110%;background:white;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);z-index:100;min-width:150px;overflow:hidden;}
+  .dropdown-menu.open{display:block;}
+  .dropdown-item{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;color:var(--text-dark);cursor:pointer;border:none;background:none;width:100%;text-align:left;}
+  .dropdown-item:hover{background:#f8fafc;color:var(--primary);}
+  .dropdown-item.danger:hover{background:#fef2f2;color:#dc2626;}
+  .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;}
+  .modal-backdrop.open{display:flex;}
+  .modal{background:white;border-radius:14px;padding:28px;width:100%;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,0.18);}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .modal-title{font-size:16px;font-weight:700;color:var(--text-dark);}
+  .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-group{display:flex;flex-direction:column;gap:5px;}
+  .form-group.full{grid-column:1/-1;}
+  .form-group label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;}
+  .form-control{padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;font-family:inherit;color:var(--text-dark);background:white;width:100%;box-sizing:border-box;}
+  .form-control:focus{border-color:var(--primary);}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+  .btn-cancel{background:white;color:var(--text-muted);border:1.5px solid var(--border);padding:9px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn-save{background:var(--primary);color:white;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
+  .error-msg{color:#dc2626;font-size:12px;margin-top:6px;display:none;}
 {% endblock %}
 {% block content %}
 <div style="margin-bottom:6px;"><div class="breadcrumb">Home <span>· Import</span></div></div>
@@ -60,42 +93,51 @@
       <i class="fas fa-sync" style="cursor:pointer;color:var(--text-muted);font-size:12px;"></i>
     </div>
   </div>
-  <form method="get" id="filterForm">
-    <div class="filter-row">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="filter-label">Filter:</span>
-        <div class="filter-search">
-          <input type="text" name="q" value="{{ search }}" placeholder="Type to filter...">
-          <i class="fas fa-search" onclick="document.getElementById('filterForm').submit()"></i>
-        </div>
+  <div class="filter-row">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="filter-label">Filter:</span>
+      <div class="filter-search">
+        <input type="text" id="filterInput" placeholder="Type to filter..." oninput="applyView()" autocomplete="off"
+               onkeydown="if(event.key==='Enter')event.preventDefault();">
+        <i class="fas fa-search"></i>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <div class="show-select">Show: <select name="show" onchange="document.getElementById('filterForm').submit()">{% for opt in page_size_options %}<option value="{{ opt }}" {% if opt == page_size %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
-        <div class="export-dropdown">
-          <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
-          <div class="export-drop-menu">
-            <button class="exp-copy" onclick="copyTable('dirTable');this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
-            <a class="exp-excel" href="{% url 'contact_directory_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
-            <a class="exp-pdf" href="{% url 'contact_directory_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
-          </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="show-select">Show: <select id="showSelect" onchange="applyView()">
+        <option value="10">10</option><option value="25" selected>25</option>
+        <option value="50">50</option><option value="100">100</option><option value="0">All</option>
+      </select></div>
+      <div class="export-dropdown">
+        <button class="export-drop-btn" onclick="toggleExportDropdown(this)"><i class="fas fa-file-export"></i> Export <i class="fas fa-chevron-down exp-chevron"></i></button>
+        <div class="export-drop-menu">
+          <button class="exp-copy" onclick="copyTable('dirTable');this.closest('.export-dropdown').classList.remove('open')"><i class="fas fa-copy"></i> Copy</button>
+          <a class="exp-excel" href="{% url 'contact_directory_export' 'excel' %}"><i class="fas fa-file-excel"></i> Excel</a>
+          <a class="exp-pdf" href="{% url 'contact_directory_export' 'pdf' %}"><i class="fas fa-file-pdf"></i> PDF</a>
         </div>
       </div>
     </div>
-  </form>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar">
+    <span><span class="bulk-count" id="bulkCount">0</span> selected</span>
+    <button class="bulk-del" onclick="bulkDelete()"><i class="fas fa-trash"></i> Delete Selected</button>
+    <button class="bulk-clear" onclick="clearSelection()">Clear</button>
+  </div>
+
   <div style="overflow-x:auto;">
     <table class="data-table" id="dirTable">
       <thead><tr>
-        <th style="width:40px;"><input type="checkbox"></th>
-        <th style="width:28px;"><i class="fas fa-sort" style="font-size:10px;color:#cbd5e1;margin:0;"></i></th>
-        <th>SI No</th><th>Contact Name</th><th>Contact Type</th><th>Email</th>
+        <th style="width:40px;"><input type="checkbox" id="selectAll"></th>
+        <th class="sortable" onclick="sortRows(1,this)">Contact Name <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortRows(2,this)">Contact Type <i class="fas fa-sort sort-icon"></i></th>
+        <th class="sortable" onclick="sortRows(3,this)">Email <i class="fas fa-sort sort-icon"></i></th>
         <th>Phone Number 1</th><th>Phone Number 2</th><th>ID Number</th>
         <th>Passport Number</th><th>Nationality</th><th>Date Created</th><th>Actions</th>
       </tr></thead>
       <tbody>
-        {% for entry in page_obj %}
-        <tr>
-          <td><input type="checkbox"></td><td></td>
-          <td>{{ forloop.counter }}</td>
+        {% for entry in contacts %}
+        <tr data-id="{{ entry.pk }}">
+          <td><input type="checkbox" class="row-check"></td>
           <td>{{ entry.contact_name }}</td>
           <td>{{ entry.contact_type|default:"—" }}</td>
           <td>{{ entry.email|default:"—" }}</td>
@@ -105,18 +147,167 @@
           <td>{{ entry.passport_number|default:"—" }}</td>
           <td>{{ entry.nationality|default:"—" }}</td>
           <td>{{ entry.created_at|date:"Y-m-d" }}</td>
-          <td><i class="fas fa-ellipsis-v" style="color:var(--text-muted);cursor:pointer;"></i></td>
+          <td>
+            <div class="action-menu">
+              <button class="action-btn-menu" onclick="toggleMenu(this)" style="background:none;border:none;cursor:pointer;color:var(--text-muted);"><i class="fas fa-ellipsis-v"></i></button>
+              <div class="dropdown-menu">
+                <button class="dropdown-item" onclick="openEditModal({{ entry.pk }})"><i class="fas fa-pen"></i> Edit</button>
+                <button class="dropdown-item danger" onclick="deleteItem({{ entry.pk }},'{{ entry.contact_name|escapejs }}')"><i class="fas fa-trash"></i> Delete</button>
+              </div>
+            </div>
+          </td>
         </tr>
         {% empty %}
-        <tr><td colspan="13" class="no-data">No data available in table</td></tr>
+        <tr><td colspan="11" class="no-data">No data available in table</td></tr>
         {% endfor %}
+        <tr id="noMatchRow" style="display:none;"><td colspan="11" class="no-data">No matches for your filter.</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="table-footer">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries</div>
+  <div class="table-footer" id="filterInfo"></div>
+</div>
+
+<!-- Edit Contact Modal -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal">
+    <div class="modal-header"><span class="modal-title">Edit Contact</span><button class="modal-close" onclick="closeModal()">&times;</button></div>
+    <input type="hidden" id="d_id">
+    <div class="form-grid">
+      <div class="form-group full"><label>Contact Name *</label><input class="form-control" id="d_name"></div>
+      <div class="form-group"><label>Contact Type</label><input class="form-control" id="d_type"></div>
+      <div class="form-group"><label>Email</label><input class="form-control" id="d_email" type="email"></div>
+      <div class="form-group"><label>Phone Number 1</label><input class="form-control" id="d_phone1"></div>
+      <div class="form-group"><label>Phone Number 2</label><input class="form-control" id="d_phone2"></div>
+      <div class="form-group"><label>ID Number</label><input class="form-control" id="d_idnum"></div>
+      <div class="form-group"><label>Passport Number</label><input class="form-control" id="d_passport"></div>
+      <div class="form-group"><label>Nationality</label><input class="form-control" id="d_nationality"></div>
+    </div>
+    <div class="error-msg" id="editError"></div>
+    <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" onclick="submitEdit()">Save Changes</button></div>
+  </div>
 </div>
 {% endblock %}
 {% block extra_scripts %}<script>
+const CSRF='{{ csrf_token }}';
+const tbody = document.querySelector('#dirTable tbody');
+const allRows = () => [...tbody.querySelectorAll('tr[data-id]')];
+function visibleRows(){return allRows().filter(r=>r.style.display!=='none');}
+function selectedIds(){return [...tbody.querySelectorAll('.row-check:checked')].map(c=>c.closest('tr').dataset.id);}
+
+// Contact data for the Edit modal, keyed by pk.
+const CONTACT_DATA = {
+  {% for entry in contacts %}
+  "{{ entry.pk }}": {
+    name: "{{ entry.contact_name|escapejs }}",
+    type: "{{ entry.contact_type|escapejs }}",
+    email: "{{ entry.email|escapejs }}",
+    phone1: "{{ entry.phone_number1|escapejs }}",
+    phone2: "{{ entry.phone_number2|escapejs }}",
+    idnum: "{{ entry.id_number|escapejs }}",
+    passport: "{{ entry.passport_number|escapejs }}",
+    nationality: "{{ entry.nationality|escapejs }}"
+  },
+  {% endfor %}
+};
+
+function refreshBulkBar(){
+  const n=selectedIds().length;
+  document.getElementById('bulkCount').textContent=n;
+  document.getElementById('bulkBar').classList.toggle('open', n>0);
+  const vis=visibleRows(), sa=document.getElementById('selectAll');
+  const chk=vis.filter(r=>r.querySelector('.row-check').checked).length;
+  sa.checked = vis.length>0 && chk===vis.length;
+  sa.indeterminate = chk>0 && chk<vis.length;
+}
+document.getElementById('selectAll').addEventListener('change',function(){visibleRows().forEach(r=>r.querySelector('.row-check').checked=this.checked);refreshBulkBar();});
+tbody.addEventListener('change', e=>{ if(e.target.classList.contains('row-check')) refreshBulkBar(); });
+function clearSelection(){tbody.querySelectorAll('.row-check').forEach(c=>c.checked=false);refreshBulkBar();}
+function bulkDelete(){
+  const ids=selectedIds();
+  if(!ids.length) return;
+  if(!confirm('Delete '+ids.length+' selected contact'+(ids.length===1?'':'s')+'?')) return;
+  const body=new URLSearchParams();
+  ids.forEach(id=>body.append('ids[]', id));
+  fetch('{% url "contact_directory_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(r=>r.json()).then(d=>{
+    if(d.ok){ids.forEach(id=>{const tr=tbody.querySelector('tr[data-id="'+id+'"]');if(tr)tr.remove();});refreshBulkBar();}
+    else alert(d.error||'Delete failed.');
+  });
+}
+function deleteItem(id,name){
+  if(!confirm('Delete "'+name+'"?')) return;
+  fetch('{% url "contact_directory_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{
+    if(d.ok){const tr=tbody.querySelector('tr[data-id="'+id+'"]');if(tr)tr.remove();refreshBulkBar();}
+  });
+}
+
+function applyView(){
+  const q=document.getElementById('filterInput').value.trim().toLowerCase();
+  const limit=parseInt(document.getElementById('showSelect').value)||0;
+  const total=allRows().length; let matched=0, shown=0;
+  allRows().forEach(tr=>{
+    const isMatch = !q || tr.innerText.toLowerCase().indexOf(q)!==-1;
+    if (isMatch) matched++;
+    const vis = isMatch && (limit===0 || shown<limit);
+    tr.style.display = vis?'':'none';
+    if (vis) shown++;
+  });
+  const nm=document.getElementById('noMatchRow'); if(nm) nm.style.display=(matched===0&&total>0)?'':'none';
+  document.getElementById('filterInfo').textContent='Showing '+shown+' of '+(q?matched+' matched · '+total+' total':total)+' entries';
+  refreshBulkBar();
+}
+let sortState={col:null,dir:1};
+function sortRows(col,th){
+  sortState.dir=(sortState.col===col)?-sortState.dir:1; sortState.col=col;
+  document.querySelectorAll('#dirTable thead .sort-icon').forEach(i=>i.className='fas fa-sort sort-icon');
+  th.querySelector('.sort-icon').className='fas fa-sort-'+(sortState.dir===1?'up':'down')+' sort-icon active';
+  const rows=allRows();
+  rows.sort((a,b)=>a.children[col].innerText.trim().localeCompare(b.children[col].innerText.trim(),undefined,{numeric:true})*sortState.dir);
+  rows.forEach(r=>tbody.appendChild(r));
+  applyView();
+}
+
+function toggleMenu(btn){document.querySelectorAll('.dropdown-menu.open').forEach(m=>{if(m!==btn.nextElementSibling)m.classList.remove('open');});btn.nextElementSibling.classList.toggle('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.action-menu'))document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));});
+
+function openEditModal(id){
+  document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
+  const d = CONTACT_DATA[id];
+  if (!d) return;
+  document.getElementById('d_id').value=id;
+  document.getElementById('d_name').value=d.name;
+  document.getElementById('d_type').value=d.type;
+  document.getElementById('d_email').value=d.email;
+  document.getElementById('d_phone1').value=d.phone1;
+  document.getElementById('d_phone2').value=d.phone2;
+  document.getElementById('d_idnum').value=d.idnum;
+  document.getElementById('d_passport').value=d.passport;
+  document.getElementById('d_nationality').value=d.nationality;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(()=>document.getElementById('d_name').focus(),100);
+}
+function closeModal(){document.getElementById('editModal').classList.remove('open');document.getElementById('editError').style.display='none';}
+function submitEdit(){
+  const id=document.getElementById('d_id').value;
+  const name=document.getElementById('d_name').value.trim();
+  if(!name){const e=document.getElementById('editError');e.textContent='Contact name is required.';e.style.display='block';return;}
+  const params={
+    id, contact_name:name,
+    contact_type:document.getElementById('d_type').value.trim(),
+    email:document.getElementById('d_email').value.trim(),
+    phone_number1:document.getElementById('d_phone1').value.trim(),
+    phone_number2:document.getElementById('d_phone2').value.trim(),
+    id_number:document.getElementById('d_idnum').value.trim(),
+    passport_number:document.getElementById('d_passport').value.trim(),
+    nationality:document.getElementById('d_nationality').value.trim(),
+  };
+  fetch('{% url "contact_directory_update" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()}).then(r=>r.json()).then(d=>{
+    if(d.ok) location.reload();
+    else {const e=document.getElementById('editError');e.textContent=d.error;e.style.display='block';}
+  });
+}
+document.getElementById('editModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+applyView();
+
 function downloadSample() {
   const csv = 'Contact Name,Contact Type,Email,Phone Number 1,Phone Number 2,ID Number,Passport Number,Nationality\nJohn Doe,Client,john@example.com,+96812345678,,A123456,P987654,Omani\n';
   const blob = new Blob([csv], {type:'text/csv'});

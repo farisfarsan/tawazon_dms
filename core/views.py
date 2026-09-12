@@ -5055,9 +5055,6 @@ def lawyer_delete(request):
 
 # ---------- CONTACT DIRECTORY ----------
 def contact_directory(request):
-    from django.core.paginator import Paginator
-    search    = request.GET.get('q', '').strip()
-    page_size = int(request.GET.get('show', 10))
     msg = None
     if request.method == 'POST' and request.FILES.get('file'):
         import csv, io
@@ -5078,16 +5075,39 @@ def contact_directory(request):
             )
             count += 1
         msg = f'{count} contact(s) imported.'
-    qs = ContactDirectory.objects.all()
-    if search:
-        qs = qs.filter(Q(contact_name__icontains=search) | Q(email__icontains=search))
-    paginator = Paginator(qs, page_size)
-    page_obj  = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'settings_contact_directory.html', {
         'active_page': 'settings_contact_dir', 'active_sub': 'settings_contact_dir',
-        'page_obj': page_obj, 'search': search, 'page_size': page_size,
-        'page_size_options': [10, 25, 50, 100], 'total_count': qs.count(), 'msg': msg,
+        'contacts': ContactDirectory.objects.all().order_by('contact_name'),
+        'msg': msg,
     })
+
+
+@require_POST
+def contact_directory_update(request):
+    c = get_object_or_404(ContactDirectory, pk=request.POST.get('id'))
+    name = request.POST.get('contact_name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Contact name is required.'})
+    email = request.POST.get('email', '').strip()
+    if not _valid_email(email):
+        return JsonResponse({'ok': False, 'error': 'Please enter a valid email address.'})
+    c.contact_name = name
+    c.contact_type = request.POST.get('contact_type', '').strip()
+    c.email = email
+    c.phone_number1 = request.POST.get('phone_number1', '').strip()
+    c.phone_number2 = request.POST.get('phone_number2', '').strip()
+    c.id_number = request.POST.get('id_number', '').strip()
+    c.passport_number = request.POST.get('passport_number', '').strip()
+    c.nationality = request.POST.get('nationality', '').strip()
+    c.save()
+    return JsonResponse({'ok': True, 'id': c.pk})
+
+
+@require_POST
+def contact_directory_delete(request):
+    ids = request.POST.getlist('ids[]') or [request.POST.get('id')]
+    ContactDirectory.objects.filter(pk__in=ids).delete()
+    return JsonResponse({'ok': True})
 
 
 # ---------- SETTINGS EXPORTS ----------
