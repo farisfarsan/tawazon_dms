@@ -7418,30 +7418,58 @@ def debtor_statuses_list(request):
     })
 
 
+def _split_valid_debtor_types(raw):
+    """Parse an 'individual,organization'-style POST value into the subset
+    that are real DebtorStatusOption.TYPE_CHOICES keys, in order, de-duplicated."""
+    valid = dict(DebtorStatusOption.TYPE_CHOICES)
+    seen, out = set(), []
+    for t in raw.split(','):
+        t = t.strip()
+        if t in valid and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
 @require_POST
 def debtor_status_create(request):
     name = request.POST.get('name', '').strip()
-    debtor_type = request.POST.get('debtor_type', 'individual')
+    types = _split_valid_debtor_types(request.POST.get('types', request.POST.get('debtor_type', 'individual')))
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
-    if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=debtor_type).exists():
-        return JsonResponse({'ok': False, 'error': 'Status already exists for this type.'})
-    obj = DebtorStatusOption.objects.create(name=name, debtor_type=debtor_type)
-    return JsonResponse({'ok': True, 'id': obj.pk, 'name': obj.name, 'debtor_type': obj.get_debtor_type_display()})
+    if not types:
+        return JsonResponse({'ok': False, 'error': 'Select at least one type (Individual and/or Organization).'})
+    created = []
+    for t in types:
+        if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=t).exists():
+            continue
+        created.append(DebtorStatusOption.objects.create(name=name, debtor_type=t))
+    if not created:
+        return JsonResponse({'ok': False, 'error': 'That name already exists for the selected type(s).'})
+    return JsonResponse({'ok': True, 'id': created[0].pk, 'name': created[0].name,
+                         'created': len(created)})
 
 
 @require_POST
 def debtor_status_update(request):
     obj = get_object_or_404(DebtorStatusOption, pk=request.POST.get('id'))
     name = request.POST.get('name', '').strip()
-    debtor_type = request.POST.get('debtor_type', 'individual')
+    types = _split_valid_debtor_types(request.POST.get('types', request.POST.get('debtor_type', 'individual')))
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
-    if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=debtor_type).exclude(pk=obj.pk).exists():
+    if not types:
+        return JsonResponse({'ok': False, 'error': 'Select at least one type (Individual and/or Organization).'})
+    # This row becomes the first checked type; any other checked type gets
+    # its own row if one doesn't already exist for this name.
+    primary, extra = types[0], types[1:]
+    if DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=primary).exclude(pk=obj.pk).exists():
         return JsonResponse({'ok': False, 'error': 'Another status already has that name for this type.'})
     obj.name = name
-    obj.debtor_type = debtor_type
+    obj.debtor_type = primary
     obj.save()
+    for t in extra:
+        if not DebtorStatusOption.objects.filter(name__iexact=name, debtor_type=t).exists():
+            DebtorStatusOption.objects.create(name=name, debtor_type=t)
     return JsonResponse({'ok': True, 'id': obj.pk, 'name': obj.name, 'debtor_type': obj.get_debtor_type_display()})
 
 

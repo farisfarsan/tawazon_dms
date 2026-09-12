@@ -128,10 +128,14 @@
     <input type="hidden" id="c_name_id">
     <div class="form-group"><label>Name *</label><input class="form-control" id="c_name" placeholder="e.g. Liquidated"></div>
     <div class="form-group">
-      <label>Applies To</label>
-      <select class="form-control js-search" id="c_type">
-        {% for val, label in type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
-      </select>
+      <label>Applies To (select one or both)</label>
+      <div style="display:flex; gap:20px; padding-top:4px;">
+        {% for val, label in type_choices %}
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:500; color:var(--text-dark); text-transform:none; letter-spacing:normal;">
+          <input type="checkbox" class="c-type-box" value="{{ val }}" style="width:15px;height:15px;accent-color:var(--primary);"> {{ label }}
+        </label>
+        {% endfor %}
+      </div>
     </div>
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" id="modalSaveBtn" onclick="submitItem()">Add</button></div>
@@ -199,7 +203,7 @@ function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% 
 function openAddModal(){
   document.getElementById('c_name_id').value='';
   document.getElementById('c_name').value='';
-  setSelectValue(document.getElementById('c_type'), '{{ type_choices.0.0 }}');
+  document.querySelectorAll('.c-type-box').forEach(b=>b.checked=false);
   document.getElementById('modalTitle').textContent='Add Status';
   document.getElementById('modalSaveBtn').textContent='Add';
   document.getElementById('addModal').classList.add('open');
@@ -209,7 +213,7 @@ function openEditModal(id,name,type){
   document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
   document.getElementById('c_name_id').value=id;
   document.getElementById('c_name').value=name;
-  setSelectValue(document.getElementById('c_type'), type);
+  document.querySelectorAll('.c-type-box').forEach(b=>b.checked = (b.value===type));
   document.getElementById('modalTitle').textContent='Edit';
   document.getElementById('modalSaveBtn').textContent='Save Changes';
   document.getElementById('addModal').classList.add('open');
@@ -219,9 +223,10 @@ function closeModal(){document.getElementById('addModal').classList.remove('open
 function submitItem(){
   const id=document.getElementById('c_name_id').value;
   const name=document.getElementById('c_name').value.trim();
-  const typeVal=document.getElementById('c_type').value;
+  const types=[...document.querySelectorAll('.c-type-box:checked')].map(b=>b.value);
   if(!name){showErr('Name is required.');return;}
-  const params={name}; params['debtor_type']=typeVal; if(id) params.id=id;
+  if(!types.length){showErr('Select at least one type (Individual and/or Organization).');return;}
+  const params={name, types: types.join(',')}; if(id) params.id=id;
   const url = id ? '{% url "debtor_status_update" %}' : '{% url "debtor_status_create" %}';
   fetch(url,{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()}).then(r=>r.json()).then(d=>{if(d.ok){closeModal();location.reload();}else showErr(d.error);});
 }
