@@ -4723,6 +4723,19 @@ def payment_mode_create(request):
 
 
 @require_POST
+def payment_mode_update(request):
+    pm = get_object_or_404(PaymentMode, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if PaymentMode.objects.filter(name__iexact=name).exclude(pk=pm.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another mode already has that name.'})
+    pm.name = name
+    pm.save()
+    return JsonResponse({'ok': True, 'id': pm.pk, 'name': pm.name})
+
+
+@require_POST
 def payment_mode_toggle(request):
     pm = get_object_or_404(PaymentMode, pk=request.POST.get('id'))
     pm.is_enabled = not pm.is_enabled
@@ -4753,6 +4766,19 @@ def client_type_create(request):
     if ClientType.objects.filter(name__iexact=name).exists():
         return JsonResponse({'ok': False, 'error': 'Type already exists.'})
     ct = ClientType.objects.create(name=name)
+    return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name})
+
+
+@require_POST
+def client_type_update(request):
+    ct = get_object_or_404(ClientType, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if ClientType.objects.filter(name__iexact=name).exclude(pk=ct.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
+    ct.name = name
+    ct.save()
     return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name})
 
 
@@ -4788,6 +4814,19 @@ def contract_type_create(request):
         return JsonResponse({'ok': False, 'error': 'Type already exists.'})
     ct = ContractType.objects.create(name=name)
     return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name})
+
+@require_POST
+def contract_type_update(request):
+    ct = get_object_or_404(ContractType, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if ContractType.objects.filter(name__iexact=name).exclude(pk=ct.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
+    ct.name = name
+    ct.save()
+    return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name})
+
 
 @require_POST
 def contract_type_toggle(request):

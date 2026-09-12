@@ -194,18 +194,21 @@ urlpatterns = [
     # Settings – Payment Modes
     path('settings/payment-modes/', views.payment_modes_list, name='payment_modes_list'),
     path('settings/payment-modes/create/', views.payment_mode_create, name='payment_mode_create'),
+    path('settings/payment-modes/update/', views.payment_mode_update, name='payment_mode_update'),
     path('settings/payment-modes/toggle/', views.payment_mode_toggle, name='payment_mode_toggle'),
     path('settings/payment-modes/delete/', views.payment_mode_delete, name='payment_mode_delete'),
 
     # Settings – Client Types
     path('settings/client-types/', views.client_types_list, name='client_types_list'),
     path('settings/client-types/create/', views.client_type_create, name='client_type_create'),
+    path('settings/client-types/update/', views.client_type_update, name='client_type_update'),
     path('settings/client-types/toggle/', views.client_type_toggle, name='client_type_toggle'),
     path('settings/client-types/delete/', views.client_type_delete, name='client_type_delete'),
 
     # Settings – Contract Types
     path('settings/contract-types/', views.contract_types_list, name='contract_types_list'),
     path('settings/contract-types/create/', views.contract_type_create, name='contract_type_create'),
+    path('settings/contract-types/update/', views.contract_type_update, name='contract_type_update'),
     path('settings/contract-types/toggle/', views.contract_type_toggle, name='contract_type_toggle'),
     path('settings/contract-types/delete/', views.contract_type_delete, name='contract_type_delete'),
 
