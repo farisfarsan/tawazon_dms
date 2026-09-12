@@ -4844,10 +4844,24 @@ def contract_type_delete(request):
 
 # ---------- CONTACT TYPES ----------
 def contact_types_list(request):
+    # Group same-name rows (one per Client/Debtor type) into a single line,
+    # e.g. "Accountant" shown once with both the Client and Debtor badges.
+    groups = {}
+    for ct in ContactType.objects.all().order_by('name', 'type'):
+        key = ct.name.strip().lower()
+        g = groups.setdefault(key, {'name': ct.name, 'types': [], 'ids': [], 'enabled_flags': []})
+        g['types'].append(ct.type)
+        g['ids'].append(ct.pk)
+        g['enabled_flags'].append(ct.is_enabled)
+    contact_type_groups = sorted(
+        ({'name': g['name'], 'types': g['types'], 'ids': g['ids'],
+          'is_enabled': all(g['enabled_flags'])} for g in groups.values()),
+        key=lambda g: g['name'].lower()
+    )
     return render(request, 'settings_contact_types.html', {
         'active_page':  'settings_contact_types',
         'active_sub':   'settings_contact_types',
-        'contact_types': ContactType.objects.all(),
+        'contact_type_groups': contact_type_groups,
         'type_choices': ContactType.TYPE_CHOICES,
     })
 
@@ -4884,32 +4898,52 @@ def contact_type_create(request):
 
 @require_POST
 def contact_type_update(request):
-    ct = get_object_or_404(ContactType, pk=request.POST.get('id'))
+    """Edits a whole name-group at once. `ids` is the comma-separated pks of
+    the group's existing rows (one per type it currently has); `types` is the
+    comma-separated set of types it should have after saving. A type that's
+    unchecked gets its row deleted; a newly-checked type gets a new row
+    (reusing one that already exists under the new name, if any)."""
+    raw_ids = request.POST.get('ids', request.POST.get('id', ''))
+    id_list = [i for i in str(raw_ids).split(',') if i.strip()]
+    rows = list(ContactType.objects.filter(pk__in=id_list))
+    if not rows:
+        return JsonResponse({'ok': False, 'error': 'Not found.'})
     name = request.POST.get('name', '').strip()
-    types = _split_valid_types(request.POST.get('types', request.POST.get('type', 'client')))
+    types = _split_valid_types(request.POST.get('types', request.POST.get('type', '')))
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
     if not types:
         return JsonResponse({'ok': False, 'error': 'Select at least one type (Client and/or Debtor).'})
-    # This row becomes the first checked type; any other checked type gets
-    # its own row if one doesn't already exist for this name.
-    primary, extra = types[0], types[1:]
-    if ContactType.objects.filter(name__iexact=name, type=primary).exclude(pk=ct.pk).exists():
-        return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
-    ct.name = name
-    ct.type = primary
-    ct.save()
-    for t in extra:
-        if not ContactType.objects.filter(name__iexact=name, type=t).exists():
+
+    by_type = {r.type: r for r in rows}
+    type_labels = dict(ContactType.TYPE_CHOICES)
+    for t, row in by_type.items():
+        if t in types and ContactType.objects.filter(name__iexact=name, type=t).exclude(pk=row.pk).exists():
+            return JsonResponse({'ok': False, 'error': f'Another "{type_labels.get(t, t)}" contact type already has that name.'})
+    for t, row in by_type.items():
+        if t in types:
+            row.name = name
+            row.save()
+        else:
+            row.delete()
+    for t in types:
+        if t not in by_type and not ContactType.objects.filter(name__iexact=name, type=t).exists():
             ContactType.objects.create(name=name, type=t)
-    return JsonResponse({'ok': True, 'id': ct.pk, 'name': ct.name, 'type': ct.get_type_display()})
+    return JsonResponse({'ok': True})
 
 @require_POST
 def contact_type_toggle(request):
-    ct = get_object_or_404(ContactType, pk=request.POST.get('id'))
-    ct.is_enabled = not ct.is_enabled
-    ct.save()
-    return JsonResponse({'ok': True, 'enabled': ct.is_enabled})
+    """Toggles a whole name-group (comma-separated `ids`) together: if any
+    row in the group is currently disabled, enable all of them; otherwise
+    disable all of them."""
+    raw_ids = request.POST.get('ids', request.POST.get('id', ''))
+    id_list = [i for i in str(raw_ids).split(',') if i.strip()]
+    rows = list(ContactType.objects.filter(pk__in=id_list))
+    if not rows:
+        return JsonResponse({'ok': False, 'error': 'Not found.'})
+    new_state = not all(r.is_enabled for r in rows)
+    ContactType.objects.filter(pk__in=id_list).update(is_enabled=new_state)
+    return JsonResponse({'ok': True, 'enabled': new_state})
 
 @require_POST
 def contact_type_delete(request):

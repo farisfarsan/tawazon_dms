@@ -99,19 +99,19 @@
       <th>Actions</th>
     </tr></thead>
     <tbody>
-      {% for ct in contact_types %}
-      <tr data-id="{{ ct.pk }}">
+      {% for g in contact_type_groups %}
+      <tr data-ids="{{ g.ids|join:',' }}">
         <td><input type="checkbox" class="row-check"></td>
-        <td>{{ ct.name }}</td>
-        <td><span class="type-badge type-{{ ct.type }}">{{ ct.get_type_display }}</span></td>
-        <td>{% if ct.is_enabled %}<span class="status-badge enabled">Enabled</span>{% else %}<span class="status-badge disabled">Disabled</span>{% endif %}</td>
+        <td>{{ g.name }}</td>
+        <td>{% for t in g.types %}<span class="type-badge type-{{ t }}">{{ t|capfirst }}</span> {% endfor %}</td>
+        <td>{% if g.is_enabled %}<span class="status-badge enabled">Enabled</span>{% else %}<span class="status-badge disabled">Disabled</span>{% endif %}</td>
         <td>
           <div class="action-menu">
             <button class="action-btn-menu" onclick="toggleMenu(this)"><i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i></button>
             <div class="dropdown-menu">
-              <button class="dropdown-item" onclick="openEditModal({{ ct.pk }}, '{{ ct.name|escapejs }}', '{{ ct.type }}')"><i class="fas fa-pen"></i> Edit</button>
-              <button class="dropdown-item" onclick="toggleItem({{ ct.pk }})"><i class="fas fa-{% if ct.is_enabled %}ban{% else %}check{% endif %}"></i> {% if ct.is_enabled %}Disable{% else %}Enable{% endif %}</button>
-              <button class="dropdown-item danger" onclick="deleteItem({{ ct.pk }},'{{ ct.name|escapejs }}')"><i class="fas fa-trash"></i> Delete</button>
+              <button class="dropdown-item" onclick="openEditModal('{{ g.ids|join:',' }}', '{{ g.name|escapejs }}', '{{ g.types|join:',' }}')"><i class="fas fa-pen"></i> Edit</button>
+              <button class="dropdown-item" onclick="toggleItem('{{ g.ids|join:',' }}')"><i class="fas fa-{% if g.is_enabled %}ban{% else %}check{% endif %}"></i> {% if g.is_enabled %}Disable{% else %}Enable{% endif %}</button>
+              <button class="dropdown-item danger" onclick="deleteItem('{{ g.ids|join:',' }}','{{ g.name|escapejs }}')"><i class="fas fa-trash"></i> Delete</button>
             </div>
           </div>
         </td>
@@ -145,9 +145,10 @@
 {% block extra_scripts %}<script>
 const CSRF='{{ csrf_token }}';
 const tbody = document.querySelector('#contactTable tbody');
-const allRows = () => [...tbody.querySelectorAll('tr[data-id]')];
+const allRows = () => [...tbody.querySelectorAll('tr[data-ids]')];
 function visibleRows() { return allRows().filter(r => r.style.display !== 'none'); }
-function selectedIds() { return [...tbody.querySelectorAll('.row-check:checked')].map(c => c.closest('tr').dataset.id); }
+// One entry per selected row/group, each a comma-separated pk list (e.g. "12,34").
+function selectedIds() { return [...tbody.querySelectorAll('.row-check:checked')].map(c => c.closest('tr').dataset.ids); }
 function refreshBulkBar() {
   const n = selectedIds().length;
   document.getElementById('bulkCount').textContent = n;
@@ -161,13 +162,13 @@ document.getElementById('selectAll').addEventListener('change',function(){visibl
 tbody.addEventListener('change', e => { if (e.target.classList.contains('row-check')) refreshBulkBar(); });
 function clearSelection(){tbody.querySelectorAll('.row-check').forEach(c=>c.checked=false);refreshBulkBar();}
 function bulkDelete(){
-  const ids = selectedIds();
-  if (!ids.length) return;
-  if (!confirm('Delete '+ids.length+' selected item'+(ids.length===1?'':'s')+'?')) return;
+  const groups = selectedIds();
+  if (!groups.length) return;
+  if (!confirm('Delete '+groups.length+' selected item'+(groups.length===1?'':'s')+'?')) return;
   const body = new URLSearchParams();
-  ids.forEach(id => body.append('ids[]', id));
+  groups.forEach(g => g.split(',').forEach(id => body.append('ids[]', id)));
   fetch('{% url "contact_type_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(r=>r.json()).then(d=>{
-    if(d.ok){ids.forEach(id=>{const tr=tbody.querySelector('tr[data-id="'+id+'"]');if(tr)tr.remove();});refreshBulkBar();}
+    if(d.ok) location.reload();
     else alert(d.error||'Delete failed.');
   });
 }
@@ -198,8 +199,13 @@ function sortRows(col,th){
 }
 function toggleMenu(btn){document.querySelectorAll('.dropdown-menu.open').forEach(m=>{if(m!==btn.nextElementSibling)m.classList.remove('open');});btn.nextElementSibling.classList.toggle('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.action-menu'))document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));});
-function toggleItem(id){fetch('{% url "contact_type_toggle" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();});}
-function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% url "contact_type_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok){const tr=tbody.querySelector('tr[data-id="'+id+'"]');if(tr)tr.remove();refreshBulkBar();}});}
+function toggleItem(ids){fetch('{% url "contact_type_toggle" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'ids='+encodeURIComponent(ids)}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();});}
+function deleteItem(ids,name){
+  if(!confirm('Delete "'+name+'"?'))return;
+  const body=new URLSearchParams();
+  ids.split(',').forEach(id=>body.append('ids[]',id));
+  fetch('{% url "contact_type_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();});
+}
 function openAddModal(){
   document.getElementById('c_name_id').value='';
   document.getElementById('c_name').value='';
@@ -209,11 +215,12 @@ function openAddModal(){
   document.getElementById('addModal').classList.add('open');
   setTimeout(()=>document.getElementById('c_name').focus(),100);
 }
-function openEditModal(id,name,type){
+function openEditModal(ids,name,types){
   document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
-  document.getElementById('c_name_id').value=id;
+  document.getElementById('c_name_id').value=ids;
   document.getElementById('c_name').value=name;
-  document.querySelectorAll('.c-type-box').forEach(b=>b.checked = (b.value===type));
+  const typeList=types.split(',');
+  document.querySelectorAll('.c-type-box').forEach(b=>b.checked = typeList.includes(b.value));
   document.getElementById('modalTitle').textContent='Edit';
   document.getElementById('modalSaveBtn').textContent='Save Changes';
   document.getElementById('addModal').classList.add('open');
