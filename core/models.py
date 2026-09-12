@@ -891,7 +891,7 @@ class ContractType(models.Model):
 
 
 class ContactType(models.Model):
-    TYPE_CHOICES = [('client', 'Client'), ('debtor', 'Debtor'), ('admin', 'Admin')]
+    TYPE_CHOICES = [('client', 'Client'), ('debtor', 'Debtor')]
 
     name       = models.CharField(max_length=100)
     type       = models.CharField(max_length=10, choices=TYPE_CHOICES, default='client')
