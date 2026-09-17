@@ -307,6 +307,33 @@ else:
 # How long an OTP code stays valid, in minutes.
 CLIENT_OTP_TTL_MINUTES = int(os.environ.get('CLIENT_OTP_TTL_MINUTES', '10'))
 
+# ---------------------------------------------------------------------------
+# Logging.
+#
+# Without this dict, Django only surfaces WARNING+ from its own loggers, and
+# any other logger (e.g. the client-OTP send path) has no handler at all, so
+# INFO-level "email sent" confirmations go nowhere — only exceptions would
+# reach stderr, via Python's last-resort handler. Route everything to stdout
+# so Railway's log stream captures it, at INFO by default (DJANGO_LOG_LEVEL
+# to override, e.g. 'DEBUG' while chasing something down).
+# ---------------------------------------------------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django.utils.autoreload': {'level': 'WARNING'},
+    },
+}
+
 
 # ---------------------------------------------------------------------------
 # Error + performance monitoring (Sentry).

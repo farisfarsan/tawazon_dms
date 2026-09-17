@@ -7019,6 +7019,10 @@ def attendance_report(request):
 
 
 # ---------- CLIENT OTP LOGIN ----------
+import logging
+
+logger = logging.getLogger('core.client_otp')
+
 CLIENT_SESSION_KEY = 'client_access_id'
 
 
@@ -7092,6 +7096,7 @@ def client_otp_request(request):
     generic = {'success': True, 'message': 'If that email is registered, a code has been sent.'}
 
     if acc is None:
+        logger.warning('OTP request for %r: no active ClientLoginAccess found.', email)
         # Explicitly tell the client this email isn't set up, rather than the
         # generic "code sent" message — trades email-enumeration privacy for a
         # clearer error when staff/testers hit this by mistake.
@@ -7115,11 +7120,17 @@ def client_otp_request(request):
         f'This code expires in {ttl} minutes. If you did not request it, you can ignore this email.\n\n'
         f'— Tawazon Data Management System'
     )
+    logger.info(
+        'OTP request for %s (client %s): backend=%s host=%s user=%s',
+        acc.email, acc.client_id, settings.EMAIL_BACKEND, settings.EMAIL_HOST, settings.EMAIL_HOST_USER,
+    )
     try:
         send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [acc.email], fail_silently=False)
     except Exception:
+        logger.exception('OTP email failed to send for %s via %s.', acc.email, settings.EMAIL_HOST)
         return JsonResponse({'success': False, 'error': 'Could not send the code right now. Please try again later.'})
 
+    logger.info('OTP email sent for %s.', acc.email)
     return JsonResponse(generic)
 
 
