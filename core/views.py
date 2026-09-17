@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from django.core.validators import validate_email as django_validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.cache import cache
-from .models import Client, ClientContact, Debtor, DebtorContact, Case, Payment, FollowUp, CaseGroup, LegalCase, UserProfile, UserGroup, Country, State, Currency, CaseType, CaseStatus, LegalCaseStatus, LegalFeeType, FollowupType, PaymentMode, ClientType, ContractType, ContactType, AttachmentType, Agency, Lawyer, ContactDirectory, ActivityLog, ClientLoginAccess, ClientLoginOTP, ClientCaseAccess, ClientLoginLog, Reminder, Todo, DebtorStatusOption, DebtorRelatedCompany, CaseAttachment, CaseHistory, AttendanceSession, LegalFee, ChatMessage, PERMISSION_MODULES, PERMISSION_ACTIONS, _clean_perm_map, user_has_perm
+from .models import Client, ClientContact, Debtor, DebtorContact, Case, Payment, FollowUp, CaseGroup, LegalCase, UserProfile, UserGroup, Country, State, Currency, CaseType, CaseStatus, LegalCaseStatus, LegalFeeType, FollowupType, PaymentMode, ClientType, ContractType, ContactType, AttachmentType, Agency, Lawyer, ContactDirectory, ActivityLog, ClientLoginAccess, ClientLoginOTP, ClientCaseAccess, ClientLoginLog, Reminder, Todo, DebtorStatusOption, DebtorRelatedCompany, CaseAttachment, CaseHistory, AttendanceSession, LegalFee, ChatMessage, PERMISSION_MODULES, PERMISSION_ACTIONS, _clean_perm_map, user_has_perm, case_status_color_map
 from .forms import ClientForm, ClientContactForm
 from .currencies import enabled_currencies
 
@@ -7278,6 +7278,7 @@ def client_portal(request):
         return redirect('login')
 
     client = acc.client
+    status_colors = case_status_color_map()
 
     # Only cases the admin has granted this client access to (any permission).
     grants = (acc.case_accesses
@@ -7290,7 +7291,11 @@ def client_portal(request):
     for ca in grants:
         if not ca.any_permission:
             continue
-        rows.append({'case': ca.case, 'perm': ca})
+        # Same dot-color mechanism as the Legal Cases status badge
+        # (case_status_color_map() → Settings → Case Status), so a status
+        # reads the same color everywhere in the app, not just here.
+        status_color = status_colors.get(ca.case.status, '#8b5cf6')
+        rows.append({'case': ca.case, 'perm': ca, 'status_color': status_color})
         # only include amounts the client is actually allowed to see
         if ca.can_financial:
             total_approved += float(ca.case.approved_amount or 0)

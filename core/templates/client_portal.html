@@ -104,29 +104,45 @@
     .panel-head .title { font-weight: 800; font-size: 14.5px; color: #0f172a; }
     .panel-head .count { margin-left: auto; font-size: 12px; color: #94a3b8; font-weight: 600; }
 
+    /* ── Table toolbar: search / status filter / page size ── */
+    .tbl-toolbar { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 20px; border-bottom: 2px solid #cbd5e1; background: #f8fafc; }
+    .tbl-search { position: relative; flex: 1 1 220px; min-width: 160px; }
+    .tbl-search i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 12px; }
+    .tbl-search input {
+      width: 100%; padding: 9px 12px 9px 32px; border-radius: 9px; border: 1.5px solid #cbd5e1;
+      font-size: 13px; font-family: inherit; color: #0f172a; background: white;
+    }
+    .tbl-search input:focus { outline: none; border-color: #1a6b3c; }
+    .tbl-select {
+      padding: 9px 12px; border-radius: 9px; border: 1.5px solid #cbd5e1;
+      font-size: 13px; font-family: inherit; color: #334155; background: white; cursor: pointer;
+    }
+    .tbl-select:focus { outline: none; border-color: #1a6b3c; }
+
     table { width: 100%; border-collapse: collapse; }
     th, td { text-align: left; padding: 13px 20px; font-size: 13.5px; }
     th { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    th.sortable:hover { color: #1a6b3c; }
+    th .sort-ic { font-size: 9px; margin-left: 4px; color: #cbd5e1; }
+    th.sort-active .sort-ic { color: #1a6b3c; }
     tbody tr { border-top: 1px solid #f1f5f9; }
     tbody tr:hover { background: #f8fafc; }
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
     td.case-id { font-weight: 700; color: #0f172a; }
     td.debtor { color: #334155; }
 
+    /* Same look as the Legal Cases status badge: a neutral rounded-rect
+       chip, identity carried by a small colored dot rather than a colored
+       fill — the dot's color comes from Settings → Case Status via
+       case_status_color_map(), same source the legal-status dot uses. */
     .badge {
-      display: inline-block; padding: 4px 11px; border-radius: 999px;
-      font-size: 11px; font-weight: 700; text-transform: capitalize;
-      background: #f1f5f9; color: #475569;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 6px;
+      font-size: 12px; font-weight: 600;
+      background: #f1f5f9; color: #334155;
     }
-    .badge.active        { background: #dcfce7; color: #15803d; }
-    .badge.closed,
-    .badge.closed_by_client { background: #f1f5f9; color: #64748b; }
-    .badge.broken_promise { background: #fef3c7; color: #b45309; }
-    .badge.contactable    { background: #dbeafe; color: #1d4ed8; }
-    .badge.promise_to_pay { background: #ccfbf1; color: #0d9488; }
-    .badge.under_tracing  { background: #f3e8ff; color: #6b21a8; }
-    .badge.refuse_to_pay  { background: #fee2e2; color: #991b1b; }
-    .badge.legal_action_approved { background: #fef3c7; color: #92400e; }
+    .badge i { font-size: 8px; }
 
     /* ── Case status bar ── */
     .status-panel { margin-bottom: 18px; }
@@ -166,6 +182,21 @@
     .view-link:hover { text-decoration: underline; }
     .view-link i { font-size: 10px; }
 
+    .tbl-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; font-weight: 600; }
+    .tbl-empty i { display: block; font-size: 20px; margin-bottom: 8px; color: #cbd5e1; }
+    .tbl-footer {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 13px 20px; border-top: 2px solid #cbd5e1; background: #f8fafc; flex-wrap: wrap;
+    }
+    .tbl-count { font-size: 12px; color: #94a3b8; font-weight: 600; }
+    .tbl-pager { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #334155; font-weight: 700; }
+    .tbl-pgbtn {
+      width: 28px; height: 28px; border-radius: 7px; border: 1.5px solid #cbd5e1; background: white;
+      color: #334155; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .tbl-pgbtn:hover:not(:disabled) { background: #f1f5f9; border-color: #1a6b3c; color: #1a6b3c; }
+    .tbl-pgbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* ── Mobile: table becomes a stacked card list ── */
     @media (max-width: 720px) {
       .cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -192,6 +223,11 @@
       td.num::before { content: attr(data-label) ': '; font-weight: 700; color: #94a3b8; }
       td.num { flex: 1 1 auto; }
       td.action-cell { position: absolute; top: 14px; right: 16px; }
+
+      .tbl-toolbar { padding: 12px; }
+      .tbl-search { flex: 1 1 100%; }
+      .tbl-select { flex: 1 1 auto; }
+      .tbl-footer { padding: 12px; }
     }
     @media (max-width: 420px) {
       .cards { grid-template-columns: 1fr 1fr; }
@@ -275,41 +311,179 @@
         {% if rows %}<span class="count">{{ rows|length }} case{{ rows|length|pluralize }}</span>{% endif %}
       </div>
       {% if rows %}
+      <div class="tbl-toolbar">
+        <div class="tbl-search">
+          <i class="fas fa-search"></i>
+          <input type="text" id="caseSearch" placeholder="Search case ID, ref, debtor…" oninput="casesRefresh()">
+        </div>
+        <select id="caseStatusFilter" class="tbl-select" onchange="casesRefresh()">
+          <option value="">All statuses</option>
+          {% for s in status_breakdown %}
+          <option value="{{ s.slug }}">{{ s.label }}</option>
+          {% endfor %}
+        </select>
+        <select id="casePageSize" class="tbl-select" onchange="casesRefresh()">
+          <option value="10">10 / page</option>
+          <option value="25" selected>25 / page</option>
+          <option value="100">100 / page</option>
+        </select>
+      </div>
       <table>
         <thead>
-          <tr>
+          <tr id="casesHead">
             <th>#</th>
-            <th>Case ID</th>
-            <th>Client Ref (Account No)</th>
-            <th>Debtor</th>
-            <th class="num">Approved</th>
-            <th class="num">Total Paid</th>
-            <th class="num">Remaining</th>
-            <th>Status</th>
+            <th class="sortable" data-key="caseid">Case ID <i class="fas fa-sort sort-ic"></i></th>
+            <th class="sortable" data-key="ref">Client Ref (Account No) <i class="fas fa-sort sort-ic"></i></th>
+            <th class="sortable" data-key="debtor">Debtor <i class="fas fa-sort sort-ic"></i></th>
+            <th class="num sortable" data-key="approved">Approved <i class="fas fa-sort sort-ic"></i></th>
+            <th class="num sortable" data-key="paid">Total Paid <i class="fas fa-sort sort-ic"></i></th>
+            <th class="num sortable" data-key="remaining">Remaining <i class="fas fa-sort sort-ic"></i></th>
+            <th class="sortable" data-key="status">Status <i class="fas fa-sort sort-ic"></i></th>
             <th></th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="casesBody">
           {% for row in rows %}
-          <tr>
-            <td class="serial">{{ forloop.counter }}</td>
+          <tr
+            data-caseid="{{ row.case.case_id }}"
+            data-ref="{{ row.case.account_no|default:'' }}"
+            data-debtor="{{ row.case.debtor.name }}"
+            data-approved="{% if row.perm.can_financial %}{{ row.case.approved_amount }}{% else %}-1{% endif %}"
+            data-paid="{% if row.perm.can_financial %}{{ row.case.received_amount }}{% else %}-1{% endif %}"
+            data-remaining="{% if row.perm.can_financial %}{{ row.case.remaining_amount }}{% else %}-1{% endif %}"
+            data-status="{{ row.case.status }}"
+            data-statuslabel="{{ row.case.get_status_display }}"
+            data-search="{{ row.case.case_id|lower }} {{ row.case.account_no|lower }} {{ row.case.debtor.name|lower }}"
+          >
+            <td class="serial"></td>
             <td class="case-id"><span class="caseid-2l">{{ row.case.case_id|caseid_break }}</span></td>
             <td class="ref">{{ row.case.account_no|default:"—" }}</td>
             <td class="debtor">{{ row.case.debtor.name }}</td>
             <td class="num" data-label="Approved">{% if row.perm.can_financial %}{{ row.case.approved_amount|omr }}{% else %}—{% endif %}</td>
             <td class="num" data-label="Total Paid">{% if row.perm.can_financial %}{{ row.case.received_amount|omr }}{% else %}—{% endif %}</td>
             <td class="num" data-label="Remaining">{% if row.perm.can_financial %}{{ row.case.remaining_amount|omr }}{% else %}—{% endif %}</td>
-            <td class="status-cell">{% if row.perm.can_status %}<span class="badge {{ row.case.status }}">{{ row.case.get_status_display }}</span>{% else %}—{% endif %}</td>
+            <td class="status-cell">{% if row.perm.can_status %}<span class="badge"><i class="fas fa-circle" style="color:{{ row.status_color }};"></i>{{ row.case.get_status_display }}</span>{% else %}—{% endif %}</td>
             <td class="action-cell"><a class="view-link" href="{% url 'client_portal_case' row.case.pk %}">View <i class="fas fa-arrow-right"></i></a></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+      <div class="tbl-empty" id="casesNoMatch" style="display:none;"><i class="fas fa-search"></i>No cases match your search/filter.</div>
+      <div class="tbl-footer">
+        <span class="tbl-count" id="casesCount"></span>
+        <div class="tbl-pager">
+          <button type="button" class="tbl-pgbtn" id="casesPrev" onclick="casesPage(-1)"><i class="fas fa-chevron-left"></i></button>
+          <span id="casesPageLabel">Page 1 of 1</span>
+          <button type="button" class="tbl-pgbtn" id="casesNext" onclick="casesPage(1)"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
       {% else %}
       <div class="empty"><i class="fas fa-folder-open"></i>No cases have been shared with your account yet.</div>
       {% endif %}
     </div>
   </div>
+
+  <script>
+  (function(){
+    var tbody = document.getElementById('casesBody');
+    if (!tbody) return; // no rows at all — nothing to wire up
+
+    var allRows  = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+    var search   = document.getElementById('caseSearch');
+    var statusEl = document.getElementById('caseStatusFilter');
+    var sizeEl   = document.getElementById('casePageSize');
+    var noMatch  = document.getElementById('casesNoMatch');
+    var countEl  = document.getElementById('casesCount');
+    var pageLbl  = document.getElementById('casesPageLabel');
+    var prevBtn  = document.getElementById('casesPrev');
+    var nextBtn  = document.getElementById('casesNext');
+    var table    = tbody.closest('table');
+
+    var sortKey = null, sortDir = 1, page = 1;
+
+    // Numeric columns sort as numbers; everything else sorts as
+    // case-insensitive text. -1 (the "no financial permission" sentinel)
+    // naturally sorts to one end rather than crashing on parseFloat.
+    var NUMERIC = {approved:1, paid:1, remaining:1};
+
+    function rowValue(tr, key) {
+      var v = tr.getAttribute('data-' + (key === 'status' ? 'statuslabel' : key)) || '';
+      return NUMERIC[key] ? parseFloat(v) : v.toLowerCase();
+    }
+
+    function apply() {
+      var q = (search.value || '').trim().toLowerCase();
+      var st = statusEl.value;
+
+      var matched = allRows.filter(function(tr){
+        if (st && tr.getAttribute('data-status') !== st) return false;
+        if (q && (tr.getAttribute('data-search') || '').indexOf(q) === -1) return false;
+        return true;
+      });
+
+      if (sortKey) {
+        matched.sort(function(a, b){
+          var av = rowValue(a, sortKey), bv = rowValue(b, sortKey);
+          if (av < bv) return -1 * sortDir;
+          if (av > bv) return 1 * sortDir;
+          return 0;
+        });
+      }
+
+      var size = parseInt(sizeEl.value, 10);
+      var totalPages = Math.max(1, Math.ceil(matched.length / size));
+      if (page > totalPages) page = totalPages;
+      if (page < 1) page = 1;
+      var start = (page - 1) * size;
+      var pageRows = matched.slice(start, start + size);
+      var pageRowSet = new Set(pageRows);
+
+      // Reorder the actual DOM rows to match the sort (not just hide/show) —
+      // this keeps the mobile stacked-card layout (which relies on DOM
+      // order, not a table structure) correctly ordered too.
+      pageRows.forEach(function(tr){ tbody.appendChild(tr); });
+
+      allRows.forEach(function(tr){
+        var show = pageRowSet.has(tr);
+        tr.style.display = show ? '' : 'none';
+      });
+      pageRows.forEach(function(tr, i){
+        tr.querySelector('.serial').textContent = start + i + 1;
+      });
+
+      noMatch.style.display = matched.length ? 'none' : '';
+      table.style.display = matched.length ? '' : 'none';
+
+      countEl.textContent = matched.length
+        ? ('Showing ' + (start + 1) + '–' + Math.min(start + pageRows.length, matched.length) + ' of ' + matched.length)
+        : 'No results';
+      pageLbl.textContent = 'Page ' + page + ' of ' + totalPages;
+      prevBtn.disabled = page <= 1;
+      nextBtn.disabled = page >= totalPages;
+    }
+
+    window.casesRefresh = function(){ page = 1; apply(); };
+    window.casesPage = function(delta){ page += delta; apply(); };
+
+    document.querySelectorAll('#casesHead th.sortable').forEach(function(th){
+      th.addEventListener('click', function(){
+        var key = th.getAttribute('data-key');
+        if (sortKey === key) { sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+        document.querySelectorAll('#casesHead th.sortable').forEach(function(h){
+          h.classList.remove('sort-active');
+          h.querySelector('.sort-ic').className = 'fas fa-sort sort-ic';
+        });
+        th.classList.add('sort-active');
+        th.querySelector('.sort-ic').className = 'fas fa-sort-' + (sortDir === 1 ? 'up' : 'down') + ' sort-ic';
+        page = 1;
+        apply();
+      });
+    });
+
+    apply();
+  })();
+  </script>
+
   {% include '_chat_client.html' %}
 </body>
 </html>
