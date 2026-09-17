@@ -298,10 +298,26 @@ DEFAULT_FROM_EMAIL  = os.environ.get(
     'Tawazon Collection <info@tawazonoman.com>',
 )
 
-if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+
+if RESEND_API_KEY:
+    # Preferred path. Railway (and several other PaaS hosts) block outbound
+    # SMTP on both port 587 and 465 — confirmed 2026-09-17: connections to
+    # smtp.zoho.in silently time out rather than being refused, on either
+    # port, so raw SMTP cannot work from this host at all. Resend's HTTPS
+    # API sidesteps that entirely — it's normal web traffic, which is never
+    # blocked. django-anymail sends mail through django.core.mail.send_mail()
+    # exactly as before; only EMAIL_BACKEND changes.
+    INSTALLED_APPS = INSTALLED_APPS + ['anymail']
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+    ANYMAIL = {'RESEND_API_KEY': RESEND_API_KEY}
+elif EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    # SMTP fallback — works fine on hosts that don't block it (e.g. running
+    # this outside Railway), but see the Resend note above before relying on
+    # it in production here.
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 else:
-    # No SMTP credentials configured — print the email (and OTP) to the console.
+    # No email method configured — print the email (and OTP) to the console.
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # smtplib has no default socket timeout, so a stalled SMTP connection (e.g.
@@ -311,7 +327,8 @@ else:
 # of workers, a run of hung OTP requests during a network hiccup can eat
 # every worker and take the entire app down, not just the client portal.
 # Fail the connection attempt fast instead, so send_mail()'s try/except in
-# the OTP view (and anywhere else mail is sent) can catch it cleanly.
+# the OTP view (and anywhere else mail is sent) can catch it cleanly. Only
+# matters for the SMTP backend; Resend has its own HTTP timeout.
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 
 # How long an OTP code stays valid, in minutes.
@@ -413,13 +430,15 @@ if not DEBUG and os.environ.get('DJANGO_ALLOW_UNSAFE_CONFIG', '') != '1':
             "Point it at the R2/S3 bucket."
         )
 
-    if not EMAIL_HOST_PASSWORD:
+    if EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
         _problems.append(
-            "EMAIL_HOST_PASSWORD is not set, so mail goes to the console "
-            "backend. Client-portal OTP emails would never be delivered and no "
-            "client could log in — and send_mail() would still report success, "
-            "so nothing would appear in Sentry. Set a Zoho app-specific "
-            "password."
+            "Neither RESEND_API_KEY nor EMAIL_HOST_PASSWORD is set, so mail "
+            "goes to the console backend. Client-portal OTP emails would "
+            "never be delivered and no client could log in — and send_mail() "
+            "would still report success, so nothing would appear in Sentry. "
+            "Set RESEND_API_KEY (SMTP is blocked outbound on Railway — "
+            "confirmed 2026-09-17 — so EMAIL_HOST_PASSWORD alone will not "
+            "work here even though the guard accepts it)."
         )
 
     if ALLOWED_HOSTS == ['*']:

@@ -967,8 +967,7 @@ and any of them is missing.
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | R2 API token pair | Uploads fail |
 | `AWS_S3_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` | django-storages talks to real AWS instead of R2 |
 | `AWS_S3_CUSTOM_DOMAIN` | `media.tawazonoman.com` | Attachment URLs bypass the CDN domain |
-| `EMAIL_HOST` | `smtp.zoho.in` | See 14.3 — must match the Zoho data center |
-| `EMAIL_HOST_PASSWORD` | Zoho **app-specific** password | Console mail backend — **no client can log into the portal**, and `send_mail()` still reports success |
+| `RESEND_API_KEY` | from resend.com | Console mail backend — **no client can log into the portal** — and `send_mail()` still reports success. See 14.3 — **required on Railway**, SMTP does not work here |
 | `SENTRY_DSN` | from sentry.io | No alerts on 500s, no slow-query list |
 
 Generate a secret key with:
@@ -987,32 +986,63 @@ fix; silent data loss is not recoverable.
 To deliberately run a box on the unsafe defaults (a throwaway staging
 instance, say), set `DJANGO_ALLOW_UNSAFE_CONFIG=1`.
 
-### 14.3 Zoho Mail — data center matters
+### 14.3 Outbound mail: Resend, not Zoho SMTP — Railway blocks SMTP outbound
 
-`EMAIL_HOST` follows **the data center the Zoho account was registered in**,
-not where the users or clients are located. The Tawazon account is on Zoho
-India, so `smtp.zoho.in` is correct — the client being in Oman does not change
-it. Mail from an India-DC account reaches an Oman inbox normally.
+**Confirmed 2026-09-17:** Railway silently blocks outbound SMTP entirely.
+Connections to `smtp.zoho.in` on both port 587 (STARTTLS) and port 465
+(implicit SSL) hung in `socket.connect()` with no response — not a refusal,
+not a Zoho-side block, just a dead connection until it timed out. That's a
+platform-level restriction on Railway's egress, and no SMTP configuration
+fixes it. (The `django-anymail` runtime dependency, `EMAIL_HOST`/`EMAIL_PORT`/
+etc. settings, and the SMTP fallback path in `dashboard/settings.py` all still
+exist for running this app on a host that doesn't block SMTP — just not
+Railway.)
 
-- Use an **app-specific password**, not the account password (Zoho rejects the
-  account password over SMTP once 2FA is on).
-- Paid Business accounts may use `smtppro.zoho.com`.
-- If Zoho ever migrates the account to another DC, update the `EMAIL_HOST`
-  variable — it is read from the environment precisely so this needs no code
-  change and no redeploy.
+The fix: send mail over HTTPS instead, which is never blocked. `dashboard/settings.py`
+uses **Resend**'s API via `django-anymail` when `RESEND_API_KEY` is set —
+falls back to Zoho SMTP if only `EMAIL_HOST_PASSWORD` is set (for non-Railway
+hosts), then to the console backend if neither is set. The startup guard
+requires one of the two real backends when `DJANGO_DEBUG=0`.
+
+Setup:
+1. Create a Resend account (resend.com) → **API Keys** → create one, scoped to
+   **Sending access** only.
+2. **Domains** → Add Domain → `tawazonoman.com` → Resend shows DNS records to
+   add (see 14.4 below) → verify.
+3. Set `RESEND_API_KEY` in Railway. `DEFAULT_FROM_EMAIL` stays
+   `info@tawazonoman.com` — Resend sends *as* that address once the domain is
+   verified; the Zoho mailbox itself is untouched and still receives replies
+   normally.
+
+If this app ever runs somewhere that doesn't block SMTP, Zoho SMTP still
+works as the fallback — `EMAIL_HOST` follows **the data center the Zoho
+account was registered in**, not where users/clients are located (the Tawazon
+account is on Zoho India, so `smtp.zoho.in`, regardless of the client being in
+Oman), and needs an **app-specific password**, not the account password.
 
 ### 14.4 SPF + DKIM (Cloudflare DNS)
 
 Without these, OTP emails are spam-filtered or dropped by the recipient's
-provider — and Django reports success, because the message left Zoho fine.
-Symptom is identical to a broken SMTP config: "the client never got the code",
-with nothing in the logs.
+provider — and the sending API reports success regardless, because the
+message left the sender's servers fine. Symptom is identical to a broken send
+path: "the client never got the code", nothing in the logs to explain why.
 
-- **SPF** — TXT on the root: `v=spf1 include:zohomail.in ~all` (`.in` to match
-  the DC). If a TXT SPF record already exists, merge the `include:` into it —
-  two separate SPF records is itself a failure.
-- **DKIM** — generate the key in Zoho Mail admin → Email Authentication, then
-  add the TXT record it gives you.
+Two separate senders now share `tawazonoman.com` as the From-domain — Zoho
+(inbound mailbox, and SMTP if ever used as the fallback) and Resend (actual
+OTP sending on Railway) — both need authorizing in the *same* SPF record, and
+each needs its own DKIM record:
+
+- **SPF** — one TXT on the root, both included:
+  `v=spf1 include:zohomail.in include:resend.net ~all` (confirm Resend's exact
+  include value on their domain-verification page — it's the DNS record
+  Resend hands you when you add the domain there). If a TXT SPF record
+  already exists, merge into it — two separate SPF records is itself a
+  failure, not additive.
+- **DKIM** — two separate records, one per sender:
+  - Zoho: Zoho Mail admin → Email Authentication → generate key → add the TXT
+    record it gives you.
+  - Resend: the domain-verification page in the Resend dashboard shows its
+    own DKIM TXT record → add it.
 - **DMARC** (recommended) — TXT at `_dmarc`: `v=DMARC1; p=none; rua=mailto:info@tawazonoman.com`
   Start at `p=none` and only tighten once the reports come back clean.
 

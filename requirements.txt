@@ -42,3 +42,10 @@ sentry-sdk==2.20.0
 # Production media storage (S3-compatible: Cloudflare R2, AWS S3, DO Spaces)
 django-storages==1.14.6
 boto3==1.43.75
+
+# Outbound email via Resend's HTTPS API. Railway blocks outbound SMTP (both
+# port 587 and 465 silently time out — confirmed 2026-09-17), so raw SMTP
+# cannot work from this host. HTTPS egress isn't blocked, so an HTTP-based
+# provider is the fix. Falls back to SMTP (for other hosts) if RESEND_API_KEY
+# isn't set — see dashboard/settings.py.
+django-anymail[resend]==15.2
