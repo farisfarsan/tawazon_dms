@@ -4689,6 +4689,116 @@ def backup_download_db(request):
     return resp
 
 
+def _backup_models():
+    """Every model the JSON backup covers, as actual model classes — same
+    exclusions (whole apps: contenttypes/admin/sessions; auth.permission
+    specifically), so the two backups always cover the same data."""
+    from django.apps import apps
+    excluded_apps = {'contenttypes', 'admin', 'sessions'}
+    excluded_models = {'auth.permission'}
+    out = []
+    for model in apps.get_models():
+        label = model._meta.app_label
+        full = f'{label}.{model._meta.model_name}'
+        if label in excluded_apps or full in excluded_models:
+            continue
+        out.append(model)
+    return out
+
+
+def _backup_cell(value):
+    """Render one field's value as plain, readable text for a spreadsheet —
+    not meant to round-trip, just to be legible without cross-referencing
+    other sheets or a timezone table."""
+    if value is None:
+        return ''
+    if hasattr(value, 'isoformat'):  # date / datetime
+        return str(value)
+    if isinstance(value, Decimal):
+        return float(value)
+    if hasattr(value, 'url') and hasattr(value, 'name'):  # FileField
+        return value.name or ''
+    return str(value)
+
+
+@admin_required
+def backup_download_excel(request):
+    """The same data as the JSON backup, laid out for reading rather than
+    restoring — one sheet per table, a foreign key shown as the related
+    row's own label instead of a bare id. Not restorable: this exists so a
+    human can open the data in a spreadsheet, not to reload it back into
+    the app. Keep the JSON backup for actual crash recovery."""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+    from django.utils import timezone
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    header_fill = PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid')
+
+    # None of these models bother setting Meta.verbose_name_plural, so
+    # Django's naive "+s" default mangles them ("Countrys", "Currencys",
+    # "Client Login Accesss") — fix just the sheet titles here rather than
+    # touching the models.
+    PLURAL_FIXES = {
+        'core.country':            'Countries',
+        'core.currency':           'Currencies',
+        'core.contactdirectory':   'Contact Directories',
+        'core.clientloginaccess':  'Client Login Accesses',
+        'core.clientcaseaccess':   'Client Case Accesses',
+        'core.casehistory':        'Case History',
+        'core.debtorrelatedcompany': 'Debtor Related Companies',
+    }
+
+    used_titles = set()
+    for model in _backup_models():
+        fields = list(model._meta.fields) + list(model._meta.many_to_many)
+
+        label = f'{model._meta.app_label}.{model._meta.model_name}'
+        title = PLURAL_FIXES.get(label) or model._meta.verbose_name_plural.title()[:31] or model.__name__[:31]
+        title = title[:31]
+        base, n = title, 2
+        while title in used_titles:
+            title = f'{base[:28]}~{n}'
+            n += 1
+        used_titles.add(title)
+
+        ws = wb.create_sheet(title=title)
+        headers = [f.verbose_name.title() if hasattr(f, 'verbose_name') else f.name for f in fields]
+        ws.append(headers)
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+
+        for obj in model.objects.order_by('pk').iterator():
+            row = []
+            for f in fields:
+                if f.many_to_many:
+                    row.append(', '.join(str(x) for x in getattr(obj, f.name).all()))
+                else:
+                    row.append(_backup_cell(getattr(obj, f.name, None)))
+            ws.append(row)
+
+        for col_idx, header in enumerate(headers, 1):
+            letter = get_column_letter(col_idx)
+            ws.column_dimensions[letter].width = min(max(len(str(header)) + 4, 12), 40)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    filename = f'tawazon-db-backup-{timezone.now():%Y-%m-%d-%H%M%S}.xlsx'
+    resp = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return resp
+
+
 @admin_required
 def backup_download_media(request):
     """Every case attachment currently in storage (R2/S3, or local disk in

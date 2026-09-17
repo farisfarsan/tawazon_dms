@@ -296,6 +296,7 @@ urlpatterns = [
     # Settings – Manual Backup
     path('settings/backup/', views.backup_settings, name='backup_settings'),
     path('settings/backup/db/', views.backup_download_db, name='backup_download_db'),
+    path('settings/backup/db.xlsx/', views.backup_download_excel, name='backup_download_excel'),
     path('settings/backup/media/', views.backup_download_media, name='backup_download_media'),
 
     # Currency converter
