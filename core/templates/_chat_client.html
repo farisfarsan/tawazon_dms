@@ -89,9 +89,10 @@
   </div>
   <div id="chatcThreadView" style="display:none;flex-direction:column;height:100%;">
     <div class="chatc-head">
-      <button class="chatc-hbtn" onclick="chatcBack()"><i class="fas fa-arrow-left"></i></button>
+      <button class="chatc-hbtn" onclick="chatcBack()" title="Back to conversations"><i class="fas fa-arrow-left"></i></button>
       <div class="chatc-havatar" id="chatcHeadAva"><i class="fas fa-headset" style="font-size:15px;"></i><span class="dot"></span></div>
       <div class="t" id="chatcTitle">Chat<small id="chatcSub"></small></div>
+      <button class="chatc-hbtn" onclick="chatcToggle()" title="Close chat"><i class="fas fa-times"></i></button>
     </div>
     <div class="chatc-body chatc-thread" id="chatcThread"></div>
     <div class="chatc-quick">
