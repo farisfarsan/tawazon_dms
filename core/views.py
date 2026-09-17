@@ -4571,6 +4571,20 @@ def case_status_create(request):
 
 
 @require_POST
+def case_status_update(request):
+    cs = get_object_or_404(CaseStatus, pk=request.POST.get('id'))
+    name = request.POST.get('name', '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': 'Name is required.'})
+    if CaseStatus.objects.filter(name__iexact=name).exclude(pk=cs.pk).exists():
+        return JsonResponse({'ok': False, 'error': 'Another status already has that name.'})
+    cs.name = name
+    cs.color = request.POST.get('color', '').strip()
+    cs.save()
+    return JsonResponse({'ok': True, 'id': cs.pk, 'name': cs.name, 'color': cs.color})
+
+
+@require_POST
 def case_status_toggle(request):
     cs = get_object_or_404(CaseStatus, pk=request.POST.get('id'))
     cs.is_enabled = not cs.is_enabled

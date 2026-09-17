@@ -169,6 +169,7 @@ urlpatterns = [
     # Settings – Case Status
     path('settings/case/case-status/', views.case_status_list, name='case_status_list'),
     path('settings/case/case-status/create/', views.case_status_create, name='case_status_create'),
+    path('settings/case/case-status/update/', views.case_status_update, name='case_status_update'),
     path('settings/case/case-status/toggle/', views.case_status_toggle, name='case_status_toggle'),
     path('settings/case/case-status/delete/', views.case_status_delete, name='case_status_delete'),
 

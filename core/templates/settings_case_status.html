@@ -123,6 +123,9 @@
               <i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i>
             </button>
             <div class="dropdown-menu">
+              <button class="dropdown-item" onclick="openEditModal({{ cs.pk }}, '{{ cs.name|escapejs }}', '{{ cs.color|escapejs }}')">
+                <i class="fas fa-pen"></i> Edit
+              </button>
               <button class="dropdown-item" onclick="toggleItem({{ cs.pk }})">
                 <i class="fas fa-{% if cs.is_enabled %}ban{% else %}check{% endif %}"></i>
                 {% if cs.is_enabled %}Disable{% else %}Enable{% endif %}
@@ -162,13 +165,14 @@
   </div>
 </div>
 
-<!-- Add Modal -->
+<!-- Add / Edit Modal -->
 <div class="modal-backdrop" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">Add Case Status</span>
+      <span class="modal-title" id="modalTitle">Add Case Status</span>
       <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
+    <input type="hidden" id="cs_id">
     <div class="form-group">
       <label>Name *</label>
       <input class="form-control" id="cs_name" placeholder="e.g. Active">
@@ -185,7 +189,7 @@
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="submitAdd()">Add Status</button>
+      <button class="btn-save" id="modalSaveBtn" onclick="submitStatus()">Add Status</button>
     </div>
   </div>
 </div>
@@ -227,10 +231,32 @@ function deleteItem(id, name) {
   });
 }
 
+function setColorFields(hex) {
+  document.getElementById('cs_color_hex').value = hex || '';
+  if (/^#[0-9a-fA-F]{6}$/.test(hex || '')) document.getElementById('cs_color_picker').value = hex;
+}
+
 function openAddModal() {
+  document.getElementById('cs_id').value = '';
+  document.getElementById('cs_name').value = '';
+  setColorFields('#4caf50');
+  document.getElementById('modalTitle').textContent = 'Add Case Status';
+  document.getElementById('modalSaveBtn').textContent = 'Add Status';
   document.getElementById('addModal').classList.add('open');
   setTimeout(()=>document.getElementById('cs_name').focus(),100);
 }
+
+function openEditModal(id, name, color) {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  document.getElementById('cs_id').value = id;
+  document.getElementById('cs_name').value = name;
+  setColorFields(color);
+  document.getElementById('modalTitle').textContent = 'Edit Case Status';
+  document.getElementById('modalSaveBtn').textContent = 'Save Changes';
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(()=>document.getElementById('cs_name').focus(),100);
+}
+
 function closeModal() {
   document.getElementById('addModal').classList.remove('open');
   document.getElementById('addError').style.display='none';
@@ -241,15 +267,18 @@ function syncColor(val) {
     document.getElementById('cs_color_picker').value = val;
 }
 
-function submitAdd() {
+function submitStatus() {
+  const id    = document.getElementById('cs_id').value;
   const name  = document.getElementById('cs_name').value.trim();
   const color = document.getElementById('cs_color_hex').value.trim() ||
                 document.getElementById('cs_color_picker').value;
   if (!name) { showErr('Name is required.'); return; }
-  const body = new URLSearchParams({ name, color });
-  fetch('{% url "case_status_create" %}', {
+  const params = { name, color };
+  if (id) params.id = id;
+  const url = id ? '{% url "case_status_update" %}' : '{% url "case_status_create" %}';
+  fetch(url, {
     method:'POST', headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},
-    body: body.toString()
+    body: new URLSearchParams(params).toString()
   }).then(r=>r.json()).then(d=>{
     if(d.ok) { closeModal(); location.reload(); }
     else showErr(d.error);
