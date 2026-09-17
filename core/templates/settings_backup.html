@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Backup & Export{% endblock %}
+
+{% block extra_styles %}
+  .page-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;}
+  .data-card{background:white;border-radius:12px;padding:22px;box-shadow:0 1px 4px rgba(0,0,0,0.07);}
+  .section-title{font-size:16px;font-weight:700;color:var(--text-dark);margin-bottom:8px;}
+  .section-sub{font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:20px;}
+
+  .backup-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+  @media (max-width:820px){.backup-grid{grid-template-columns:1fr;}}
+
+  .backup-opt{border:1.5px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px;}
+  .backup-opt .opt-ico{width:42px;height:42px;border-radius:11px;background:var(--primary-light);color:var(--primary);
+    display:flex;align-items:center;justify-content:center;font-size:17px;}
+  .backup-opt .opt-title{font-size:14.5px;font-weight:700;color:var(--text-dark);}
+  .backup-opt .opt-desc{font-size:12.5px;color:var(--text-muted);line-height:1.6;flex:1;}
+  .backup-opt .opt-meta{font-size:11.5px;color:var(--text-muted);font-weight:600;}
+  .backup-opt .btn-download{
+    align-self:flex-start;background:var(--primary);color:white;border:none;text-decoration:none;
+    padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .backup-opt .btn-download:hover{background:var(--primary-dark);}
+
+  .notice{display:flex;gap:12px;padding:14px 16px;border-radius:10px;font-size:12.5px;line-height:1.6;margin-bottom:14px;}
+  .notice i{font-size:14px;margin-top:1px;flex-shrink:0;}
+  .notice-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;}
+  .notice-info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;}
+{% endblock %}
+
+{% block content %}
+<div class="page-toolbar">
+  <div><div class="breadcrumb">Home <span>· Backup & Export</span></div></div>
+</div>
+
+<div class="data-card">
+  <div class="section-title">Manual Backup</div>
+  <div class="section-sub">
+    Download a copy of everything currently stored in the system, straight to your
+    computer. Use this whenever you want a fresh local copy on hand — there's no
+    limit on how often you can run it.
+  </div>
+
+  <div class="notice notice-warn">
+    <i class="fas fa-triangle-exclamation"></i>
+    <div>
+      <strong>Store the downloaded file somewhere safe.</strong> It contains every
+      client's case, debtor, payment and contact data in full — treat it like any
+      other confidential company record, not something to email around or leave in
+      a shared downloads folder.
+    </div>
+  </div>
+
+  <div class="backup-grid">
+    <div class="backup-opt">
+      <div class="opt-ico"><i class="fas fa-database"></i></div>
+      <div class="opt-title">Database Backup</div>
+      <div class="opt-desc">
+        Every client, debtor, case, payment, follow-up, legal case, user and setting —
+        a complete snapshot of the database as a single file. If the database were ever
+        lost, this file alone is enough to restore everything back to how it was
+        the moment you downloaded it.
+      </div>
+      <div class="opt-meta">Format: .json</div>
+      <a class="btn-download" href="{% url 'backup_download_db' %}">
+        <i class="fas fa-download"></i> Download Database Backup
+      </a>
+    </div>
+
+    <div class="backup-opt">
+      <div class="opt-ico"><i class="fas fa-paperclip"></i></div>
+      <div class="opt-title">Case Attachments</div>
+      <div class="opt-desc">
+        Every file uploaded against a case — receipts, ID copies, contracts and any
+        other attachment — zipped up in one download, organized into a folder per
+        case ID.
+      </div>
+      <div class="opt-meta">{{ attachment_count }} file{{ attachment_count|pluralize }} · Format: .zip</div>
+      <a class="btn-download" href="{% url 'backup_download_media' %}">
+        <i class="fas fa-download"></i> Download All Attachments
+      </a>
+    </div>
+  </div>
+
+  <div class="notice notice-info">
+    <i class="fas fa-circle-info"></i>
+    <div>
+      Both downloads run as a single request and can take a while once there's a lot
+      of data — let the page sit until it finishes rather than clicking again. If a
+      download stops partway through as the data grows, ask whoever manages hosting
+      to raise the server's request timeout.
+    </div>
+  </div>
+</div>
+{% endblock %}

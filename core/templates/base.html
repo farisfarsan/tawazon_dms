@@ -814,6 +814,10 @@
         <a href="{% url 'client_login_access_list' %}" class="nav-sub {% if active_sub == 'settings_client_access' %}active{% endif %}"><i class="fas fa-envelope"></i> Client Login Emails</a>
       </div>
     </div>
+
+    <a href="{% url 'backup_settings' %}" class="nav-item {% if active_sub == 'settings_backup' %}active{% endif %}">
+      <i class="fas fa-cloud-arrow-down"></i> <span>Backup & Export</span>
+    </a>
     {% endif %}
 
   </aside>

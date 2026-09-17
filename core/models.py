@@ -734,7 +734,12 @@ def user_has_perm(user, module, action):
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
-    if created:
+    # raw=True means this save came from loaddata (a fixture, e.g. restoring
+    # a Backup & Export database dump) — skip it there. Without this check,
+    # restoring a backup double-creates the profile: this signal makes one
+    # via get_or_create, then the dump's own core.userprofile row for that
+    # same user fails to load with a UNIQUE constraint on user_id.
+    if created and not kwargs.get('raw'):
         UserProfile.objects.get_or_create(user=instance)
 
 

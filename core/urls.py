@@ -293,6 +293,11 @@ urlpatterns = [
     path('settings/client-access/toggle/', views.client_login_access_toggle, name='client_login_access_toggle'),
     path('settings/client-access/delete/', views.client_login_access_delete, name='client_login_access_delete'),
 
+    # Settings – Manual Backup
+    path('settings/backup/', views.backup_settings, name='backup_settings'),
+    path('settings/backup/db/', views.backup_download_db, name='backup_download_db'),
+    path('settings/backup/media/', views.backup_download_media, name='backup_download_media'),
+
     # Currency converter
     path('currency/convert/', views.currency_convert, name='currency_convert'),
 
