@@ -941,3 +941,105 @@ const STAT_COLORS = {
 - All modals: use a reusable `<Modal>` component with portal
 - Token stored in `localStorage` (`access_token`, `refresh_token`)
 - On 401 → auto-refresh → retry → if fail → redirect `/login`
+
+---
+
+## Step 14 — Production Deployment (Railway)
+
+Railway container disks are **ephemeral** — every redeploy, restart or crash
+gives the app a fresh filesystem. Nothing durable may live on it. The app is
+already stateless in the right ways (Postgres for data, R2 for attachments,
+WhiteNoise for static, gunicorn logging to stdout), but only *when the
+environment variables below are set*. Every one of them fails open in local
+dev, which is why `dashboard/settings.py` refuses to boot when `DJANGO_DEBUG=0`
+and any of them is missing.
+
+### 14.1 Required environment variables
+
+| Variable | Value | Missing in production means |
+|---|---|---|
+| `DJANGO_DEBUG` | `0` | Debug pages leak tracebacks + settings |
+| `DATABASE_URL` | auto-injected by Railway Postgres | Silent SQLite on ephemeral disk — **all data lost every redeploy** |
+| `REDIS_URL` | auto-injected by Railway Redis | Per-process cache; slow dashboard, no shared sessions |
+| `DJANGO_SECRET_KEY` | long random string | Hardcoded dev key — forgeable sessions/tokens |
+| `DJANGO_ALLOWED_HOSTS` | `dashboard.tawazonoman.com` | Answers to any Host header |
+| `AWS_STORAGE_BUCKET_NAME` | `tawazon-media` | Attachments to ephemeral disk — **uploads lost, DB rows point at nothing** |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | R2 API token pair | Uploads fail |
+| `AWS_S3_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` | django-storages talks to real AWS instead of R2 |
+| `AWS_S3_CUSTOM_DOMAIN` | `media.tawazonoman.com` | Attachment URLs bypass the CDN domain |
+| `EMAIL_HOST` | `smtp.zoho.in` | See 14.3 — must match the Zoho data center |
+| `EMAIL_HOST_PASSWORD` | Zoho **app-specific** password | Console mail backend — **no client can log into the portal**, and `send_mail()` still reports success |
+| `SENTRY_DSN` | from sentry.io | No alerts on 500s, no slow-query list |
+
+Generate a secret key with:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+### 14.2 The startup guard
+
+With `DJANGO_DEBUG=0`, settings.py collects every unsafe fallback and raises
+`ImproperlyConfigured` listing all of them at once, rather than booting into a
+state that loses data quietly. A deploy that will not start is a five-minute
+fix; silent data loss is not recoverable.
+
+To deliberately run a box on the unsafe defaults (a throwaway staging
+instance, say), set `DJANGO_ALLOW_UNSAFE_CONFIG=1`.
+
+### 14.3 Zoho Mail — data center matters
+
+`EMAIL_HOST` follows **the data center the Zoho account was registered in**,
+not where the users or clients are located. The Tawazon account is on Zoho
+India, so `smtp.zoho.in` is correct — the client being in Oman does not change
+it. Mail from an India-DC account reaches an Oman inbox normally.
+
+- Use an **app-specific password**, not the account password (Zoho rejects the
+  account password over SMTP once 2FA is on).
+- Paid Business accounts may use `smtppro.zoho.com`.
+- If Zoho ever migrates the account to another DC, update the `EMAIL_HOST`
+  variable — it is read from the environment precisely so this needs no code
+  change and no redeploy.
+
+### 14.4 SPF + DKIM (Cloudflare DNS)
+
+Without these, OTP emails are spam-filtered or dropped by the recipient's
+provider — and Django reports success, because the message left Zoho fine.
+Symptom is identical to a broken SMTP config: "the client never got the code",
+with nothing in the logs.
+
+- **SPF** — TXT on the root: `v=spf1 include:zohomail.in ~all` (`.in` to match
+  the DC). If a TXT SPF record already exists, merge the `include:` into it —
+  two separate SPF records is itself a failure.
+- **DKIM** — generate the key in Zoho Mail admin → Email Authentication, then
+  add the TXT record it gives you.
+- **DMARC** (recommended) — TXT at `_dmarc`: `v=DMARC1; p=none; rua=mailto:info@tawazonoman.com`
+  Start at `p=none` and only tighten once the reports come back clean.
+
+Verify before trusting it:
+
+```bash
+dig +short TXT tawazonoman.com
+dig +short TXT zmail._domainkey.tawazonoman.com
+```
+
+### 14.5 Backups — not on by default
+
+Postgres and R2 being managed services protects against the ephemeral disk. It
+does **not** protect against a bad migration, a wrong bulk delete, or a
+mistaken import. Both need turning on by hand, in their dashboards:
+
+- **Railway Postgres** → the Postgres service → Backups → enable scheduled
+  backups, and note the retention window.
+- **Cloudflare R2** → the bucket → Settings → enable **object versioning**, so
+  an overwritten or deleted attachment is recoverable.
+
+Test the restore path once, before the client has real data in it. An untested
+backup is not a backup.
+
+### 14.6 Domain
+
+`tawazonoman.com` is on Cloudflare. Point `dashboard.tawazonoman.com` at the
+Railway target with a single CNAME, **DNS-only (grey cloud)** to start — turn
+proxying on only after the app is confirmed working, so a proxy
+misconfiguration is never in the debugging path.

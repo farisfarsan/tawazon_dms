@@ -330,3 +330,72 @@ if _sentry_dsn:
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
         send_default_pii=False,
     )
+
+
+# ---------------------------------------------------------------------------
+# Production configuration guard.
+#
+# Every fallback above is deliberately permissive so local dev "just works":
+# no DATABASE_URL means SQLite, no media bucket means the local disk, no SMTP
+# password means the console. That is right for a laptop and dangerous on a
+# real deploy, where the container filesystem is ephemeral — a missing
+# DATABASE_URL would silently accept a week of live data into a SQLite file
+# that disappears on the next redeploy, and a missing media bucket would do
+# the same to case attachments while leaving the DB rows pointing at them.
+# Nothing raises in any of those cases, so there is no traceback to notice.
+#
+# So when DEBUG is off, refuse to boot instead of failing open. A deploy that
+# will not start is a five-minute fix; silent data loss is not recoverable.
+# Set DJANGO_ALLOW_UNSAFE_CONFIG=1 to bypass this deliberately (e.g. a staging
+# box you genuinely want on SQLite).
+# ---------------------------------------------------------------------------
+if not DEBUG and os.environ.get('DJANGO_ALLOW_UNSAFE_CONFIG', '') != '1':
+    from django.core.exceptions import ImproperlyConfigured
+
+    _problems = []
+
+    if 'sqlite' in DATABASES['default'].get('ENGINE', ''):
+        _problems.append(
+            "DATABASE_URL is not set, so the app fell back to SQLite on the "
+            "container's ephemeral disk. Every write would be lost on the next "
+            "redeploy. Attach a managed Postgres instance and set DATABASE_URL."
+        )
+
+    if SECRET_KEY == 'django-insecure-CHANGE-ME-for-local-dev-only':
+        _problems.append(
+            "DJANGO_SECRET_KEY is not set, so the hardcoded dev key is in use. "
+            "Sessions and password-reset tokens would be forgeable. Set it to a "
+            "long random value."
+        )
+
+    if not _media_bucket:
+        _problems.append(
+            "AWS_STORAGE_BUCKET_NAME is not set, so uploaded case attachments "
+            "would be written to the container's ephemeral disk and lost on the "
+            "next redeploy, while their DB rows survive pointing at nothing. "
+            "Point it at the R2/S3 bucket."
+        )
+
+    if not EMAIL_HOST_PASSWORD:
+        _problems.append(
+            "EMAIL_HOST_PASSWORD is not set, so mail goes to the console "
+            "backend. Client-portal OTP emails would never be delivered and no "
+            "client could log in — and send_mail() would still report success, "
+            "so nothing would appear in Sentry. Set a Zoho app-specific "
+            "password."
+        )
+
+    if ALLOWED_HOSTS == ['*']:
+        _problems.append(
+            "DJANGO_ALLOWED_HOSTS is not set, so the app answers to any "
+            "hostname, which allows Host-header poisoning. Set it to the real "
+            "domains, e.g. 'dashboard.tawazonoman.com'."
+        )
+
+    if _problems:
+        raise ImproperlyConfigured(
+            'Refusing to start with DEBUG=0 and an unsafe configuration:\n\n'
+            + '\n\n'.join(f'  * {p}' for p in _problems)
+            + '\n\nFix these environment variables, or set '
+              'DJANGO_ALLOW_UNSAFE_CONFIG=1 to bypass this check.\n'
+        )
