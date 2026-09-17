@@ -128,6 +128,37 @@
     .badge.refuse_to_pay  { background: #fee2e2; color: #991b1b; }
     .badge.legal_action_approved { background: #fef3c7; color: #92400e; }
 
+    /* ── Case status bar ── */
+    .status-panel { margin-bottom: 18px; }
+    .status-panel .panel-body { padding: 18px 20px 20px; }
+    .status-bar-track {
+      display: flex; height: 22px; border-radius: 4px; overflow: hidden;
+      background: #f1f5f9;
+    }
+    .status-bar-seg {
+      position: relative; height: 100%;
+      transition: filter .15s;
+    }
+    .status-bar-seg:not(:last-child) { border-right: 2px solid #fff; }
+    .status-bar-seg:hover { filter: brightness(1.08); }
+    .status-bar-seg .tip {
+      position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+      background: #0f172a; color: white; font-size: 11.5px; font-weight: 700;
+      padding: 6px 10px; border-radius: 7px; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: opacity .12s;
+      box-shadow: 0 6px 16px rgba(15,23,42,0.25); z-index: 5;
+    }
+    .status-bar-seg .tip::after {
+      content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+      border: 5px solid transparent; border-top-color: #0f172a;
+    }
+    .status-bar-seg:hover .tip { opacity: 1; }
+    .status-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; }
+    .status-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12.5px; }
+    .status-legend-item .sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .status-legend-item .lbl { color: #334155; font-weight: 600; }
+    .status-legend-item .n { color: #94a3b8; font-weight: 700; font-variant-numeric: tabular-nums; }
+
     .empty { padding: 46px 20px; text-align: center; color: #94a3b8; font-size: 13.5px; font-weight: 600; }
     .empty i { display: block; width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; background: linear-gradient(135deg,#f1f5f9,#f8fafc);
       display: flex; align-items: center; justify-content: center; font-size: 24px; color: #cbd5e1; box-shadow: inset 0 0 0 1px #e8ecf3; }
@@ -209,6 +240,33 @@
         <div class="value">{{ total_remaining|omr }}</div>
       </div>
     </div>
+
+    {% if status_breakdown %}
+    <div class="panel status-panel">
+      <div class="panel-head">
+        <span class="ico-badge"><i class="fas fa-chart-simple"></i></span>
+        <span class="title">Case Status Overview</span>
+      </div>
+      <div class="panel-body">
+        <div class="status-bar-track">
+          {% for s in status_breakdown %}
+          <div class="status-bar-seg" style="flex-basis: {{ s.pct }}%; background: {{ s.color }};">
+            <span class="tip">{{ s.label }}: {{ s.count }} ({{ s.pct }}%)</span>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="status-legend">
+          {% for s in status_breakdown %}
+          <span class="status-legend-item">
+            <span class="sw" style="background: {{ s.color }};"></span>
+            <span class="lbl">{{ s.label }}</span>
+            <span class="n">{{ s.count }}</span>
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <div class="panel">
       <div class="panel-head">

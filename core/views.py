@@ -7201,6 +7201,76 @@ def _current_client_access(request):
     return _active_or_expire(acc)
 
 
+# Fill colors for the client-portal status bar — one saturated tone per status,
+# matching the *text* color already used by the .badge classes in
+# client_portal.html (so a status reads the same color in the bar and in the
+# table below it). Two adjustments from the badge palette:
+#  - closed/closed_by_client stays a deliberately muted gray: "closed" is an
+#    inactive/terminal state and is meant to visually recede, the same
+#    de-emphasis-gray pattern used for a context series elsewhere — not an
+#    accidental low-saturation pick.
+#  - legal_action_approved is #c2410c here (the badge CSS uses #92400e) —
+#    that brown sat too close to refuse_to_pay's red for someone with a color
+#    vision deficiency to tell the two apart when their bar segments land
+#    next to each other; this is the smallest change that clears validation
+#    (validated via dataviz skill's validate_palette.js, both CVD and
+#    normal-vision adjacent-pair checks passing for all 8 in any order).
+STATUS_BAR_COLORS = {
+    'active':                 '#15803d',
+    'closed':                 '#64748b',
+    'closed_by_client':       '#64748b',
+    'broken_promise':         '#b45309',
+    'contactable':            '#1d4ed8',
+    'promise_to_pay':         '#0d9488',
+    'under_tracing':          '#6b21a8',
+    'refuse_to_pay':          '#991b1b',
+    'legal_action_approved':  '#c2410c',
+}
+STATUS_BAR_FALLBACK_COLOR = '#475569'  # any other/custom status (Settings → Case Status)
+
+
+def _status_breakdown(rows):
+    """Case count per status, for the client-portal status bar. Only counts
+    rows the client is actually allowed to see the status of (mirrors the
+    table's own can_status gate) — same reasoning as the financial totals
+    only summing can_financial rows."""
+    from collections import Counter
+    counts = Counter()
+    labels = {}
+    for row in rows:
+        if not row['perm'].can_status:
+            continue
+        status = row['case'].status
+        counts[status] += 1
+        labels[status] = row['case'].get_status_display()
+
+    total = sum(counts.values())
+    if not total:
+        return []
+
+    items = sorted(counts.items(), key=lambda kv: (-kv[1], labels[kv[0]].lower()))
+
+    # Series-count ladder: past 7 slices, fold the smallest tail into "Other"
+    # rather than seat an 8th+ distinct hue.
+    MAX_SLICES = 7
+    if len(items) > MAX_SLICES:
+        head, tail = items[:MAX_SLICES - 1], items[MAX_SLICES - 1:]
+        other_count = sum(c for _, c in tail)
+        items = head + [('__other__', other_count)]
+        labels['__other__'] = 'Other'
+
+    breakdown = []
+    for status, count in items:
+        breakdown.append({
+            'slug':  status,
+            'label': labels[status],
+            'count': count,
+            'pct':   round(count / total * 100, 1),
+            'color': STATUS_BAR_COLORS.get(status, STATUS_BAR_FALLBACK_COLOR),
+        })
+    return breakdown
+
+
 def client_portal(request):
     acc = _current_client_access(request)
     if acc is None:
@@ -7230,14 +7300,15 @@ def client_portal(request):
                    'debtor': r['case'].debtor.name if r['case'].debtor_id else ''} for r in rows]
 
     return render(request, 'client_portal.html', {
-        'access':          acc,
-        'client':          client,
-        'rows':            rows,
-        'chat_cases':      chat_cases,
-        'total_cases':     len(rows),
-        'total_approved':  total_approved,
-        'total_received':  total_received,
-        'total_remaining': total_approved - total_received,
+        'access':           acc,
+        'client':           client,
+        'rows':             rows,
+        'status_breakdown': _status_breakdown(rows),
+        'chat_cases':       chat_cases,
+        'total_cases':      len(rows),
+        'total_approved':   total_approved,
+        'total_received':   total_received,
+        'total_remaining':  total_approved - total_received,
     })
 
 
