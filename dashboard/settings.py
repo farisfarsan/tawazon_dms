@@ -304,6 +304,16 @@ else:
     # No SMTP credentials configured — print the email (and OTP) to the console.
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# smtplib has no default socket timeout, so a stalled SMTP connection (e.g.
+# the receiving host silently dropping the connection instead of refusing
+# it) hangs forever — bounded only by gunicorn's worker timeout, at which
+# point the whole worker process is SIGKILLed mid-request. With a handful
+# of workers, a run of hung OTP requests during a network hiccup can eat
+# every worker and take the entire app down, not just the client portal.
+# Fail the connection attempt fast instead, so send_mail()'s try/except in
+# the OTP view (and anywhere else mail is sent) can catch it cleanly.
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+
 # How long an OTP code stays valid, in minutes.
 CLIENT_OTP_TTL_MINUTES = int(os.environ.get('CLIENT_OTP_TTL_MINUTES', '10'))
 
