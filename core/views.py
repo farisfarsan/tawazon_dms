@@ -531,7 +531,7 @@ def client_detail_json(request, pk):
             'description': a.description or '',
             'uploaded_by': (a.uploaded_by.get_full_name() or a.uploaded_by.username) if a.uploaded_by_id else '',
             'uploaded_at': a.uploaded_at.strftime('%d-%b-%Y %H:%M'),
-            'url': a.file.url if a.file else '',
+            'url': reverse('client_attachment_view', args=[a.pk]) if a.file else '',
         }
         for a in client.attachments.select_related('uploaded_by', 'attachment_type').order_by('-uploaded_at')
     ]
@@ -6885,6 +6885,53 @@ def reminders_payments(request):
     return JsonResponse({'reminders': data[:100]})
 
 
+def _save_encrypted_attachment(model, fk_field, fk_obj, f, att_type_id, description, user):
+    """Shared by all three attachment_upload views: validate the upload is
+    a real PDF/XLSX, then store it compressed + Fernet-encrypted — never
+    the original bytes. Returns (attachment_or_None, error_message_or_None)."""
+    from django.core.files.base import ContentFile
+    from .attachment_crypto import validate_attachment_file, encrypt_bytes
+
+    error = validate_attachment_file(f)
+    if error:
+        return None, error
+
+    raw = f.read()
+    encrypted = encrypt_bytes(raw)
+    attachment = model.objects.create(**{
+        fk_field: fk_obj,
+        'file': ContentFile(encrypted, name=f.name),
+        'filename': f.name,
+        'attachment_type_id': int(att_type_id) if att_type_id else None,
+        'description': description,
+        'uploaded_by': user,
+    })
+    return attachment, None
+
+
+def _serve_decrypted_attachment(att, download):
+    """Read the encrypted blob back out of storage, decrypt it in memory,
+    and stream it to the browser — nothing decrypted ever touches disk or
+    the storage bucket. `download=True` forces a Save-As instead of
+    opening inline."""
+    import mimetypes
+    from .attachment_crypto import decrypt_bytes, CONTENT_TYPES
+
+    with att.file.open('rb') as fh:
+        encrypted = fh.read()
+    try:
+        raw = decrypt_bytes(encrypted)
+    except Exception:
+        return HttpResponse('This attachment could not be decrypted.', status=500)
+
+    ext = os.path.splitext(att.filename or '')[1].lower()
+    content_type = CONTENT_TYPES.get(ext) or mimetypes.guess_type(att.filename or '')[0] or 'application/octet-stream'
+    resp = HttpResponse(raw, content_type=content_type)
+    disposition = 'attachment' if download else 'inline'
+    resp['Content-Disposition'] = f'{disposition}; filename="{att.filename}"'
+    return resp
+
+
 @require_POST
 def case_attachment_upload(request):
     case_id = request.POST.get('case_id', '').strip()
@@ -6895,15 +6942,14 @@ def case_attachment_upload(request):
         case = Case.objects.get(pk=case_id)
     except Case.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Case not found.'})
-    att_type_id = request.POST.get('attachment_type_id', '').strip()
-    attachment = CaseAttachment.objects.create(
-        case=case,
-        file=f,
-        filename=f.name,
-        attachment_type_id=int(att_type_id) if att_type_id else None,
-        description=request.POST.get('description', '').strip(),
-        uploaded_by=request.user,
+    attachment, error = _save_encrypted_attachment(
+        CaseAttachment, 'case', case, f,
+        request.POST.get('attachment_type_id', '').strip(),
+        request.POST.get('description', '').strip(),
+        request.user,
     )
+    if error:
+        return JsonResponse({'success': False, 'message': error})
     _log_case(request, case, f'Case Attachment Added ({attachment.filename})')
     return JsonResponse({'success': True, 'message': f'File "{attachment.filename}" uploaded.', 'id': attachment.id})
 
@@ -6922,6 +6968,27 @@ def case_attachment_delete(request):
         return JsonResponse({'success': False, 'message': 'Attachment not found.'})
 
 
+def case_attachment_view(request, pk):
+    """Staff-side view/download — same session as the rest of the staff app."""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    att = get_object_or_404(CaseAttachment, pk=pk)
+    return _serve_decrypted_attachment(att, download=request.GET.get('download') == '1')
+
+
+def client_portal_case_attachment_view(request, pk):
+    """Client-portal view/download — the client's own session, gated by
+    the same can_attachments permission the portal page itself checks."""
+    acc = _current_client_access(request)
+    if acc is None:
+        return redirect('login')
+    att = get_object_or_404(CaseAttachment.objects.select_related('case'), pk=pk)
+    ca = ClientCaseAccess.objects.filter(access=acc, case=att.case).first()
+    if ca is None or not ca.can_attachments:
+        return redirect('client_portal')
+    return _serve_decrypted_attachment(att, download=request.GET.get('download') == '1')
+
+
 @require_POST
 def client_attachment_upload(request):
     client_id = request.POST.get('client_id', '').strip()
@@ -6932,15 +6999,14 @@ def client_attachment_upload(request):
         client = Client.objects.get(pk=client_id)
     except Client.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Client not found.'})
-    att_type_id = request.POST.get('attachment_type_id', '').strip()
-    attachment = ClientAttachment.objects.create(
-        client=client,
-        file=f,
-        filename=f.name,
-        attachment_type_id=int(att_type_id) if att_type_id else None,
-        description=request.POST.get('description', '').strip(),
-        uploaded_by=request.user,
+    attachment, error = _save_encrypted_attachment(
+        ClientAttachment, 'client', client, f,
+        request.POST.get('attachment_type_id', '').strip(),
+        request.POST.get('description', '').strip(),
+        request.user,
     )
+    if error:
+        return JsonResponse({'success': False, 'message': error})
     return JsonResponse({'success': True, 'message': f'File "{attachment.filename}" uploaded.', 'id': attachment.id})
 
 
@@ -6958,6 +7024,13 @@ def client_attachment_delete(request):
         return JsonResponse({'success': False, 'message': 'Attachment not found.'})
 
 
+def client_attachment_view(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    att = get_object_or_404(ClientAttachment, pk=pk)
+    return _serve_decrypted_attachment(att, download=request.GET.get('download') == '1')
+
+
 @require_POST
 def debtor_attachment_upload(request):
     debtor_id = request.POST.get('debtor_id', '').strip()
@@ -6968,15 +7041,14 @@ def debtor_attachment_upload(request):
         debtor = Debtor.objects.get(pk=debtor_id)
     except Debtor.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Debtor not found.'})
-    att_type_id = request.POST.get('attachment_type_id', '').strip()
-    attachment = DebtorAttachment.objects.create(
-        debtor=debtor,
-        file=f,
-        filename=f.name,
-        attachment_type_id=int(att_type_id) if att_type_id else None,
-        description=request.POST.get('description', '').strip(),
-        uploaded_by=request.user,
+    attachment, error = _save_encrypted_attachment(
+        DebtorAttachment, 'debtor', debtor, f,
+        request.POST.get('attachment_type_id', '').strip(),
+        request.POST.get('description', '').strip(),
+        request.user,
     )
+    if error:
+        return JsonResponse({'success': False, 'message': error})
     return JsonResponse({'success': True, 'message': f'File "{attachment.filename}" uploaded.', 'id': attachment.id})
 
 
@@ -6992,6 +7064,13 @@ def debtor_attachment_delete(request):
         return JsonResponse({'success': True, 'message': 'Attachment deleted.'})
     except DebtorAttachment.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Attachment not found.'})
+
+
+def debtor_attachment_view(request, pk):
+    if not request.user.is_authenticated:
+        return redirect('login')
+    att = get_object_or_404(DebtorAttachment, pk=pk)
+    return _serve_decrypted_attachment(att, download=request.GET.get('download') == '1')
 
 
 @require_POST

@@ -1004,10 +1004,10 @@
             <td>{% if att.uploaded_by %}{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}{% else %}—{% endif %}</td>
             <td style="color:var(--text-muted);font-size:12px;">{{ att.uploaded_at|date:"d-M-Y H:i" }}</td>
             <td style="display:flex;gap:6px;align-items:center;">
-              <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="View in browser">
+              <a href="{% url 'case_attachment_view' att.pk %}" target="_blank" rel="noopener" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="View in browser">
                 <i class="fas fa-eye"></i> View
               </a>
-              <a href="{{ att.file.url }}" download="{{ att.filename }}" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="Download file">
+              <a href="{% url 'case_attachment_view' att.pk %}?download=1" download="{{ att.filename }}" class="cd-action-btn outline" style="font-size:11px;padding:5px 10px;" title="Download file">
                 <i class="fas fa-download"></i> Download
               </a>
               <button class="pay-del-btn" onclick="deleteAttachment({{ att.pk }}, this)" title="Delete">
@@ -1311,7 +1311,7 @@
     </div>
     <div class="mo-field">
       <label>Select File *</label>
-      <input type="file" id="att-file" class="mo-input" style="padding:6px;">
+      <input type="file" id="att-file" class="mo-input" accept=".pdf,.xlsx" style="padding:6px;">
     </div>
     <div class="mo-field">
       <label>Description</label>

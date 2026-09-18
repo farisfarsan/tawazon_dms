@@ -43,6 +43,10 @@ sentry-sdk==2.20.0
 django-storages==1.14.6
 boto3==1.43.75
 
+# Attachments: symmetric encryption at rest (Fernet). Requires
+# ATTACHMENT_ENCRYPTION_KEY in the environment — see dashboard/settings.py.
+cryptography==50.0.1
+
 # Outbound email via Resend's HTTPS API. Railway blocks outbound SMTP (both
 # port 587 and 465 silently time out — confirmed 2026-09-17), so raw SMTP
 # cannot work from this host. HTTPS egress isn't blocked, so an HTTP-based

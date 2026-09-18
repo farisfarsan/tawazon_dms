@@ -285,7 +285,7 @@
             <td data-label="Type">{% if att.attachment_type %}{{ att.attachment_type.name }}{% else %}—{% endif %}</td>
             <td data-label="Description">{{ att.description|default:"—" }}</td>
             <td data-label="Date">{{ att.uploaded_at|date:"d M Y" }}</td>
-            <td><a class="dl-btn" href="{{ att.file.url }}" target="_blank" rel="noopener"><i class="fas fa-download"></i> Download</a></td>
+            <td><a class="dl-btn" href="{% url 'client_portal_case_attachment_view' att.pk %}?download=1" target="_blank" rel="noopener"><i class="fas fa-download"></i> Download</a></td>
           </tr>
           {% endfor %}
         </tbody>

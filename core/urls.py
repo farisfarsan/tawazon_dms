@@ -15,6 +15,7 @@ urlpatterns = [
     path('client-login/verify-otp/', views.client_otp_verify, name='client_otp_verify'),
     path('portal/', views.client_portal, name='client_portal'),
     path('portal/case/<int:case_id>/', views.client_portal_case, name='client_portal_case'),
+    path('portal/attachments/<int:pk>/view/', views.client_portal_case_attachment_view, name='client_portal_case_attachment_view'),
     path('portal/logout/', views.client_portal_logout, name='client_portal_logout'),
 
     # Chat (client portal ↔ staff dashboard)
@@ -319,8 +320,11 @@ urlpatterns = [
     # Case Attachments
     path('cases/attachments/upload/', views.case_attachment_upload, name='case_attachment_upload'),
     path('cases/attachments/delete/', views.case_attachment_delete, name='case_attachment_delete'),
+    path('cases/attachments/<int:pk>/view/', views.case_attachment_view, name='case_attachment_view'),
     path('clients/attachments/upload/', views.client_attachment_upload, name='client_attachment_upload'),
     path('clients/attachments/delete/', views.client_attachment_delete, name='client_attachment_delete'),
+    path('clients/attachments/<int:pk>/view/', views.client_attachment_view, name='client_attachment_view'),
     path('debtors/attachments/upload/', views.debtor_attachment_upload, name='debtor_attachment_upload'),
     path('debtors/attachments/delete/', views.debtor_attachment_delete, name='debtor_attachment_delete'),
+    path('debtors/attachments/<int:pk>/view/', views.debtor_attachment_view, name='debtor_attachment_view'),
 ]

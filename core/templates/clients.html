@@ -637,7 +637,7 @@
         <div class="wiz-row">
           <div class="wiz-group" style="flex:1;">
             <label>Select File</label>
-            <input type="file" id="w-att-file" class="wiz-input" style="padding:6px;">
+            <input type="file" id="w-att-file" class="wiz-input" accept=".pdf,.xlsx" style="padding:6px;">
           </div>
           <div style="padding-bottom:2px;">
             <button type="button" class="btn-add-contact" onclick="stageClientAttachment()" title="Add file to list">+</button>
@@ -897,7 +897,7 @@
       </div>
       <div class="mo-field">
         <label>Select File *</label>
-        <input type="file" id="ca-file" class="mo-input" style="padding:6px;">
+        <input type="file" id="ca-file" class="mo-input" accept=".pdf,.xlsx" style="padding:6px;">
       </div>
       <div class="mo-field">
         <label>Description</label>
@@ -985,7 +985,7 @@
           <a href="${a.url}" target="_blank" rel="noopener" style="color:var(--text-dark);text-decoration:none;">
             <i class="fas fa-file-alt" style="color:var(--primary);margin-right:6px;font-size:12px;"></i>${esc(a.filename)}
           </a>
-          <a class="cd-attach-icon-btn" href="${a.url}" download="${esc(a.filename)}" title="Download" style="margin-left:4px;"><i class="fas fa-download"></i></a>
+          <a class="cd-attach-icon-btn" href="${a.url}?download=1" download="${esc(a.filename)}" title="Download" style="margin-left:4px;"><i class="fas fa-download"></i></a>
         </td>
         <td style="color:var(--text-muted);font-size:11.5px;line-height:1.5;">${esc(a.uploaded_by) || '—'}<br>${esc(a.uploaded_at)}</td>
         <td><button class="cd-attach-del" onclick="deleteClientAttachment(${a.id}, this.closest('tr'))" title="Delete"><i class="fas fa-trash-alt"></i></button></td>

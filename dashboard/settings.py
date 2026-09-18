@@ -335,6 +335,22 @@ EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 CLIENT_OTP_TTL_MINUTES = int(os.environ.get('CLIENT_OTP_TTL_MINUTES', '10'))
 
 # ---------------------------------------------------------------------------
+# Case/Client/Debtor attachment encryption.
+#
+# Every attachment is compressed then Fernet-encrypted before it's written
+# to storage (R2 in production) — see core/attachment_crypto.py. Generate a
+# key once with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# and set it here. There is deliberately no default: an attachment
+# encrypted under one key is permanently unreadable under any other, so a
+# silently-generated or silently-changed key is worse than refusing to
+# start. Back this value up the same deliberate way as the database itself
+# (Settings -> Backup & Export) the moment it's generated — it is not
+# recoverable from anywhere else if lost.
+# ---------------------------------------------------------------------------
+ATTACHMENT_ENCRYPTION_KEY = os.environ.get('ATTACHMENT_ENCRYPTION_KEY', '').strip()
+
+# ---------------------------------------------------------------------------
 # Logging.
 #
 # Without this dict, Django only surfaces WARNING+ from its own loggers, and
@@ -439,6 +455,19 @@ if not DEBUG and os.environ.get('DJANGO_ALLOW_UNSAFE_CONFIG', '') != '1':
             "Set RESEND_API_KEY (SMTP is blocked outbound on Railway — "
             "confirmed 2026-09-17 — so EMAIL_HOST_PASSWORD alone will not "
             "work here even though the guard accepts it)."
+        )
+
+    if not ATTACHMENT_ENCRYPTION_KEY:
+        _problems.append(
+            "ATTACHMENT_ENCRYPTION_KEY is not set, so case/client/debtor "
+            "attachment uploads would fail outright (the upload view can't "
+            "encrypt without it). Generate one with: python -c \"from "
+            "cryptography.fernet import Fernet; "
+            "print(Fernet.generate_key().decode())\" — then back the value up "
+            "somewhere durable immediately: an attachment encrypted under one "
+            "key can never be decrypted under another, so losing this key "
+            "after it's been used means every attachment uploaded under it is "
+            "gone for good, with no recovery path."
         )
 
     if ALLOWED_HOSTS == ['*']:
