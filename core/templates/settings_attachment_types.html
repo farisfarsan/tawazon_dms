@@ -28,7 +28,7 @@
   .bulk-bar .bulk-del{background:#dc2626;color:white;}
   .bulk-bar .bulk-del:hover{background:#b91c1c;}
   .bulk-bar .bulk-clear{background:white;color:var(--text-muted);border:1px solid var(--border);}
-  .type-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .type-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;margin:1px 4px 1px 0;}
   .type-client{background:#dbeafe;color:var(--primary);}
   .type-debtor{background:#fef3c7;color:#b45309;}
   .type-case{background:#dcfce7;color:#16a34a;}
@@ -58,6 +58,10 @@
   .btn-save{background:var(--primary);color:white;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
   .btn-save:hover{background:var(--primary-dark);}
   .error-msg{color:#dc2626;font-size:12px;margin-top:4px;display:none;}
+  .type-check-group{display:flex;flex-wrap:wrap;gap:8px;}
+  .type-check{display:flex;align-items:center;gap:6px;cursor:pointer;border:1.5px solid var(--border);border-radius:20px;padding:4px 4px 4px 10px;}
+  .type-check:has(input:checked){border-color:var(--primary);background:var(--primary-light);}
+  .type-check input{cursor:pointer;width:14px;height:14px;accent-color:var(--primary);}
 {% endblock %}
 {% block content %}
 <div class="page-toolbar">
@@ -104,13 +108,15 @@
       <tr data-id="{{ at.pk }}">
         <td><input type="checkbox" class="row-check"></td>
         <td>{{ at.name }}</td>
-        <td><span class="type-badge type-{{ at.type }}">{{ at.get_type_display }}</span></td>
+        <td>
+          {% for key in at.get_type_list %}<span class="type-badge type-{{ key }}">{{ key|capfirst }}</span>{% endfor %}
+        </td>
         <td>{% if at.is_enabled %}<span class="status-badge enabled">Enabled</span>{% else %}<span class="status-badge disabled">Disabled</span>{% endif %}</td>
         <td>
           <div class="action-menu">
             <button class="action-btn-menu" onclick="toggleMenu(this)"><i class="fas fa-list"></i><i class="fas fa-chevron-down" style="font-size:10px;"></i></button>
             <div class="dropdown-menu">
-              <button class="dropdown-item" onclick="openEditModal({{ at.pk }}, '{{ at.name|escapejs }}', '{{ at.type }}')"><i class="fas fa-pen"></i> Edit</button>
+              <button class="dropdown-item" onclick="openEditModal({{ at.pk }}, '{{ at.name|escapejs }}', {{ at.get_type_list|safe }})"><i class="fas fa-pen"></i> Edit</button>
               <button class="dropdown-item" onclick="toggleItem({{ at.pk }})"><i class="fas fa-{% if at.is_enabled %}ban{% else %}check{% endif %}"></i> {% if at.is_enabled %}Disable{% else %}Enable{% endif %}</button>
               <button class="dropdown-item danger" onclick="deleteItem({{ at.pk }},'{{ at.name|escapejs }}')"><i class="fas fa-trash"></i> Delete</button>
             </div>
@@ -130,9 +136,13 @@
     <div class="form-group"><label>Name *</label><input class="form-control" id="at_name" placeholder="e.g. Agreement"></div>
     <div class="form-group">
       <label>Applies To</label>
-      <select class="form-control js-search" id="at_type">
-        {% for val, label in type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
-      </select>
+      <div class="type-check-group" id="at_type_group">
+        {% for val, label in type_choices %}
+        <label class="type-check">
+          <input type="checkbox" value="{{ val }}"> <span class="type-badge type-{{ val }}">{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
     </div>
     <div class="error-msg" id="addError"></div>
     <div class="modal-footer"><button class="btn-cancel" onclick="closeModal()">Cancel</button><button class="btn-save" id="modalSaveBtn" onclick="submitItem()">Add</button></div>
@@ -197,20 +207,25 @@ function toggleMenu(btn){document.querySelectorAll('.dropdown-menu.open').forEac
 document.addEventListener('click',e=>{if(!e.target.closest('.action-menu'))document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));});
 function toggleItem(id){fetch('{% url "attachment_type_toggle" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok)location.reload();});}
 function deleteItem(id,name){if(!confirm('Delete "'+name+'"?'))return;fetch('{% url "attachment_type_delete" %}',{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:'id='+id}).then(r=>r.json()).then(d=>{if(d.ok){const tr=tbody.querySelector('tr[data-id="'+id+'"]');if(tr)tr.remove();refreshBulkBar();}});}
+function setCheckedTypes(types){
+  document.querySelectorAll('#at_type_group input[type=checkbox]').forEach(cb => {
+    cb.checked = types.includes(cb.value);
+  });
+}
 function openAddModal(){
   document.getElementById('at_name_id').value='';
   document.getElementById('at_name').value='';
-  setSelectValue(document.getElementById('at_type'), '{{ type_choices.0.0 }}');
+  setCheckedTypes(['{{ type_choices.0.0 }}']);
   document.getElementById('modalTitle').textContent='Add Attachment Type';
   document.getElementById('modalSaveBtn').textContent='Add';
   document.getElementById('addModal').classList.add('open');
   setTimeout(()=>document.getElementById('at_name').focus(),100);
 }
-function openEditModal(id,name,type){
+function openEditModal(id,name,types){
   document.querySelectorAll('.dropdown-menu.open').forEach(m=>m.classList.remove('open'));
   document.getElementById('at_name_id').value=id;
   document.getElementById('at_name').value=name;
-  setSelectValue(document.getElementById('at_type'), type);
+  setCheckedTypes(types);
   document.getElementById('modalTitle').textContent='Edit';
   document.getElementById('modalSaveBtn').textContent='Save Changes';
   document.getElementById('addModal').classList.add('open');
@@ -220,11 +235,12 @@ function closeModal(){document.getElementById('addModal').classList.remove('open
 function submitItem(){
   const id=document.getElementById('at_name_id').value;
   const name=document.getElementById('at_name').value.trim();
-  const typeVal=document.getElementById('at_type').value;
+  const types=[...document.querySelectorAll('#at_type_group input:checked')].map(cb=>cb.value);
   if(!name){showErr('Name is required.');return;}
-  const params={name}; params['type']=typeVal; if(id) params.id=id;
+  if(!types.length){showErr('Select at least one context (Client, Debtor or Case).');return;}
+  const params=new URLSearchParams(); params.append('name', name); types.forEach(t=>params.append('type[]', t)); if(id) params.append('id', id);
   const url = id ? '{% url "attachment_type_update" %}' : '{% url "attachment_type_create" %}';
-  fetch(url,{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()}).then(r=>r.json()).then(d=>{if(d.ok){closeModal();location.reload();}else showErr(d.error);});
+  fetch(url,{method:'POST',headers:{'X-CSRFToken':CSRF,'Content-Type':'application/x-www-form-urlencoded'},body:params.toString()}).then(r=>r.json()).then(d=>{if(d.ok){closeModal();location.reload();}else showErr(d.error);});
 }
 function showErr(msg){const e=document.getElementById('addError');e.textContent=msg;e.style.display='block';}
 document.getElementById('addModal').addEventListener('click',function(e){if(e.target===this)closeModal();});

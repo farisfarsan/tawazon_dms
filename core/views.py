@@ -1454,7 +1454,7 @@ def case_detail(request, pk):
     countries     = Country.objects.filter(is_enabled=True).order_by('name')
     payment_modes = PaymentMode.objects.filter(is_enabled=True).order_by('name')
     currencies       = enabled_currencies(include_pks=[case.currency_id])
-    attachment_types = AttachmentType.objects.filter(is_enabled=True, type='case').order_by('name')
+    attachment_types = AttachmentType.objects.filter(is_enabled=True, type__contains='case').order_by('name')
     case_history  = case.case_history.select_related('action_by').order_by('-created_at')
 
     # Calculate case age from received_date (or created_at) to now
@@ -5165,31 +5165,47 @@ def attachment_types_list(request):
     })
 
 
+def _clean_attachment_types(request):
+    """POSTed type[] (or a lone legacy `type`) -> validated CSV, in
+    TYPE_CHOICES order. Returns (csv_or_None, error_or_None)."""
+    valid = {key for key, _ in AttachmentType.TYPE_CHOICES}
+    picked = request.POST.getlist('type[]') or request.POST.getlist('type')
+    picked = {t for t in picked if t in valid}
+    if not picked:
+        return None, 'Select at least one context (Client, Debtor or Case).'
+    ordered = [key for key, _ in AttachmentType.TYPE_CHOICES if key in picked]
+    return ','.join(ordered), None
+
+
 @require_POST
 def attachment_type_create(request):
     name = request.POST.get('name', '').strip()
-    t    = request.POST.get('type', 'case')
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
     if AttachmentType.objects.filter(name__iexact=name).exists():
         return JsonResponse({'ok': False, 'error': 'Type already exists.'})
-    at = AttachmentType.objects.create(name=name, type=t)
-    return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.get_type_display()})
+    type_csv, err = _clean_attachment_types(request)
+    if err:
+        return JsonResponse({'ok': False, 'error': err})
+    at = AttachmentType.objects.create(name=name, type=type_csv)
+    return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.type})
 
 
 @require_POST
 def attachment_type_update(request):
     at = get_object_or_404(AttachmentType, pk=request.POST.get('id'))
     name = request.POST.get('name', '').strip()
-    t    = request.POST.get('type', 'case')
     if not name:
         return JsonResponse({'ok': False, 'error': 'Name is required.'})
     if AttachmentType.objects.filter(name__iexact=name).exclude(pk=at.pk).exists():
         return JsonResponse({'ok': False, 'error': 'Another type already has that name.'})
+    type_csv, err = _clean_attachment_types(request)
+    if err:
+        return JsonResponse({'ok': False, 'error': err})
     at.name = name
-    at.type = t
+    at.type = type_csv
     at.save()
-    return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.get_type_display()})
+    return JsonResponse({'ok': True, 'id': at.pk, 'name': at.name, 'type': at.type})
 
 
 @require_POST

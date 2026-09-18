@@ -915,7 +915,11 @@ class AttachmentType(models.Model):
     TYPE_CHOICES = [('client', 'Client'), ('debtor', 'Debtor'), ('case', 'Case')]
 
     name       = models.CharField(max_length=100, unique=True)
-    type       = models.CharField(max_length=10, choices=TYPE_CHOICES, default='case')
+    # Comma-separated subset of TYPE_CHOICES keys, e.g. "client,case" — an
+    # attachment type can apply to more than one context at once. Stored as
+    # plain CSV rather than ArrayField so this keeps working on the SQLite
+    # fallback used for local dev, not just Postgres.
+    type       = models.CharField(max_length=30, default='case')
     is_enabled = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -924,6 +928,21 @@ class AttachmentType(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_type_list(self):
+        """['client', 'case'] from the stored 'client,case' — in
+        TYPE_CHOICES order, ignoring anything stale/unrecognised so a
+        since-removed choice can't blow up the badges/checkboxes."""
+        valid = {key for key, _ in self.TYPE_CHOICES}
+        stored = {t.strip() for t in (self.type or '').split(',') if t.strip()}
+        return [key for key, _ in self.TYPE_CHOICES if key in stored & valid]
+
+    def get_type_display_list(self):
+        labels = dict(self.TYPE_CHOICES)
+        return [labels[key] for key in self.get_type_list()]
+
+    def applies_to(self, context):
+        return context in self.get_type_list()
 
 
 class Agency(models.Model):
