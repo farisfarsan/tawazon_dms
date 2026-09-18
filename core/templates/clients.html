@@ -151,6 +151,11 @@
   .cd-contact-del { background: none; border: none; color: #dc2626; cursor: pointer; padding: 5px 7px; border-radius: 6px; visibility: hidden; }
   .cd-modal.editing .cd-contact-del { visibility: visible; }
   .cd-contact-del:hover { background: #fee2e2; }
+  /* Attachments delete is always available — unlike removing a contact,
+     deleting a file isn't part of the "edit client" flow (same as Add
+     File, which also lives outside the edit toggle). */
+  .cd-attach-del { background: none; border: none; color: #dc2626; cursor: pointer; padding: 5px 7px; border-radius: 6px; }
+  .cd-attach-del:hover { background: #fee2e2; }
   /* Add contact section */
   .cd-add-contact { display: none; border: 1.5px dashed #e2e8f0; border-radius: 10px; padding: 16px; margin-top: 16px; background: #f8fafc; }
   .cd-modal.editing .cd-add-contact { display: block; }
@@ -161,6 +166,20 @@
   .cd-empty-contacts { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
   .clickable-btn { background: none; border: none; padding: 0; color: var(--primary); font-weight: 500; cursor: pointer; font-size: inherit; font-family: inherit; }
   .clickable-btn:hover { text-decoration: underline; }
+  /* Attachments pane */
+  .cd-attach-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .cd-attach-actions { display: flex; gap: 4px; align-items: center; }
+  .cd-attach-icon-btn { background: none; border: none; color: var(--primary); cursor: pointer; padding: 5px 7px; border-radius: 6px; font-size: 13px; }
+  .cd-attach-icon-btn:hover { background: #eff6ff; }
+  .cd-empty-attach { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
+  /* Small upload modal (shares .modal-overlay with the delete/merge modals) */
+  .modal-sm { background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); animation: modalIn 0.18s; }
+  .modal-sm h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .modal-sm .mo-field { margin-bottom: 14px; }
+  .modal-sm .mo-field label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+  .modal-sm .mo-select, .modal-sm .mo-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; box-sizing: border-box; }
+  .modal-sm .mo-select:focus, .modal-sm .mo-input:focus { border-color: var(--primary); }
+  .modal-sm .mo-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 
   /* Action dropdown */
   /* action styles now shared via base.html */
@@ -611,6 +630,7 @@
         <button class="cd-tab active" id="cdTabProfile" onclick="showClientTab('profile',this)"><i class="fas fa-user"></i> Profile</button>
         <button class="cd-tab" id="cdTabAddress" onclick="showClientTab('address',this)"><i class="fas fa-map-marker-alt"></i> Address</button>
         <button class="cd-tab" id="cdTabContacts" onclick="showClientTab('contacts',this)"><i class="fas fa-address-book"></i> Contacts</button>
+        <button class="cd-tab" id="cdTabAttachments" onclick="showClientTab('attachments',this)"><i class="fas fa-paperclip"></i> Attachments</button>
       </div>
       <div class="cd-body">
 
@@ -786,6 +806,24 @@
           </div>
         </div>
 
+        <!-- ── Attachments Pane ── -->
+        <div class="cd-pane" id="cdPane-attachments">
+          <div class="cd-attach-toolbar">
+            <button type="button" class="cd-btn-add-contact" onclick="openClientAttachModal()">
+              <i class="fas fa-upload"></i> Add File
+            </button>
+          </div>
+          <table class="cd-contacts-table">
+            <thead>
+              <tr>
+                <th>Type</th><th>File <span style="font-weight:400;color:#cbd5e1;">(hover for description)</span></th><th>Uploaded</th>
+                <th class="cd-del-col"></th>
+              </tr>
+            </thead>
+            <tbody id="cdAttachmentsBody"></tbody>
+          </table>
+        </div>
+
       </div><!-- .cd-body -->
       <div class="cd-footer">
         <div class="cd-footer-view">
@@ -798,6 +836,34 @@
           <button class="cd-btn-close" onclick="cancelEdit()">Cancel</button>
           <button class="cd-btn-save" id="cdSaveBtn" onclick="saveClient()"><i class="fas fa-check"></i> Save Changes</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add File Modal -->
+  <div class="modal-overlay" id="clientAttachModal">
+    <div class="modal-sm">
+      <h3><i class="fas fa-paperclip" style="color:#7c3aed;"></i> Upload File</h3>
+      <div class="mo-field">
+        <label>Attachment Type</label>
+        <select id="ca-type" class="mo-select">
+          <option value="">— Select Type —</option>
+          {% for at in attachment_types %}
+          <option value="{{ at.pk }}">{{ at.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mo-field">
+        <label>Select File *</label>
+        <input type="file" id="ca-file" class="mo-input" style="padding:6px;">
+      </div>
+      <div class="mo-field">
+        <label>Description</label>
+        <input type="text" id="ca-description" class="mo-input" placeholder="Optional description...">
+      </div>
+      <div class="mo-actions">
+        <button class="cd-btn-close" onclick="closeModal('clientAttachModal')">Cancel</button>
+        <button class="cd-btn-save" id="ca-submit-btn" onclick="submitClientAttachment()"><i class="fas fa-upload"></i> Upload</button>
       </div>
     </div>
   </div>
@@ -863,6 +929,73 @@
     ).join('');
   }
 
+  function _renderAttachments(attachments) {
+    const tbody = document.getElementById('cdAttachmentsBody');
+    if (!attachments.length) {
+      tbody.innerHTML = `<tr><td colspan="4"><div class="cd-empty-attach"><i class="fas fa-paperclip" style="font-size:24px;margin-bottom:8px;display:block;opacity:0.3;"></i>No attachments uploaded yet</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = attachments.map(a => {
+      const titleAttr = a.description ? ` title="${esc(a.description)}"` : '';
+      return `<tr data-attachment-id="${a.id}">
+        <td>${a.type_name ? esc(a.type_name) : '<span style="color:#cbd5e1">—</span>'}</td>
+        <td${titleAttr}>
+          <a href="${a.url}" target="_blank" rel="noopener" style="color:var(--text-dark);text-decoration:none;">
+            <i class="fas fa-file-alt" style="color:var(--primary);margin-right:6px;font-size:12px;"></i>${esc(a.filename)}
+          </a>
+          <a class="cd-attach-icon-btn" href="${a.url}" download="${esc(a.filename)}" title="Download" style="margin-left:4px;"><i class="fas fa-download"></i></a>
+        </td>
+        <td style="color:var(--text-muted);font-size:11.5px;line-height:1.5;">${esc(a.uploaded_by) || '—'}<br>${esc(a.uploaded_at)}</td>
+        <td><button class="cd-attach-del" onclick="deleteClientAttachment(${a.id}, this.closest('tr'))" title="Delete"><i class="fas fa-trash-alt"></i></button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function openClientAttachModal() {
+    document.getElementById('ca-type').value = '';
+    document.getElementById('ca-file').value = '';
+    document.getElementById('ca-description').value = '';
+    document.getElementById('clientAttachModal').classList.add('show');
+  }
+
+  async function submitClientAttachment() {
+    const fileInput = document.getElementById('ca-file');
+    if (!fileInput.files.length) { showToast('Please select a file.', 'error'); return; }
+    const btn = document.getElementById('ca-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    const fd = new FormData();
+    fd.append('client_id', _currentClientPk);
+    fd.append('file', fileInput.files[0]);
+    fd.append('attachment_type_id', document.getElementById('ca-type').value);
+    fd.append('description', document.getElementById('ca-description').value.trim());
+    try {
+      const res = await fetch('{% url "client_attachment_upload" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) {
+        closeModal('clientAttachModal');
+        const d = await fetch(`/clients/${_currentClientPk}/json/`).then(r => r.json());
+        _cdData = d;
+        _renderAttachments(d.attachments);
+      }
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    }
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+  }
+
+  async function deleteClientAttachment(id, tr) {
+    if (!confirm('Delete this attachment? This cannot be undone.')) return;
+    try {
+      const res = await fetch('{% url "client_attachment_delete" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: new URLSearchParams({ id }) });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) tr.remove();
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    }
+  }
+
   async function openClientModal(pk) {
     _currentClientPk = pk;
     _cdData = null;
@@ -898,6 +1031,7 @@
       if (d.notes) { notes.textContent = d.notes; }
       else { notes.innerHTML = '<em style="color:#cbd5e1">No notes</em>'; }
       _renderContacts(d.contacts);
+      _renderAttachments(d.attachments);
     } catch {
       showToast('Failed to load client details.', 'error');
       closeClientModal();

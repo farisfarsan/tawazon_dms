@@ -1149,6 +1149,32 @@ class CaseAttachment(models.Model):
         return f"{self.filename} — {self.case}"
 
 
+class ClientAttachment(models.Model):
+    client          = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='attachments')
+    file            = models.FileField(upload_to='client_attachments/')
+    filename        = models.CharField(max_length=255, blank=True)
+    attachment_type = models.ForeignKey('AttachmentType', on_delete=models.SET_NULL, null=True, blank=True, related_name='client_attachments')
+    description     = models.CharField(max_length=255, blank=True)
+    uploaded_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='client_attachments')
+    uploaded_at     = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.filename} — {self.client}"
+
+
+class DebtorAttachment(models.Model):
+    debtor          = models.ForeignKey('Debtor', on_delete=models.CASCADE, related_name='attachments')
+    file            = models.FileField(upload_to='debtor_attachments/')
+    filename        = models.CharField(max_length=255, blank=True)
+    attachment_type = models.ForeignKey('AttachmentType', on_delete=models.SET_NULL, null=True, blank=True, related_name='debtor_attachments')
+    description     = models.CharField(max_length=255, blank=True)
+    uploaded_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='debtor_attachments')
+    uploaded_at     = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.filename} — {self.debtor}"
+
+
 class CaseHistory(models.Model):
     case       = models.ForeignKey('Case', on_delete=models.CASCADE, related_name='case_history')
     action_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='case_history_entries')

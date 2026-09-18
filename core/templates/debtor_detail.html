@@ -131,6 +131,29 @@
   .btn-wiz-next { background: var(--primary); color: white; border: none; padding: 10px 26px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; font-size: 13px; transition: background 0.2s; }
   .btn-wiz-next:hover { filter: brightness(1.08); }
   .btn-wiz-next:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Attachments card + upload modal */
+  .cd-btn-add-contact { display: inline-flex; align-items: center; gap: 7px; padding: 8px 16px; background: #f0fdf4; color: var(--primary); border: 1.5px solid #bbf7d0; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .cd-btn-add-contact:hover { background: #dcfce7; }
+  .cd-attach-actions { display: flex; gap: 4px; align-items: center; }
+  .cd-attach-icon-btn { background: none; border: none; color: var(--primary); cursor: pointer; padding: 5px 7px; border-radius: 6px; font-size: 13px; text-decoration: none; display: inline-flex; }
+  .cd-attach-icon-btn:hover { background: #eff6ff; }
+  .cd-contact-del { background: none; border: none; color: #dc2626; cursor: pointer; padding: 5px 7px; border-radius: 6px; }
+  .cd-contact-del:hover { background: #fee2e2; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-sm { background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+  .modal-sm h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .modal-sm .mo-field { margin-bottom: 14px; }
+  .modal-sm .mo-field label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 5px; }
+  .modal-sm .mo-select, .modal-sm .mo-input { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; font-family: inherit; color: var(--text-dark); background: white; box-sizing: border-box; }
+  .modal-sm .mo-select:focus, .modal-sm .mo-input:focus { border-color: var(--primary); }
+  .modal-sm .mo-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+  .cd-btn-close { padding: 10px 22px; background: white; color: var(--text-muted); border: 1px solid var(--border); border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; }
+  .cd-btn-close:hover { background: #f1f5f9; }
+  .cd-btn-save { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: filter 0.15s; }
+  .cd-btn-save:hover { filter: brightness(1.08); }
+  .cd-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 {% endblock %}
 
 {% block content %}
@@ -380,6 +403,76 @@
     {% endif %}
   </div>
 
+  <!-- Attachments -->
+  <div class="detail-card full">
+    <h4 style="display:flex;align-items:center;justify-content:space-between;">
+      <span><i class="fas fa-paperclip"></i> Attachments ({{ attachments|length }})</span>
+      <button type="button" class="cd-btn-add-contact" onclick="openDebtorAttachModal()">
+        <i class="fas fa-upload"></i> Add File
+      </button>
+    </h4>
+    {% if attachments %}
+    <table class="cases-table">
+      <thead>
+        <tr>
+          <th>Type</th><th>File Name</th><th>Description</th><th>Added By</th><th>Added On</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="debtorAttachmentsBody">
+        {% for att in attachments %}
+        <tr data-attachment-id="{{ att.pk }}">
+          <td>{% if att.attachment_type %}{{ att.attachment_type.name }}{% else %}<span style="color:#cbd5e1;">—</span>{% endif %}</td>
+          <td><i class="fas fa-file-alt" style="color:var(--primary);margin-right:6px;font-size:12px;"></i>{{ att.filename }}</td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ att.description|default:"—" }}</td>
+          <td>{% if att.uploaded_by %}{{ att.uploaded_by.get_full_name|default:att.uploaded_by.username }}{% else %}—{% endif %}</td>
+          <td style="color:var(--text-muted);font-size:12px;">{{ att.uploaded_at|date:"d-M-Y H:i" }}</td>
+          <td>
+            <div class="cd-attach-actions">
+              <a class="cd-attach-icon-btn" href="{{ att.file.url }}" target="_blank" rel="noopener" title="View"><i class="fas fa-eye"></i></a>
+              <a class="cd-attach-icon-btn" href="{{ att.file.url }}" download="{{ att.filename }}" title="Download"><i class="fas fa-download"></i></a>
+              <button class="cd-contact-del" onclick="deleteDebtorAttachment({{ att.pk }}, this.closest('tr'))" title="Delete"><i class="fas fa-trash-alt"></i></button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-sub" id="debtorAttachmentsEmpty">
+      <i class="fas fa-paperclip"></i>
+      No attachments uploaded yet.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Add File Modal -->
+<div class="modal-overlay" id="debtorAttachModal">
+  <div class="modal-sm">
+    <h3><i class="fas fa-paperclip" style="color:#7c3aed;"></i> Upload File</h3>
+    <div class="mo-field">
+      <label>Attachment Type</label>
+      <select id="da-type" class="mo-select">
+        <option value="">— Select Type —</option>
+        {% for at in attachment_types %}
+        <option value="{{ at.pk }}">{{ at.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mo-field">
+      <label>Select File *</label>
+      <input type="file" id="da-file" class="mo-input" style="padding:6px;">
+    </div>
+    <div class="mo-field">
+      <label>Description</label>
+      <input type="text" id="da-description" class="mo-input" placeholder="Optional description...">
+    </div>
+    <div class="mo-actions">
+      <button class="cd-btn-close" onclick="closeModal('debtorAttachModal')">Cancel</button>
+      <button class="cd-btn-save" id="da-submit-btn" onclick="submitDebtorAttachment()"><i class="fas fa-upload"></i> Upload</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===== EDIT DEBTOR WIZARD — same 3-step UI as the Add Debtor wizard ===== -->
@@ -652,6 +745,48 @@
 <script>
   const csrfToken = '{{ csrf_token }}';
   const updateUrl = '{% url "debtor_update" debtor.pk %}';
+
+  function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+  function openDebtorAttachModal() {
+    document.getElementById('da-type').value = '';
+    document.getElementById('da-file').value = '';
+    document.getElementById('da-description').value = '';
+    document.getElementById('debtorAttachModal').classList.add('show');
+  }
+
+  async function submitDebtorAttachment() {
+    const fileInput = document.getElementById('da-file');
+    if (!fileInput.files.length) { showToast('Please select a file.', 'error'); return; }
+    const btn = document.getElementById('da-submit-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    const fd = new FormData();
+    fd.append('debtor_id', '{{ debtor.pk }}');
+    fd.append('file', fileInput.files[0]);
+    fd.append('attachment_type_id', document.getElementById('da-type').value);
+    fd.append('description', document.getElementById('da-description').value.trim());
+    try {
+      const res = await fetch('{% url "debtor_attachment_upload" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) setTimeout(() => location.reload(), 900);
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    }
+    btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload"></i> Upload';
+  }
+
+  async function deleteDebtorAttachment(id, tr) {
+    if (!confirm('Delete this attachment? This cannot be undone.')) return;
+    try {
+      const res = await fetch('{% url "debtor_attachment_delete" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: new URLSearchParams({ id }) });
+      const data = await res.json();
+      showToast(data.message, data.success ? 'success' : 'error');
+      if (data.success) tr.remove();
+    } catch {
+      showToast('Network error. Please try again.', 'error');
+    }
+  }
   const INDIVIDUAL_STATUSES = {{ individual_statuses|safe }};
   const ORG_STATUSES = {{ org_statuses|safe }};
   const INITIAL_EMP_PHONES = [{% for ep in emp_phones %}['{{ ep.number|escapejs }}', '{{ ep.code|escapejs }}'],{% endfor %}];

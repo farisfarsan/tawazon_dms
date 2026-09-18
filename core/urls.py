@@ -319,4 +319,8 @@ urlpatterns = [
     # Case Attachments
     path('cases/attachments/upload/', views.case_attachment_upload, name='case_attachment_upload'),
     path('cases/attachments/delete/', views.case_attachment_delete, name='case_attachment_delete'),
+    path('clients/attachments/upload/', views.client_attachment_upload, name='client_attachment_upload'),
+    path('clients/attachments/delete/', views.client_attachment_delete, name='client_attachment_delete'),
+    path('debtors/attachments/upload/', views.debtor_attachment_upload, name='debtor_attachment_upload'),
+    path('debtors/attachments/delete/', views.debtor_attachment_delete, name='debtor_attachment_delete'),
 ]

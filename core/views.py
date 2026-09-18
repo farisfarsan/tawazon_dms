@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from django.core.validators import validate_email as django_validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.cache import cache
-from .models import Client, ClientContact, Debtor, DebtorContact, Case, Payment, FollowUp, CaseGroup, LegalCase, UserProfile, UserGroup, Country, State, Currency, CaseType, CaseStatus, LegalCaseStatus, LegalFeeType, FollowupType, PaymentMode, ClientType, ContractType, ContactType, AttachmentType, Agency, Lawyer, ContactDirectory, ActivityLog, ClientLoginAccess, ClientLoginOTP, ClientCaseAccess, ClientLoginLog, Reminder, Todo, DebtorStatusOption, DebtorRelatedCompany, CaseAttachment, CaseHistory, AttendanceSession, LegalFee, ChatMessage, PERMISSION_MODULES, PERMISSION_ACTIONS, _clean_perm_map, user_has_perm, case_status_color_map
+from .models import Client, ClientContact, Debtor, DebtorContact, Case, Payment, FollowUp, CaseGroup, LegalCase, UserProfile, UserGroup, Country, State, Currency, CaseType, CaseStatus, LegalCaseStatus, LegalFeeType, FollowupType, PaymentMode, ClientType, ContractType, ContactType, AttachmentType, Agency, Lawyer, ContactDirectory, ActivityLog, ClientLoginAccess, ClientLoginOTP, ClientCaseAccess, ClientLoginLog, Reminder, Todo, DebtorStatusOption, DebtorRelatedCompany, CaseAttachment, ClientAttachment, DebtorAttachment, CaseHistory, AttendanceSession, LegalFee, ChatMessage, PERMISSION_MODULES, PERMISSION_ACTIONS, _clean_perm_map, user_has_perm, case_status_color_map
 from .forms import ClientForm, ClientContactForm
 from .currencies import enabled_currencies
 
@@ -384,6 +384,7 @@ def clients(request):
         'page_size': show,
         'page_size_options': page_size_options,
         'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
+        'attachment_types': AttachmentType.objects.filter(is_enabled=True, type__contains='client').order_by('name'),
     })
 
 
@@ -522,6 +523,18 @@ def client_detail_json(request, pk):
         }
         for c in client.contacts.filter(enabled=True).order_by('name')
     ]
+    attachments = [
+        {
+            'id': a.pk,
+            'filename': a.filename,
+            'type_name': a.attachment_type.name if a.attachment_type_id else '',
+            'description': a.description or '',
+            'uploaded_by': (a.uploaded_by.get_full_name() or a.uploaded_by.username) if a.uploaded_by_id else '',
+            'uploaded_at': a.uploaded_at.strftime('%d-%b-%Y %H:%M'),
+            'url': a.file.url if a.file else '',
+        }
+        for a in client.attachments.select_related('uploaded_by', 'attachment_type').order_by('-uploaded_at')
+    ]
     return JsonResponse({
         'id': client.pk,
         'client_id': client.client_id or '',
@@ -544,6 +557,7 @@ def client_detail_json(request, pk):
         'status_class': client.status,
         'status_raw': client.status,
         'contacts': contacts,
+        'attachments': attachments,
     })
 
 
@@ -1091,11 +1105,15 @@ def debtor_detail(request, pk):
         emp_phones = [{'code': default_code, 'number': ''}]
     individual_statuses = list(DebtorStatusOption.objects.filter(debtor_type='individual', is_enabled=True).values('name', 'order'))
     org_statuses = list(DebtorStatusOption.objects.filter(debtor_type='organization', is_enabled=True).values('name', 'order'))
+    attachments = debtor.attachments.select_related('uploaded_by', 'attachment_type').order_by('-uploaded_at')
+    attachment_types = AttachmentType.objects.filter(is_enabled=True, type__contains='debtor').order_by('name')
     return render(request, 'debtor_detail.html', {
         'active_page': 'debtors',
         'debtor': debtor,
         'cases': cases,
         'contacts': contacts,
+        'attachments': attachments,
+        'attachment_types': attachment_types,
         'all_users': all_users,
         'all_countries': all_countries,
         'phone_code': phone_code, 'phone_number': phone_number,
@@ -6900,6 +6918,78 @@ def case_attachment_delete(request):
         att.delete()
         return JsonResponse({'success': True, 'message': 'Attachment deleted.'})
     except CaseAttachment.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Attachment not found.'})
+
+
+@require_POST
+def client_attachment_upload(request):
+    client_id = request.POST.get('client_id', '').strip()
+    f = request.FILES.get('file')
+    if not client_id or not f:
+        return JsonResponse({'success': False, 'message': 'Client and file are required.'})
+    try:
+        client = Client.objects.get(pk=client_id)
+    except Client.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Client not found.'})
+    att_type_id = request.POST.get('attachment_type_id', '').strip()
+    attachment = ClientAttachment.objects.create(
+        client=client,
+        file=f,
+        filename=f.name,
+        attachment_type_id=int(att_type_id) if att_type_id else None,
+        description=request.POST.get('description', '').strip(),
+        uploaded_by=request.user,
+    )
+    return JsonResponse({'success': True, 'message': f'File "{attachment.filename}" uploaded.', 'id': attachment.id})
+
+
+@require_POST
+def client_attachment_delete(request):
+    att_id = request.POST.get('id', '').strip()
+    if not att_id:
+        return JsonResponse({'success': False, 'message': 'Attachment ID required.'})
+    try:
+        att = ClientAttachment.objects.get(pk=att_id)
+        att.file.delete(save=False)
+        att.delete()
+        return JsonResponse({'success': True, 'message': 'Attachment deleted.'})
+    except ClientAttachment.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Attachment not found.'})
+
+
+@require_POST
+def debtor_attachment_upload(request):
+    debtor_id = request.POST.get('debtor_id', '').strip()
+    f = request.FILES.get('file')
+    if not debtor_id or not f:
+        return JsonResponse({'success': False, 'message': 'Debtor and file are required.'})
+    try:
+        debtor = Debtor.objects.get(pk=debtor_id)
+    except Debtor.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Debtor not found.'})
+    att_type_id = request.POST.get('attachment_type_id', '').strip()
+    attachment = DebtorAttachment.objects.create(
+        debtor=debtor,
+        file=f,
+        filename=f.name,
+        attachment_type_id=int(att_type_id) if att_type_id else None,
+        description=request.POST.get('description', '').strip(),
+        uploaded_by=request.user,
+    )
+    return JsonResponse({'success': True, 'message': f'File "{attachment.filename}" uploaded.', 'id': attachment.id})
+
+
+@require_POST
+def debtor_attachment_delete(request):
+    att_id = request.POST.get('id', '').strip()
+    if not att_id:
+        return JsonResponse({'success': False, 'message': 'Attachment ID required.'})
+    try:
+        att = DebtorAttachment.objects.get(pk=att_id)
+        att.file.delete(save=False)
+        att.delete()
+        return JsonResponse({'success': True, 'message': 'Attachment deleted.'})
+    except DebtorAttachment.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Attachment not found.'})
 
 
