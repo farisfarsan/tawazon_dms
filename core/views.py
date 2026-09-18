@@ -914,6 +914,7 @@ def debtors(request):
         'individual_statuses': individual_statuses,
         'org_statuses': org_statuses,
         'all_countries': Country.objects.filter(is_enabled=True).order_by('name'),
+        'attachment_types': AttachmentType.objects.filter(is_enabled=True, type__contains='debtor').order_by('name'),
     })
 
 

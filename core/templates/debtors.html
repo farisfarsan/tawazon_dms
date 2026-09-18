@@ -113,6 +113,13 @@
   .contact-phone-type-row .cpr-number { flex: 1; }
   .contact-phone-type-row .cpr-remove { position: absolute; top: 8px; right: 8px; background: #fee2e2; color: #dc2626; border: none; border-radius: 7px; width: 26px; height: 26px; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
   .contact-phone-type-row .cpr-remove:hover { background: #fecaca; }
+  /* Staged attachments (Add/Edit Debtor wizard, Attachments step) */
+  .staged-att-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .staged-att-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+  .staged-att-name { flex: 1; color: var(--text-dark); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .staged-att-type { font-size: 11px; font-weight: 600; color: var(--primary); background: var(--primary-light); padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
+  .staged-att-remove { background: none; border: none; color: #dc2626; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .staged-att-remove:hover { background: #fee2e2; }
   .wiz-add-row-btn { background: none; border: 1.5px dashed var(--primary); color: var(--primary); padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; }
   .wiz-add-row-btn:hover { background: #eff6ff; }
   .wiz-add-row-btn.small { padding: 5px 12px; font-size: 12px; margin-top: 0; }
@@ -408,6 +415,11 @@
           <div class="wiz-circle" id="wc3">3</div>
           <div class="wiz-label" id="wl3">Debtor Contact data</div>
         </div>
+        <div class="wiz-connector" id="wcon3"></div>
+        <div class="wiz-step">
+          <div class="wiz-circle" id="wc4">4</div>
+          <div class="wiz-label" id="wl4">Attachments</div>
+        </div>
       </div>
 
       <!-- Step 1: Profile -->
@@ -629,6 +641,36 @@
         </div>
       </div>
 
+      <!-- Step 4: Attachments -->
+      <div class="wiz-body" id="wb4" style="display:none">
+        <p style="color:var(--text-muted); font-size:13px; margin-bottom:18px;" id="wb4-hint">Optional — files upload right after you save. Add as many as you need.</p>
+        <div class="wiz-row">
+          <div class="wiz-group">
+            <label>Attachment Type</label>
+            <select id="w-att-type" class="wiz-input">
+              <option value="">— Select Type —</option>
+              {% for at in attachment_types %}
+              <option value="{{ at.pk }}">{{ at.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="wiz-group">
+            <label>Description</label>
+            <input type="text" id="w-att-description" class="wiz-input" placeholder="Optional description...">
+          </div>
+        </div>
+        <div class="wiz-row">
+          <div class="wiz-group" style="flex:1;">
+            <label>Select File</label>
+            <input type="file" id="w-att-file" class="wiz-input" style="padding:6px;">
+          </div>
+          <div style="padding-bottom:2px;">
+            <button type="button" class="wiz-add-row-btn small" onclick="stageDebtorAttachment()" title="Add file to list"><i class="fas fa-plus"></i></button>
+          </div>
+        </div>
+        <div id="stagedAttachmentsList" class="staged-att-list"></div>
+      </div>
+
       <div class="wiz-nav">
         <button class="btn-wiz-prev" id="wiz-prev-btn" onclick="wizardPrev()" disabled>
           <i class="fas fa-arrow-left"></i> PREVIOUS
@@ -802,6 +844,12 @@
 
   function closeModal(id) {
     document.getElementById(id).classList.remove('show');
+  }
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s == null ? '' : String(s);
+    return d.innerHTML;
   }
 
   function showToast(message, type = 'success') {
@@ -1106,12 +1154,50 @@
   let wizardStep = 1;
   let wizardMode = 'add';
   let wizardPk = null;
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
   const stepIcons = {
     1: '<i class="fas fa-pen"></i>',
     2: '<i class="fas fa-building"></i>',
     3: '<i class="fas fa-address-book"></i>',
+    4: '<i class="fas fa-paperclip"></i>',
   };
+
+  // Files picked during the wizard, before the debtor (and its id) exist
+  // yet — uploaded one by one right after creation/update succeeds.
+  let stagedAttachments = [];
+
+  function stageDebtorAttachment() {
+    const fileInput = document.getElementById('w-att-file');
+    if (!fileInput.files.length) { showToast('Choose a file first.', 'error'); return; }
+    const typeSel = document.getElementById('w-att-type');
+    stagedAttachments.push({
+      file: fileInput.files[0],
+      typeId: typeSel.value,
+      typeLabel: typeSel.options[typeSel.selectedIndex]?.text || '',
+      description: document.getElementById('w-att-description').value.trim(),
+    });
+    fileInput.value = '';
+    document.getElementById('w-att-description').value = '';
+    _renderStagedAttachments();
+  }
+
+  function removeStagedAttachment(idx) {
+    stagedAttachments.splice(idx, 1);
+    _renderStagedAttachments();
+  }
+
+  function _renderStagedAttachments() {
+    const el = document.getElementById('stagedAttachmentsList');
+    if (!el) return;
+    if (!stagedAttachments.length) { el.innerHTML = ''; return; }
+    el.innerHTML = stagedAttachments.map((a, i) => `
+      <div class="staged-att-row">
+        <i class="fas fa-file-alt" style="color:var(--primary);"></i>
+        <span class="staged-att-name">${esc(a.file.name)}</span>
+        ${a.typeId ? `<span class="staged-att-type">${esc(a.typeLabel)}</span>` : ''}
+        <button type="button" class="staged-att-remove" onclick="removeStagedAttachment(${i})" title="Remove"><i class="fas fa-times"></i></button>
+      </div>`).join('');
+  }
 
   const wizardFieldIds = [
     'w-first-name','w-middle-name','w-last-name','w-phone','w-telephone',
@@ -1146,6 +1232,11 @@
     resetEmpPhoneRows();
     onOrgChange();
     document.getElementById('wizTitle').textContent = 'Add Debtor';
+    stagedAttachments = [];
+    _renderStagedAttachments();
+    document.getElementById('w-att-type').value = '';
+    document.getElementById('w-att-description').value = '';
+    document.getElementById('w-att-file').value = '';
     updateWizardUI();
     document.getElementById('addDebtorModal').classList.add('show');
   }
@@ -1155,6 +1246,11 @@
     wizardPk = pk;
     wizardStep = 1;
     hideNameSuggest();
+    stagedAttachments = [];
+    _renderStagedAttachments();
+    document.getElementById('w-att-type').value = '';
+    document.getElementById('w-att-description').value = '';
+    document.getElementById('w-att-file').value = '';
     document.getElementById('wizTitle').textContent = 'Edit Debtor';
     document.getElementById('addDebtorModal').classList.add('show');
     // clear first then fill after fetch
@@ -1423,6 +1519,26 @@
         body: fd,
       });
       const data = await res.json();
+      const debtorId = wizardMode === 'edit' ? wizardPk : data.id;
+
+      if (data.success && stagedAttachments.length && debtorId) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading files...';
+        for (const a of stagedAttachments) {
+          const afd = new FormData();
+          afd.append('debtor_id', debtorId);
+          afd.append('file', a.file);
+          afd.append('attachment_type_id', a.typeId);
+          afd.append('description', a.description);
+          try {
+            await fetch('{% url "debtor_attachment_upload" %}', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: afd });
+          } catch {
+            // The debtor itself saved fine; a failed attachment upload here
+            // isn't worth blocking on — it can always be added again from
+            // the debtor's own Attachments card afterwards.
+          }
+        }
+      }
+
       closeAddModal();
       showToast(data.message, data.success ? 'success' : 'error');
       if (data.success) {
